@@ -18,6 +18,11 @@ export const CanonicalSectionItemSchema = z.object({
     sentence_ids: z.array(z.number().int().nonnegative()),
 });
 
+export const GroundedTextSchema = z.object({
+    text: z.string(),
+    sentence_ids: z.array(z.number().int().nonnegative()),
+});
+
 export const ProblemAndMotivationSchema = z.object({
     central_problems: z.array(CanonicalSectionItemSchema),
     origins: z.array(CanonicalSectionItemSchema),
@@ -33,9 +38,9 @@ export const LandscapeSchema = z.object({
 export const ContributionItemSchema = z.object({
     statement: z.string(),
     sentence_ids: z.array(z.number().int().nonnegative()),
-    prior_state: z.string(),
-    novelty: z.string(),
-    nontriviality: z.string(),
+    prior_state: GroundedTextSchema,
+    novelty: GroundedTextSchema,
+    nontriviality: GroundedTextSchema,
 });
 
 export const ContributionsSchema = z.object({

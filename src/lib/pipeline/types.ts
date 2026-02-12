@@ -45,9 +45,18 @@ export type Landscape = {
 export type ContributionItem = {
     statement: string;
     sentence_ids: number[];
-    prior_state: string;
-    novelty: string;
-    nontriviality: string;
+    prior_state: {
+        text: string;
+        sentence_ids: number[];
+    };
+    novelty: {
+        text: string;
+        sentence_ids: number[];
+    };
+    nontriviality: {
+        text: string;
+        sentence_ids: number[];
+    };
 };
 
 export type Contributions = {

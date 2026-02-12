@@ -42,6 +42,20 @@ function extractDocumentTitle(latex: string): string | null {
     return title;
 }
 
+function extractAbstract(latex: string): string | null {
+    const envMatch = latex.match(/\\begin\{abstract\}([\s\S]*?)\\end\{abstract\}/);
+    const cmdMatch = latex.match(/\\abstract\s*\{([\s\S]*?)\}/);
+    const raw = envMatch?.[1] ?? cmdMatch?.[1];
+    if (!raw) return null;
+    let abstract = raw
+        .replace(/\\[a-zA-Z*]+(?:\[[^\]]*\])?/g, '')
+        .replace(/[{}]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    if (!abstract) return null;
+    return abstract;
+}
+
 export async function POST(req: Request) {
     const requestId = crypto.randomUUID();
     const logger = createLogger({ requestId, route: '/api/analyze/stream' });
@@ -69,6 +83,7 @@ export async function POST(req: Request) {
                 }
                 const latex = await file.text();
                 const document_title = extractDocumentTitle(latex);
+                const abstract = extractAbstract(latex);
 
                 // Phase 0: deterministic preprocessing + segmentation
                 logger.info('stream:preprocess:start', { chars: latex.length });
@@ -154,6 +169,8 @@ export async function POST(req: Request) {
                 const { sections, sections_concatenated_text } = await runPass2(sentences, labels, {
                     concurrency: 5,
                     logger,
+                    document_title: document_title ?? undefined,
+                    abstract: abstract ?? undefined,
                 });
                 send('sections', { sections, sections_concatenated_text });
 
