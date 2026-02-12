@@ -1,0 +1,62 @@
+import { z } from 'zod';
+
+import { DISCOURSE_LABELS } from './pipeline/types';
+
+export const DiscourseLabelSchema = z.enum(DISCOURSE_LABELS);
+
+/** Pass 1 output schema: { "101": ["Problem", ...], ... } (only sentences with >= 1 label) */
+export const SentenceLabelMapSchema = z.record(z.array(DiscourseLabelSchema));
+
+export const SentenceSchema = z.object({
+    id: z.number().int().nonnegative(),
+    text: z.string(),
+    position: z.number().int().nonnegative(),
+});
+
+export const CanonicalSectionItemSchema = z.object({
+    description: z.string(),
+    sentence_ids: z.array(z.number().int().nonnegative()),
+});
+
+export const ProblemAndMotivationSchema = z.object({
+    central_problems: z.array(CanonicalSectionItemSchema),
+    origins: z.array(CanonicalSectionItemSchema),
+    nontriviality: z.array(CanonicalSectionItemSchema),
+});
+
+export const LandscapeSchema = z.object({
+    known_results: z.array(CanonicalSectionItemSchema),
+    limitations: z.array(CanonicalSectionItemSchema),
+    competing_approaches: z.array(CanonicalSectionItemSchema),
+});
+
+export const ContributionItemSchema = z.object({
+    statement: z.string(),
+    sentence_ids: z.array(z.number().int().nonnegative()),
+    prior_state: z.string(),
+    novelty: z.string(),
+    nontriviality: z.string(),
+});
+
+export const ContributionsSchema = z.object({
+    contributions: z.array(ContributionItemSchema),
+});
+
+export const TechnicalCoreSchema = z.object({
+    key_ideas: z.array(CanonicalSectionItemSchema),
+    technical_obstacles: z.array(CanonicalSectionItemSchema),
+    reusable_constructions: z.array(CanonicalSectionItemSchema),
+});
+
+export const ConsequencesSchema = z.object({
+    open_questions: z.array(CanonicalSectionItemSchema),
+    speculative_extensions: z.array(CanonicalSectionItemSchema),
+});
+
+export const CanonicalSectionsSchema = z.object({
+    problem_and_motivation: ProblemAndMotivationSchema,
+    landscape: LandscapeSchema,
+    contributions: ContributionsSchema,
+    technical_core: TechnicalCoreSchema,
+    consequences: ConsequencesSchema,
+});
