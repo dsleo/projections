@@ -1,5 +1,6 @@
 import type { AnalysisResult } from './types';
 
+import { buildCitationData } from './citations';
 import { mapSentencesToOriginal, preprocessLatexWithMap } from './preprocess';
 import { segmentSentences } from './segment';
 import { buildSlidingWindows } from './windows';
@@ -54,6 +55,8 @@ export async function analyzeLatex(
     );
     const { sections, sections_concatenated_text } = pass2;
 
+    const { sentence_citations, citations } = buildCitationData(latex, sentences, labels);
+
     logger.info('analyze:done', {
         sentences: sentences.length,
         labeledSentences: Object.keys(labels).length,
@@ -65,6 +68,8 @@ export async function analyzeLatex(
         preprocessed_latex,
         sentences,
         labels,
+        sentence_citations,
+        citations,
         sections,
         sections_concatenated_text,
     };

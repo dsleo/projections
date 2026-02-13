@@ -82,6 +82,17 @@ export type CanonicalSections = {
     consequences: Consequences;
 };
 
+export type CitationEntry = {
+    key: string;
+    label?: string;
+    text: string;
+    labels: DiscourseLabel[];
+    sentence_ids: number[];
+};
+
+export type CitationMap = Record<string, CitationEntry>;
+export type SentenceCitationMap = Record<string, string[]>;
+
 export type AnalysisResult = {
     document_title?: string;
     filename?: string;
@@ -89,6 +100,8 @@ export type AnalysisResult = {
     preprocessed_latex: string;
     sentences: Sentence[];
     labels: SentenceLabelMap;
+    sentence_citations: SentenceCitationMap;
+    citations: CitationMap;
     sections: CanonicalSections;
     sections_concatenated_text: string;
 };

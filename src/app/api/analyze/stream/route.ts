@@ -1,5 +1,6 @@
 import { createLogger } from '@/lib/logging';
 import type { DiscourseLabel, SentenceLabelMap } from '@/lib/pipeline/types';
+import { buildCitationData } from '@/lib/pipeline/citations';
 import { mapSentencesToOriginal, preprocessLatexWithMap } from '@/lib/pipeline/preprocess';
 import { segmentSentences } from '@/lib/pipeline/segment';
 import { buildSlidingWindows } from '@/lib/pipeline/windows';
@@ -172,7 +173,8 @@ export async function POST(req: Request) {
                     document_title: document_title ?? undefined,
                     abstract: abstract ?? undefined,
                 });
-                send('sections', { sections, sections_concatenated_text });
+                const { sentence_citations, citations } = buildCitationData(latex, sentences, labels);
+                send('sections', { sections, sections_concatenated_text, sentence_citations, citations });
 
                 // Final result
                 send('done', {
@@ -182,6 +184,8 @@ export async function POST(req: Request) {
                     preprocessed_latex,
                     sentences,
                     labels,
+                    sentence_citations,
+                    citations,
                     sections,
                     sections_concatenated_text,
                 });

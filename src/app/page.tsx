@@ -68,10 +68,11 @@ export default function Home() {
   const [processingWindows, setProcessingWindows] = useState<Array<{ start: number; end: number }>>(
     []
   );
-  const [activeTab, setActiveTab] = useState<'problem' | 'landscape' | 'contrib' | 'tech' | 'cons'>(
-    'problem'
-  );
+  const [activeTab, setActiveTab] = useState<
+    'problem' | 'landscape' | 'contrib' | 'tech' | 'cons' | 'cites'
+  >('problem');
   const [highlightedIds, setHighlightedIds] = useState<number[]>([]);
+  const [focusedCitationKeys, setFocusedCitationKeys] = useState<string[]>([]);
   const textDetailsRef = useRef<HTMLDetailsElement | null>(null);
 
   useEffect(() => {
@@ -79,7 +80,11 @@ export default function Home() {
       const cached = localStorage.getItem(LS_KEY);
       if (!cached) return;
       const parsed = JSON.parse(cached) as AnalysisResult;
-      setResult(parsed);
+      setResult({
+        ...parsed,
+        sentence_citations: parsed.sentence_citations ?? {},
+        citations: parsed.citations ?? {},
+      });
       setStatus({ kind: 'done' });
     } catch {
       // ignore
@@ -132,6 +137,8 @@ export default function Home() {
       let labels: AnalysisResult['labels'] = {};
       let sections: AnalysisResult['sections'] | null = null;
       let sections_concatenated_text = '';
+      let sentence_citations: AnalysisResult['sentence_citations'] = {};
+      let citations: AnalysisResult['citations'] = {};
       let document_title = '';
       let filename = '';
 
@@ -145,6 +152,8 @@ export default function Home() {
           preprocessed_latex,
           sentences,
           labels,
+          sentence_citations,
+          citations,
           sections,
           sections_concatenated_text,
         });
@@ -169,6 +178,8 @@ export default function Home() {
           labels = {};
           sections = null;
           sections_concatenated_text = '';
+          sentence_citations = {};
+          citations = {};
           setProcessingWindows([]);
           setStatus({ kind: 'analyzing', message: `Segmented ${sentences.length} sentences…` });
           setResult({
@@ -178,6 +189,8 @@ export default function Home() {
             preprocessed_latex,
             sentences,
             labels,
+            sentence_citations,
+            citations,
             sections: {
               problem_and_motivation: { central_problems: [], origins: [], nontriviality: [] },
               landscape: { known_results: [], limitations: [], competing_approaches: [] },
@@ -224,6 +237,9 @@ export default function Home() {
         if (event === 'sections') {
           sections = dataObj?.sections as AnalysisResult['sections'];
           sections_concatenated_text = (dataObj?.sections_concatenated_text as string | undefined) ?? '';
+          sentence_citations =
+            (dataObj?.sentence_citations as AnalysisResult['sentence_citations'] | undefined) ?? {};
+          citations = (dataObj?.citations as AnalysisResult['citations'] | undefined) ?? {};
           applyPartialResult();
         }
 
@@ -305,6 +321,50 @@ export default function Home() {
     }
     return segments;
   }, [result]);
+
+  const getCitationEntries = (keys: string[]) => {
+    if (!result) return [];
+    if (!result.citations) return [];
+    return keys.map((k) => result.citations?.[k]).filter(Boolean);
+  };
+
+  const formatCitationLabel = (entry: AnalysisResult['citations'][string]) => {
+    if (entry.label?.trim()) return entry.label.trim();
+    if (entry.text) {
+      const year = entry.text.match(/\b(19|20)\d{2}\b/)?.[0];
+      const author = entry.text.split(',')[0]?.trim();
+      if (author && year) return `${author} ${year}`;
+      if (author) return author;
+    }
+    return entry.key;
+  };
+
+  const getCitationsForSentenceIds = (ids: number[]) => {
+    if (!result || !result.sentence_citations) return [];
+    const keySet = new Set<string>();
+    for (const id of ids) {
+      const keys = result.sentence_citations?.[String(id)] ?? [];
+      for (const key of keys) keySet.add(key);
+    }
+    return getCitationEntries(Array.from(keySet));
+  };
+
+  const renderCitationAction = (ids: number[]) => {
+    const entries = getCitationsForSentenceIds(ids);
+    if (entries.length === 0) return null;
+    return (
+      <button
+        className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
+        onClick={() => {
+          setFocusedCitationKeys(entries.map((e) => e.key));
+          setActiveTab('cites');
+        }}
+        type="button"
+      >
+        View citations
+      </button>
+    );
+  };
 
   const renderEmpty = (label: string) => (
     <div className="text-xs text-zinc-500">{label}</div>
@@ -411,6 +471,9 @@ export default function Home() {
                       return <span key={`plain-${idx}`}>{seg.text}</span>;
                     }
                     const labels = result.labels[String(seg.sentence.id)] ?? [];
+                    const citationKeys =
+                      result.sentence_citations?.[String(seg.sentence.id)] ?? [];
+                    const citationEntries = getCitationEntries(citationKeys);
                     const isProcessing = isSentenceProcessing(seg.sentence.position);
                     const isHighlighted = highlightedIds.includes(seg.sentence.id);
                     return (
@@ -428,6 +491,19 @@ export default function Home() {
                           <span className="ml-1 inline-flex gap-1 align-middle">
                             {labels.map((l) => (
                               <LabelPill key={l} label={l} />
+                            ))}
+                          </span>
+                        )}
+                        {citationEntries.length > 0 && (
+                          <span className="ml-1 inline-flex gap-1 align-middle">
+                            {citationEntries.map((entry) => (
+                              <span
+                                key={`cite-${seg.sentence.id}-${entry.key}`}
+                                className="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] text-zinc-600 bg-white"
+                                title={entry.text || entry.key}
+                              >
+                                {formatCitationLabel(entry)}
+                              </span>
                             ))}
                           </span>
                         )}
@@ -455,6 +531,7 @@ export default function Home() {
                       { id: 'contrib', label: 'Contributions' },
                       { id: 'tech', label: 'Technical Core' },
                       { id: 'cons', label: 'Consequences' },
+                      { id: 'cites', label: 'Citations' },
                     ].map((tab) => (
                       <button
                         key={tab.id}
@@ -475,9 +552,6 @@ export default function Home() {
                   <div className="rounded-md border bg-white p-3 max-h-[38vh] overflow-auto">
                     {activeTab === 'problem' && (
                       <>
-                        <div className="mb-2 text-xs font-semibold text-zinc-600">
-                          Problem & Motivation
-                        </div>
                         {result.sections.problem_and_motivation.central_problems.length === 0 &&
                           result.sections.problem_and_motivation.origins.length === 0 &&
                           result.sections.problem_and_motivation.nontriviality.length === 0 &&
@@ -492,16 +566,17 @@ export default function Home() {
                                 (item, idx) => (
                                   <li key={`pm-cp-${idx}`} className="mb-2">
                                     <div>{item.description}</div>
-                                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                                      <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
-                                      <button
-                                        className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
-                                        onClick={() => focusSentences(item.sentence_ids)}
-                                        type="button"
-                                      >
-                                        View sentences
-                                      </button>
-                                    </div>
+                                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+                                    <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
+                                    <button
+                                      className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
+                                      onClick={() => focusSentences(item.sentence_ids)}
+                                      type="button"
+                                    >
+                                      View sentences
+                                    </button>
+                                    {renderCitationAction(item.sentence_ids)}
+                                  </div>
                                   </li>
                                 )
                               )}
@@ -526,6 +601,7 @@ export default function Home() {
                                     >
                                       View sentences
                                     </button>
+                                    {renderCitationAction(item.sentence_ids)}
                                   </div>
                                 </li>
                               ))}
@@ -551,6 +627,7 @@ export default function Home() {
                                       >
                                         View sentences
                                       </button>
+                                      {renderCitationAction(item.sentence_ids)}
                                     </div>
                                   </li>
                                 )
@@ -563,7 +640,6 @@ export default function Home() {
 
                     {activeTab === 'landscape' && (
                       <>
-                        <div className="mb-2 text-xs font-semibold text-zinc-600">Landscape</div>
                         {result.sections.landscape.known_results.length === 0 &&
                           result.sections.landscape.limitations.length === 0 &&
                           result.sections.landscape.competing_approaches.length === 0 &&
@@ -586,6 +662,7 @@ export default function Home() {
                                     >
                                       View sentences
                                     </button>
+                                    {renderCitationAction(item.sentence_ids)}
                                   </div>
                                 </li>
                               ))}
@@ -610,6 +687,7 @@ export default function Home() {
                                     >
                                       View sentences
                                     </button>
+                                    {renderCitationAction(item.sentence_ids)}
                                   </div>
                                 </li>
                               ))}
@@ -634,6 +712,7 @@ export default function Home() {
                                     >
                                       View sentences
                                     </button>
+                                    {renderCitationAction(item.sentence_ids)}
                                   </div>
                                 </li>
                               ))}
@@ -645,7 +724,6 @@ export default function Home() {
 
                     {activeTab === 'contrib' && (
                       <>
-                        <div className="mb-2 text-xs font-semibold text-zinc-600">Contributions</div>
                         {result.sections.contributions.contributions.length === 0 &&
                           renderEmpty('No explicit items found.')}
                         {result.sections.contributions.contributions.length > 0 && (
@@ -666,6 +744,7 @@ export default function Home() {
                                     >
                                       View sentences
                                     </button>
+                                    {renderCitationAction(item.sentence_ids)}
                                   </div>
                                   {(item.prior_state.text ||
                                     item.novelty.text ||
@@ -720,7 +799,6 @@ export default function Home() {
 
                     {activeTab === 'tech' && (
                       <>
-                        <div className="mb-2 text-xs font-semibold text-zinc-600">Technical Core</div>
                         {result.sections.technical_core.key_ideas.length === 0 &&
                           result.sections.technical_core.technical_obstacles.length === 0 &&
                           result.sections.technical_core.reusable_constructions.length === 0 &&
@@ -743,6 +821,7 @@ export default function Home() {
                                     >
                                       View sentences
                                     </button>
+                                    {renderCitationAction(item.sentence_ids)}
                                   </div>
                                 </li>
                               ))}
@@ -767,6 +846,7 @@ export default function Home() {
                                     >
                                       View sentences
                                     </button>
+                                    {renderCitationAction(item.sentence_ids)}
                                   </div>
                                 </li>
                               ))}
@@ -792,6 +872,7 @@ export default function Home() {
                                       >
                                         View sentences
                                       </button>
+                                      {renderCitationAction(item.sentence_ids)}
                                     </div>
                                   </li>
                                 )
@@ -804,7 +885,6 @@ export default function Home() {
 
                     {activeTab === 'cons' && (
                       <>
-                        <div className="mb-2 text-xs font-semibold text-zinc-600">Consequences</div>
                         {result.sections.consequences.open_questions.length === 0 &&
                           result.sections.consequences.speculative_extensions.length === 0 &&
                           renderEmpty('No explicit items found.')}
@@ -826,6 +906,7 @@ export default function Home() {
                                     >
                                       View sentences
                                     </button>
+                                    {renderCitationAction(item.sentence_ids)}
                                   </div>
                                 </li>
                               ))}
@@ -850,11 +931,67 @@ export default function Home() {
                                     >
                                       View sentences
                                     </button>
+                                    {renderCitationAction(item.sentence_ids)}
                                   </div>
                                 </li>
                               ))}
                             </ul>
                           </div>
+                        )}
+                      </>
+                    )}
+
+                    {activeTab === 'cites' && (
+                      <>
+                        {Object.keys(result.citations ?? {}).length === 0 &&
+                          renderEmpty('No citations detected.')}
+                        {(focusedCitationKeys.length > 0
+                          ? focusedCitationKeys
+                              .map((key) => result.citations?.[key])
+                              .filter(Boolean)
+                          : Object.values(result.citations ?? {})
+                        ).map((entry) => (
+                          <div
+                            key={`cite-${entry.key}`}
+                            className={classNames(
+                              'mb-3 rounded-md border p-2 text-sm',
+                              focusedCitationKeys.includes(entry.key)
+                                ? 'border-amber-200 bg-amber-50'
+                                : 'border-zinc-100 bg-zinc-50'
+                            )}
+                          >
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-medium text-zinc-900">
+                                {formatCitationLabel(entry)}
+                              </span>
+                              {entry.labels.map((l) => (
+                                <LabelPill key={`${entry.key}-${l}`} label={l} />
+                              ))}
+                            </div>
+                            {entry.text && (
+                              <div className="mt-1 text-xs text-zinc-700">{entry.text}</div>
+                            )}
+                            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+                              <span>{entry.sentence_ids.length} sentences</span>
+                              <button
+                                className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
+                                onClick={() => focusSentences(entry.sentence_ids)}
+                                type="button"
+                                disabled={entry.sentence_ids.length === 0}
+                              >
+                                View sentences
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                        {focusedCitationKeys.length > 0 && (
+                          <button
+                            className="rounded-full border px-3 py-1 text-[11px] text-zinc-600 hover:bg-zinc-50"
+                            type="button"
+                            onClick={() => setFocusedCitationKeys([])}
+                          >
+                            Clear filter
+                          </button>
                         )}
                       </>
                     )}
