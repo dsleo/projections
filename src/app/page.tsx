@@ -103,6 +103,8 @@ export default function Home() {
   const [focusedCitationKeys, setFocusedCitationKeys] = useState<string[]>([]);
   const textDetailsRef = useRef<HTMLDetailsElement | null>(null);
   const canonicalDetailsRef = useRef<HTMLDetailsElement | null>(null);
+  const [labelFilter, setLabelFilter] = useState<DiscourseLabel[]>([]);
+  const [showUnlabeledOnly, setShowUnlabeledOnly] = useState(false);
 
   useEffect(() => {
     try {
@@ -334,6 +336,16 @@ export default function Home() {
   const isSentenceProcessing = (position: number) =>
     processingWindows.some((w) => position >= w.start && position < w.end);
 
+  const unlabeledCount = useMemo(() => {
+    if (!result) return 0;
+    let count = 0;
+    for (const s of result.sentences) {
+      const labels = result.labels[String(s.id)] ?? [];
+      if (labels.length === 0) count += 1;
+    }
+    return count;
+  }, [result]);
+
   const renderedOriginalText = useMemo(() => {
     if (!result) return null;
     const text = result.original_latex;
@@ -356,6 +368,28 @@ export default function Home() {
     }
     return segments;
   }, [result]);
+
+  const labelCounts = useMemo(() => {
+    if (!result) return {};
+    const counts: Record<DiscourseLabel, number> = {
+      Problem: 0,
+      Landscape: 0,
+      Contribution: 0,
+      TechnicalCore: 0,
+      Consequences: 0,
+    };
+    for (const s of result.sentences) {
+      const labels = result.labels[String(s.id)] ?? [];
+      for (const l of labels) counts[l] += 1;
+    }
+    return counts;
+  }, [result]);
+
+  const toggleLabelFilter = (label: DiscourseLabel) => {
+    setLabelFilter((prev) =>
+      prev.includes(label) ? prev.filter((l) => l !== label) : [...prev, label]
+    );
+  };
 
   const getCitationEntries = (keys: string[]) => {
     if (!result) return [];
@@ -541,54 +575,110 @@ export default function Home() {
             <summary className="cursor-pointer border-b px-4 py-3 text-sm font-semibold">
               {documentTitle}
             </summary>
+            <div className="border-b px-4 py-2 text-xs text-zinc-600 flex flex-wrap items-center gap-2">
+              <button
+                className={classNames(
+                  'rounded-full border px-2 py-0.5 text-xs',
+                  showUnlabeledOnly
+                    ? 'border-zinc-900 bg-zinc-900 text-white'
+                    : 'border-zinc-200 text-zinc-700 hover:bg-zinc-50'
+                )}
+                onClick={() => {
+                  setShowUnlabeledOnly((prev) => !prev);
+                  if (!showUnlabeledOnly) setLabelFilter([]);
+                }}
+                type="button"
+              >
+                Unlabeled · {unlabeledCount}
+              </button>
+              {result &&
+                (Object.keys(labelCounts) as DiscourseLabel[]).map((label) => (
+                  <button
+                    key={`filter-${label}`}
+                    className={classNames(
+                      'rounded-full border px-2 py-0.5 text-xs',
+                      labelFilter.includes(label)
+                        ? 'border-zinc-900 bg-zinc-900 text-white'
+                        : LABEL_COLORS[label]
+                    )}
+                    onClick={() => toggleLabelFilter(label)}
+                    type="button"
+                  >
+                    {label} · {labelCounts[label]}
+                  </button>
+                ))}
+              {(labelFilter.length > 0 || showUnlabeledOnly) && (
+                <button
+                  className="rounded-full border px-2 py-0.5 text-xs text-zinc-600 hover:bg-zinc-50"
+                  onClick={() => {
+                    setLabelFilter([]);
+                    setShowUnlabeledOnly(false);
+                  }}
+                  type="button"
+                >
+                  Clear filter
+                </button>
+              )}
+            </div>
             <div className="max-h-[70vh] overflow-auto">
               {!result && <div className="p-4 text-sm text-zinc-500">Upload a .tex file to begin.</div>}
               {result && (
                 <div className="p-4 text-sm leading-7 whitespace-pre-wrap">
-                  {renderedOriginalText?.map((seg, idx) => {
-                    if (!seg.sentence) {
-                      return <span key={`plain-${idx}`}>{seg.text}</span>;
-                    }
-                    const labels = result.labels[String(seg.sentence.id)] ?? [];
-                    const citationKeys =
-                      result.sentence_citations?.[String(seg.sentence.id)] ?? [];
-                    const citationEntries = getCitationEntries(citationKeys);
-                    const isProcessing = isSentenceProcessing(seg.sentence.position);
-                    const isHighlighted = highlightedIds.includes(seg.sentence.id);
-                    return (
-                      <span
-                        key={`s-${seg.sentence.id}-${idx}`}
-                        id={`sentence-${seg.sentence.id}`}
-                        className={classNames(
-                          'rounded-sm',
-                          isProcessing && 'bg-amber-50',
-                          isHighlighted && 'bg-amber-100 ring-1 ring-amber-200'
-                        )}
-                      >
-                        {seg.text}
-                        {labels.length > 0 && (
-                          <span className="ml-1 inline-flex gap-1 align-middle">
-                            {labels.map((l) => (
-                              <LabelPill key={l} label={l} />
-                            ))}
-                          </span>
-                        )}
-                        {citationEntries.length > 0 && (
-                          <span className="ml-1 inline-flex gap-1 align-middle">
-                            {citationEntries.map((entry) => (
-                              <span
-                                key={`cite-${seg.sentence.id}-${entry.key}`}
-                                className="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] text-zinc-600 bg-white"
-                                title={entry.text || entry.key}
-                              >
-                                {formatCitationLabel(entry)}
+                  {(() => {
+                    if (!renderedOriginalText) return null;
+                    const rendered: JSX.Element[] = [];
+                    let lastRenderedSentenceId: number | null = null;
+                    renderedOriginalText.forEach((seg, idx) => {
+                      if (!seg.sentence) {
+                        if (labelFilter.length > 0 || showUnlabeledOnly) return;
+                        rendered.push(<span key={`plain-${idx}`}>{seg.text}</span>);
+                        return;
+                      }
+                      const labels = result.labels[String(seg.sentence.id)] ?? [];
+                      if (showUnlabeledOnly && labels.length > 0) return;
+                      if (labelFilter.length > 0 && !labels.some((l) => labelFilter.includes(l))) {
+                        return;
+                      }
+                      const shouldShowGap =
+                        (labelFilter.length > 0 || showUnlabeledOnly) &&
+                        lastRenderedSentenceId !== null &&
+                        seg.sentence.id !== lastRenderedSentenceId + 1;
+                      const isProcessing = isSentenceProcessing(seg.sentence.position);
+                      const isHighlighted = highlightedIds.includes(seg.sentence.id);
+                      rendered.push(
+                        <span key={`wrap-${seg.sentence.id}-${idx}`}>
+                          {shouldShowGap && (
+                            <span className="my-2 flex items-center gap-2 text-[11px] text-zinc-400">
+                              <span className="h-px w-6 bg-zinc-300" />
+                              <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5">
+                                ⋯ gap
                               </span>
-                            ))}
+                              <span className="h-px w-6 bg-zinc-300" />
+                            </span>
+                          )}
+                          <span
+                            id={`sentence-${seg.sentence.id}`}
+                            className={classNames(
+                              'rounded-sm',
+                              isProcessing && 'bg-amber-50',
+                              isHighlighted && 'bg-amber-100 ring-1 ring-amber-200'
+                            )}
+                          >
+                            {seg.text}
+                            {labels.length > 0 && labelFilter.length === 0 && !showUnlabeledOnly && (
+                              <span className="ml-1 inline-flex gap-1 align-middle">
+                                {labels.map((l) => (
+                                  <LabelPill key={l} label={l} />
+                                ))}
+                              </span>
+                            )}
                           </span>
-                        )}
-                      </span>
-                    );
-                  })}
+                        </span>
+                      );
+                      lastRenderedSentenceId = seg.sentence.id;
+                    });
+                    return rendered;
+                  })()}
                 </div>
               )}
             </div>
