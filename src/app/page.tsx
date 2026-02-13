@@ -102,6 +102,7 @@ export default function Home() {
   const [highlightedIds, setHighlightedIds] = useState<number[]>([]);
   const [focusedCitationKeys, setFocusedCitationKeys] = useState<string[]>([]);
   const textDetailsRef = useRef<HTMLDetailsElement | null>(null);
+  const canonicalDetailsRef = useRef<HTMLDetailsElement | null>(null);
 
   useEffect(() => {
     try {
@@ -379,25 +380,20 @@ export default function Home() {
     return formatCitationLabel(entry);
   };
 
-  const renderCitationChips = (keys: string[]) => {
+  const renderCitationActionForKeys = (keys: string[]) => {
     if (!keys || keys.length === 0) return null;
     return (
-      <div className="mt-1 flex flex-wrap items-center gap-1">
-        {keys.map((key) => (
-          <span
-            key={`view-cite-${key}`}
-            className="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] text-zinc-600 bg-white"
-            title={result?.citations?.[key]?.text || key}
-          >
-            {formatCitationLabelFromKey(key)}
-          </span>
-        ))}
+      <div className="mt-1 flex items-center gap-2">
         <button
           className="rounded-full border px-2 py-0.5 text-[10px] hover:bg-white"
           type="button"
           onClick={() => {
             setFocusedCitationKeys(keys);
             setActiveTab('cites');
+            if (canonicalDetailsRef.current) {
+              canonicalDetailsRef.current.open = true;
+              canonicalDetailsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
           }}
         >
           View citations
@@ -444,11 +440,14 @@ export default function Home() {
       {items.map((item, idx) => (
         <li key={`grounded-${idx}`} className="mb-2">
           <MathText text={item.text} />
-          {renderCitationChips(item.citation_keys)}
+          {renderCitationActionForKeys(item.citation_keys)}
         </li>
       ))}
     </ul>
   );
+
+  const collectCitationKeys = (items: Array<{ citation_keys: string[] }>) =>
+    Array.from(new Set(items.flatMap((item) => item.citation_keys)));
 
   const focusSentences = (ids: number[]) => {
     if (!ids || ids.length === 0) return;
@@ -595,7 +594,7 @@ export default function Home() {
             </div>
           </details>
 
-          <details className="rounded-lg border bg-white" open>
+          <details ref={canonicalDetailsRef} className="rounded-lg border bg-white" open>
             <summary className="cursor-pointer border-b px-4 py-3 text-sm font-semibold">
               Canonical sections (Pass 2)
             </summary>
@@ -1202,7 +1201,7 @@ export default function Home() {
                           <div className="mt-2 text-sm text-zinc-900">
                             <MathText text={result.audience_views.adjacent_researcher.problem_statement.text} />
                           </div>
-                          {renderCitationChips(
+                          {renderCitationActionForKeys(
                             result.audience_views.adjacent_researcher.problem_statement.citation_keys
                           )}
                         </div>
@@ -1287,6 +1286,9 @@ export default function Home() {
                             Key ideas before technicalities
                           </div>
                           {renderGroundedList(result.audience_views.grad_student.key_ideas)}
+                          {renderCitationActionForKeys(
+                            collectCitationKeys(result.audience_views.grad_student.key_ideas)
+                          )}
                         </div>
 
                         <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
@@ -1359,6 +1361,9 @@ export default function Home() {
                             Fragile arguments
                           </div>
                           {renderGroundedList(result.audience_views.author_self.fragile_arguments)}
+                          {renderCitationActionForKeys(
+                            collectCitationKeys(result.audience_views.author_self.fragile_arguments)
+                          )}
                         </div>
 
                         <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
@@ -1366,6 +1371,9 @@ export default function Home() {
                             Robust arguments
                           </div>
                           {renderGroundedList(result.audience_views.author_self.robust_arguments)}
+                          {renderCitationActionForKeys(
+                            collectCitationKeys(result.audience_views.author_self.robust_arguments)
+                          )}
                         </div>
 
                         <div className="rounded-md border border-zinc-100 bg-zinc-50 p-2">
