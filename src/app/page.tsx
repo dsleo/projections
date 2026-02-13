@@ -62,6 +62,10 @@ function LabelPill({ label }: { label: DiscourseLabel }) {
   );
 }
 
+let katexRenderPromise:
+  | Promise<{ default: (el: HTMLElement, options: Record<string, unknown>) => void }>
+  | null = null;
+
 function MathText({ text, className }: { text: string; className?: string }) {
   const ref = useRef<HTMLDivElement | null>(null);
 
@@ -69,7 +73,10 @@ function MathText({ text, className }: { text: string; className?: string }) {
     if (!ref.current) return;
     ref.current.textContent = text;
     let cancelled = false;
-    import('katex/contrib/auto-render').then(({ default: renderMathInElement }) => {
+    if (!katexRenderPromise) {
+      katexRenderPromise = import('katex/contrib/auto-render');
+    }
+    katexRenderPromise.then(({ default: renderMathInElement }) => {
       if (cancelled || !ref.current) return;
       renderMathInElement(ref.current, {
         delimiters: [
@@ -618,6 +625,7 @@ export default function Home() {
     const ids = collectAudienceSentenceIds();
     const byId = new Map(result.sentences.map((s) => [s.id, s.text]));
     const abstract = result.abstract?.trim();
+    const sortedIds = Array.from(ids).sort((a, b) => a - b);
     return (
       <div className="mt-3 rounded-md border bg-zinc-50 p-3 text-sm leading-6 whitespace-pre-wrap">
         {abstract ? (
@@ -628,15 +636,26 @@ export default function Home() {
             {'\n\n'}
           </>
         ) : null}
-        {ids.length === 0 ? (
+        {sortedIds.length === 0 ? (
           <div className="text-xs text-zinc-500">No supporting sentences found.</div>
         ) : (
-          ids.map((id, idx) => (
-            <span key={`aud-text-${id}-${idx}`}>
-              {byId.get(id) ?? ''}
-              {idx < ids.length - 1 ? '\n' : ''}
-            </span>
-          ))
+          sortedIds.map((id, idx) => {
+            const prevId = idx > 0 ? sortedIds[idx - 1] : null;
+            const showGap = prevId !== null && id !== prevId + 1;
+            return (
+              <span key={`aud-text-${id}-${idx}`}>
+                {showGap && (
+                  <>
+                    {'\n'}
+                    <span className="text-xs text-zinc-400">⋯ gap</span>
+                    {'\n'}
+                  </>
+                )}
+                {byId.get(id) ?? ''}
+                {idx < sortedIds.length - 1 ? '\n' : ''}
+              </span>
+            );
+          })
         )}
       </div>
     );
@@ -660,7 +679,8 @@ export default function Home() {
           <div>
             <h1 className="text-lg font-semibold">LLM-Based Scientific Discourse Structuring</h1>
             <p className="text-sm text-zinc-500">
-              Upload a .tex paper → label sentences (Pass 1) → build canonical sections (Pass 2).
+              Upload a .tex paper → label sentences (Pass 1) → build canonical sections (Pass 2) →
+              produce audience views (Pass 3).
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -678,23 +698,21 @@ export default function Home() {
 
       <main className="mx-auto grid max-w-6xl grid-cols-12 gap-6 px-6 py-6">
         <section className="col-span-12 rounded-lg border bg-white p-5">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
             <div>
               <h2 className="text-sm font-semibold">Upload a LaTeX paper</h2>
-              <p className="text-xs text-zinc-500">
-                We analyze .tex sources only. Title + abstract are used as context for Pass 2.
-              </p>
+              <p className="text-xs text-zinc-500">We analyze .tex sources only.</p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <label className="cursor-pointer rounded-md border border-dashed bg-zinc-50 px-3 py-2 text-xs text-zinc-600 hover:bg-white">
+            <div className="flex w-full flex-wrap items-center justify-center gap-2">
+              <label className="flex min-w-[220px] max-w-[360px] cursor-pointer items-center gap-2 rounded-md border border-dashed bg-zinc-50 px-3 py-2 text-xs text-zinc-600 hover:bg-white">
                 <input
                   type="file"
                   accept=".tex"
                   className="hidden"
                   onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                 />
-                {file ? file.name : 'Choose .tex file'}
+                <span className="truncate">{file ? file.name : 'Choose .tex file'}</span>
               </label>
               <button
                 className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
@@ -731,8 +749,24 @@ export default function Home() {
 
         <section className="col-span-12 flex flex-col gap-4">
           <details ref={textDetailsRef} className="rounded-lg border bg-white" open>
-            <summary className="cursor-pointer border-b px-4 py-3 text-sm font-semibold">
-              {documentTitle}
+            <summary className="list-none cursor-pointer border-b px-4 py-3 text-sm font-semibold [&::-webkit-details-marker]:hidden">
+              <span className="inline-flex items-center gap-2">
+                <span>{documentTitle}</span>
+                <button
+                  className="rounded-full border px-2 py-0.5 text-[11px] font-normal text-zinc-500 hover:bg-zinc-100 disabled:opacity-50"
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onAnalyze();
+                  }}
+                  disabled={!file || status.kind === 'uploading' || status.kind === 'analyzing'}
+                  aria-label="Re-run Pass 1"
+                  title="Re-run Pass 1"
+                >
+                  ⟳
+                </button>
+              </span>
             </summary>
             <div className="border-b px-4 py-2 text-xs text-zinc-600 flex flex-wrap items-center gap-2">
               <button
@@ -907,11 +941,11 @@ export default function Home() {
           </details>
 
           <details ref={canonicalDetailsRef} className="rounded-lg border bg-white" open>
-            <summary className="flex cursor-pointer items-center justify-between border-b px-4 py-3 text-sm font-semibold">
-              <span>Canonical sections (Pass 2)</span>
-              <div className="flex items-center gap-2">
+            <summary className="flex cursor-pointer items-center border-b px-4 py-3 text-sm font-semibold">
+              <span className="inline-flex items-center gap-2">
+                <span>Canonical sections (Pass 2)</span>
                 <button
-                  className="rounded-full border px-2 py-0.5 text-xs font-normal text-zinc-600 hover:bg-zinc-50 disabled:opacity-50"
+                  className="rounded-full border px-2 py-0.5 text-[11px] font-normal text-zinc-500 hover:bg-zinc-100 disabled:opacity-50"
                   type="button"
                   onClick={(e) => {
                     e.preventDefault();
@@ -919,8 +953,10 @@ export default function Home() {
                     rerunPass2Only();
                   }}
                   disabled={!result || status.kind === 'analyzing' || status.kind === 'uploading'}
+                  aria-label="Re-run Pass 2"
+                  title="Re-run Pass 2"
                 >
-                  Re-run Pass 2
+                  ⟳
                 </button>
                 <button
                   className="rounded-full border px-2 py-0.5 text-[11px] text-zinc-500 hover:bg-zinc-100"
@@ -936,7 +972,7 @@ export default function Home() {
                 >
                   ⧉
                 </button>
-              </div>
+              </span>
             </summary>
 
             <div className="grid grid-cols-1 gap-4 p-4">
@@ -1423,11 +1459,11 @@ export default function Home() {
           </details>
 
           <details className="rounded-lg border bg-white" open>
-            <summary className="flex cursor-pointer items-center justify-between border-b px-4 py-3 text-sm font-semibold">
-              <span>Audience views (Pass 3)</span>
-              <div className="flex items-center gap-2">
+            <summary className="flex cursor-pointer items-center border-b px-4 py-3 text-sm font-semibold">
+              <span className="inline-flex items-center gap-2">
+                <span>Audience views (Pass 3)</span>
                 <button
-                  className="rounded-full border px-2 py-0.5 text-xs font-normal text-zinc-600 hover:bg-zinc-50 disabled:opacity-50"
+                  className="rounded-full border px-2 py-0.5 text-[11px] font-normal text-zinc-500 hover:bg-zinc-100 disabled:opacity-50"
                   type="button"
                   onClick={(e) => {
                     e.preventDefault();
@@ -1435,8 +1471,10 @@ export default function Home() {
                     rerunPass3Only();
                   }}
                   disabled={!result || status.kind === 'analyzing' || status.kind === 'uploading'}
+                  aria-label="Re-run Pass 3"
+                  title="Re-run Pass 3"
                 >
-                  Re-run Pass 3
+                  ⟳
                 </button>
                 <button
                   className="rounded-full border px-2 py-0.5 text-[11px] text-zinc-500 hover:bg-zinc-100"
@@ -1454,7 +1492,7 @@ export default function Home() {
                 >
                   ⧉
                 </button>
-              </div>
+              </span>
             </summary>
             <div className="grid grid-cols-1 gap-4 p-4">
               {!result?.audience_views && <div className="text-sm text-zinc-500">No data.</div>}
@@ -1824,13 +1862,13 @@ export default function Home() {
                         </div>
                       </>
                     )}
-                    <details className="rounded-md border bg-white" open>
-                      <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-zinc-600">
-                        Supporting text
-                      </summary>
-                      {renderAudienceFullText()}
-                    </details>
                   </div>
+                  <details className="rounded-md border bg-white" open>
+                    <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-zinc-600">
+                      Supporting text
+                    </summary>
+                    {renderAudienceFullText()}
+                  </details>
                 </>
               )}
             </div>
