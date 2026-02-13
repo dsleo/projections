@@ -101,7 +101,6 @@ export default function Home() {
     'problem' | 'landscape' | 'contrib' | 'tech' | 'cons' | 'cites'
   >('problem');
   const [audienceTab, setAudienceTab] = useState<'A' | 'B' | 'C' | 'D'>('A');
-  const [audienceShowText, setAudienceShowText] = useState(false);
   const [highlightedIds, setHighlightedIds] = useState<number[]>([]);
   const [focusedCitationKeys, setFocusedCitationKeys] = useState<string[]>([]);
   const textDetailsRef = useRef<HTMLDetailsElement | null>(null);
@@ -617,7 +616,6 @@ export default function Home() {
   const renderAudienceFullText = () => {
     if (!result) return null;
     const ids = collectAudienceSentenceIds();
-    if (ids.length === 0) return renderEmpty('No supporting sentences found.');
     const byId = new Map(result.sentences.map((s) => [s.id, s.text]));
     const abstract = result.abstract?.trim();
     return (
@@ -630,12 +628,16 @@ export default function Home() {
             {'\n\n'}
           </>
         ) : null}
-        {ids.map((id, idx) => (
-          <span key={`aud-text-${id}-${idx}`}>
-            {byId.get(id) ?? ''}
-            {idx < ids.length - 1 ? '\n' : ''}
-          </span>
-        ))}
+        {ids.length === 0 ? (
+          <div className="text-xs text-zinc-500">No supporting sentences found.</div>
+        ) : (
+          ids.map((id, idx) => (
+            <span key={`aud-text-${id}-${idx}`}>
+              {byId.get(id) ?? ''}
+              {idx < ids.length - 1 ? '\n' : ''}
+            </span>
+          ))
+        )}
       </div>
     );
   };
@@ -905,21 +907,39 @@ export default function Home() {
           </details>
 
           <details ref={canonicalDetailsRef} className="rounded-lg border bg-white" open>
-            <summary className="cursor-pointer border-b px-4 py-3 text-sm font-semibold">
-              Canonical sections (Pass 2)
-            </summary>
-
-            <div className="grid grid-cols-1 gap-4 p-4">
+            <summary className="flex cursor-pointer items-center justify-between border-b px-4 py-3 text-sm font-semibold">
+              <span>Canonical sections (Pass 2)</span>
               <div className="flex items-center gap-2">
                 <button
-                  className="rounded-full border px-2 py-0.5 text-xs text-zinc-600 hover:bg-zinc-50 disabled:opacity-50"
+                  className="rounded-full border px-2 py-0.5 text-xs font-normal text-zinc-600 hover:bg-zinc-50 disabled:opacity-50"
                   type="button"
-                  onClick={rerunPass2Only}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    rerunPass2Only();
+                  }}
                   disabled={!result || status.kind === 'analyzing' || status.kind === 'uploading'}
                 >
                   Re-run Pass 2
                 </button>
+                <button
+                  className="rounded-full border px-2 py-0.5 text-[11px] text-zinc-500 hover:bg-zinc-100"
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!result?.sections) return;
+                    navigator.clipboard.writeText(JSON.stringify(result.sections, null, 2));
+                  }}
+                  aria-label="Copy canonical JSON"
+                  title="Copy canonical JSON"
+                >
+                  ⧉
+                </button>
               </div>
+            </summary>
+
+            <div className="grid grid-cols-1 gap-4 p-4">
               {!result && <div className="text-sm text-zinc-500">No data.</div>}
               {result && (
                 <>
@@ -1397,38 +1417,27 @@ export default function Home() {
                       </>
                     )}
                   </div>
-                  <details className="rounded-md border bg-white">
-                    <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-zinc-600 flex items-center gap-2">
-                      <span>Raw JSON</span>
-                      <button
-                        className="rounded-full border px-2 py-0.5 text-[11px] text-zinc-500 hover:bg-zinc-100"
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          navigator.clipboard.writeText(
-                            JSON.stringify(result.sections, null, 2)
-                          );
-                        }}
-                        aria-label="Copy raw JSON"
-                        title="Copy raw JSON"
-                      >
-                        ⧉
-                      </button>
-                    </summary>
-                    <pre className="whitespace-pre-wrap border-t bg-zinc-50 p-3 text-xs leading-5 overflow-auto max-h-[30vh]">
-                      {JSON.stringify(result.sections, null, 2)}
-                    </pre>
-                  </details>
                 </>
               )}
             </div>
           </details>
 
           <details className="rounded-lg border bg-white" open>
-            <summary className="cursor-pointer border-b px-4 py-3 text-sm font-semibold">
-              <span className="flex items-center gap-2">
-                <span>Audience views (Pass 3)</span>
+            <summary className="flex cursor-pointer items-center justify-between border-b px-4 py-3 text-sm font-semibold">
+              <span>Audience views (Pass 3)</span>
+              <div className="flex items-center gap-2">
+                <button
+                  className="rounded-full border px-2 py-0.5 text-xs font-normal text-zinc-600 hover:bg-zinc-50 disabled:opacity-50"
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    rerunPass3Only();
+                  }}
+                  disabled={!result || status.kind === 'analyzing' || status.kind === 'uploading'}
+                >
+                  Re-run Pass 3
+                </button>
                 <button
                   className="rounded-full border px-2 py-0.5 text-[11px] text-zinc-500 hover:bg-zinc-100"
                   type="button"
@@ -1436,43 +1445,18 @@ export default function Home() {
                     e.preventDefault();
                     e.stopPropagation();
                     if (!result?.audience_views) return;
-                    const view = result.audience_views;
-                    const pick =
-                      audienceTab === 'A'
-                        ? view.domain_expert
-                        : audienceTab === 'B'
-                        ? view.adjacent_researcher
-                        : audienceTab === 'C'
-                        ? view.grad_student
-                        : view.author_self;
-                    navigator.clipboard.writeText(JSON.stringify(pick, null, 2));
+                    navigator.clipboard.writeText(
+                      JSON.stringify(result.audience_views, null, 2)
+                    );
                   }}
                   aria-label="Copy audience view JSON"
                   title="Copy audience view JSON"
                 >
                   ⧉
                 </button>
-              </span>
+              </div>
             </summary>
             <div className="grid grid-cols-1 gap-4 p-4">
-              <div className="flex items-center gap-2">
-                <button
-                  className="rounded-full border px-2 py-0.5 text-xs text-zinc-600 hover:bg-zinc-50 disabled:opacity-50"
-                  type="button"
-                  onClick={rerunPass3Only}
-                  disabled={!result || status.kind === 'analyzing' || status.kind === 'uploading'}
-                >
-                  Re-run Pass 3
-                </button>
-                <button
-                  className="rounded-full border px-2 py-0.5 text-xs text-zinc-600 hover:bg-zinc-50 disabled:opacity-50"
-                  type="button"
-                  onClick={() => setAudienceShowText((prev) => !prev)}
-                  disabled={!result?.audience_views}
-                >
-                  {audienceShowText ? 'Hide supporting text' : 'Show supporting text'}
-                </button>
-              </div>
               {!result?.audience_views && <div className="text-sm text-zinc-500">No data.</div>}
               {result?.audience_views && (
                 <>
@@ -1840,7 +1824,12 @@ export default function Home() {
                         </div>
                       </>
                     )}
-                    {audienceShowText && renderAudienceFullText()}
+                    <details className="rounded-md border bg-white" open>
+                      <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-zinc-600">
+                        Supporting text
+                      </summary>
+                      {renderAudienceFullText()}
+                    </details>
                   </div>
                 </>
               )}
