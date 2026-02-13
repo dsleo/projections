@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { AnalysisResult, DiscourseLabel, Sentence } from '@/lib/pipeline/client';
 import { LABEL_COLORS } from '@/lib/ui/labels';
@@ -28,6 +28,26 @@ function classNames(...xs: Array<string | undefined | false>) {
   return xs.filter(Boolean).join(' ');
 }
 
+function formatIdRanges(ids: number[]): string {
+  if (!ids || ids.length === 0) return '[]';
+  const sorted = Array.from(new Set(ids)).sort((a, b) => a - b);
+  const ranges: string[] = [];
+  let start = sorted[0];
+  let prev = sorted[0];
+  for (let i = 1; i < sorted.length; i += 1) {
+    const cur = sorted[i];
+    if (cur === prev + 1) {
+      prev = cur;
+      continue;
+    }
+    ranges.push(start === prev ? `${start}` : `${start}-${prev}`);
+    start = cur;
+    prev = cur;
+  }
+  ranges.push(start === prev ? `${start}` : `${start}-${prev}`);
+  return `[${ranges.join(', ')}]`;
+}
+
 function LabelPill({ label }: { label: DiscourseLabel }) {
   return (
     <span
@@ -48,6 +68,11 @@ export default function Home() {
   const [processingWindows, setProcessingWindows] = useState<Array<{ start: number; end: number }>>(
     []
   );
+  const [activeTab, setActiveTab] = useState<'problem' | 'landscape' | 'contrib' | 'tech' | 'cons'>(
+    'problem'
+  );
+  const [highlightedIds, setHighlightedIds] = useState<number[]>([]);
+  const textDetailsRef = useRef<HTMLDetailsElement | null>(null);
 
   useEffect(() => {
     try {
@@ -281,6 +306,21 @@ export default function Home() {
     return segments;
   }, [result]);
 
+  const renderEmpty = (label: string) => (
+    <div className="text-xs text-zinc-500">{label}</div>
+  );
+
+  const focusSentences = (ids: number[]) => {
+    if (!ids || ids.length === 0) return;
+    setHighlightedIds(ids);
+    const details = textDetailsRef.current;
+    if (details) details.open = true;
+    const target = document.getElementById(`sentence-${ids[0]}`);
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-900">
       <header className="border-b bg-white">
@@ -305,46 +345,63 @@ export default function Home() {
       </header>
 
       <main className="mx-auto grid max-w-6xl grid-cols-12 gap-6 px-6 py-6">
-        <section className="col-span-12 rounded-lg border bg-white p-4">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-3">
-              <input
-                type="file"
-                accept=".tex"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              />
+        <section className="col-span-12 rounded-lg border bg-white p-5">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold">Upload a LaTeX paper</h2>
+              <p className="text-xs text-zinc-500">
+                We analyze .tex sources only. Title + abstract are used as context for Pass 2.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="cursor-pointer rounded-md border border-dashed bg-zinc-50 px-3 py-2 text-xs text-zinc-600 hover:bg-white">
+                <input
+                  type="file"
+                  accept=".tex"
+                  className="hidden"
+                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                />
+                {file ? file.name : 'Choose .tex file'}
+              </label>
               <button
                 className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
                 disabled={!file || status.kind === 'uploading' || status.kind === 'analyzing'}
                 onClick={onAnalyze}
               >
-                Analyze
+                Run analysis
               </button>
-            </div>
-
-            <div className="text-sm text-zinc-600">
-              {status.kind === 'idle' && 'Ready.'}
-              {status.kind === 'uploading' && 'Uploading…'}
-              {status.kind === 'analyzing' && (status.message ?? 'Running Pass 1 + Pass 2…')}
-              {status.kind === 'done' && result && (
-                <span>
-                  Done. {result.sentences.length} sentences.
-                </span>
-              )}
-              {status.kind === 'error' && (
-                <span className="text-red-700">Error: {status.message}</span>
-              )}
             </div>
           </div>
 
-          <div className="mt-4 text-sm text-zinc-600">Upload a .tex file to begin analysis.</div>
+          <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-zinc-600">
+            <span className="rounded-full border px-2 py-1">
+              {status.kind === 'idle' && 'Idle'}
+              {status.kind === 'uploading' && 'Uploading'}
+              {status.kind === 'analyzing' && 'Processing'}
+              {status.kind === 'done' && 'Complete'}
+              {status.kind === 'error' && 'Error'}
+            </span>
+            <span>
+              {status.kind === 'idle' && 'Ready to analyze.'}
+              {status.kind === 'uploading' && 'Uploading the file…'}
+              {status.kind === 'analyzing' && (status.message ?? 'Running Pass 1 + Pass 2…')}
+              {status.kind === 'done' && result && `Done. ${result.sentences.length} sentences.`}
+              {status.kind === 'error' && (
+                <span className="text-red-700">Error: {status.message}</span>
+              )}
+            </span>
+            {status.kind === 'analyzing' && processingWindows.length > 0 && (
+              <span className="text-zinc-500">{processingWindows.length} windows in flight</span>
+            )}
+          </div>
         </section>
 
         <section className="col-span-12 flex flex-col gap-4">
-          <div className="rounded-lg border bg-white">
-            <div className="border-b px-4 py-3">
-              <h2 className="text-sm font-semibold">{documentTitle}</h2>
-            </div>
+          <details ref={textDetailsRef} className="rounded-lg border bg-white" open>
+            <summary className="cursor-pointer border-b px-4 py-3 text-sm font-semibold">
+              {documentTitle}
+            </summary>
             <div className="max-h-[70vh] overflow-auto">
               {!result && <div className="p-4 text-sm text-zinc-500">Upload a .tex file to begin.</div>}
               {result && (
@@ -355,10 +412,16 @@ export default function Home() {
                     }
                     const labels = result.labels[String(seg.sentence.id)] ?? [];
                     const isProcessing = isSentenceProcessing(seg.sentence.position);
+                    const isHighlighted = highlightedIds.includes(seg.sentence.id);
                     return (
                       <span
                         key={`s-${seg.sentence.id}-${idx}`}
-                        className={classNames('rounded-sm', isProcessing && 'bg-amber-50')}
+                        id={`sentence-${seg.sentence.id}`}
+                        className={classNames(
+                          'rounded-sm',
+                          isProcessing && 'bg-amber-50',
+                          isHighlighted && 'bg-amber-100 ring-1 ring-amber-200'
+                        )}
                       >
                         {seg.text}
                         {labels.length > 0 && (
@@ -374,45 +437,459 @@ export default function Home() {
                 </div>
               )}
             </div>
-          </div>
+          </details>
 
-          <div className="rounded-lg border bg-white">
-            <div className="border-b px-4 py-3">
-              <h2 className="text-sm font-semibold">Canonical sections (Pass 2)</h2>
-              <p className="text-xs text-zinc-500">
-                JSON is grounded with sentence IDs. Below is a readable concatenated view.
-              </p>
-            </div>
+          <details className="rounded-lg border bg-white" open>
+            <summary className="cursor-pointer border-b px-4 py-3 text-sm font-semibold">
+              Canonical sections (Pass 2)
+            </summary>
 
             <div className="grid grid-cols-1 gap-4 p-4">
               {!result && <div className="text-sm text-zinc-500">No data.</div>}
               {result && (
                 <>
-                  <div>
-                    <div className="text-xs font-semibold text-zinc-600 mb-2">Concatenated output</div>
-                    <pre className="whitespace-pre-wrap rounded-md border bg-zinc-50 p-3 text-xs leading-5 overflow-auto max-h-[22vh]">
-                      {result.sections_concatenated_text}
-                    </pre>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { id: 'problem', label: 'Problem & Motivation' },
+                      { id: 'landscape', label: 'Landscape' },
+                      { id: 'contrib', label: 'Contributions' },
+                      { id: 'tech', label: 'Technical Core' },
+                      { id: 'cons', label: 'Consequences' },
+                    ].map((tab) => (
+                      <button
+                        key={tab.id}
+                        className={classNames(
+                          'rounded-full border px-3 py-1 text-xs',
+                          activeTab === tab.id
+                            ? 'border-zinc-900 bg-zinc-900 text-white'
+                            : 'border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50'
+                        )}
+                        onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                        type="button"
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
                   </div>
 
-                  <div>
-                    <div className="text-xs font-semibold text-zinc-600 mb-2">Raw JSON</div>
-                    <pre className="whitespace-pre-wrap rounded-md border bg-zinc-50 p-3 text-xs leading-5 overflow-auto max-h-[30vh]">
+                  <div className="rounded-md border bg-white p-3 max-h-[38vh] overflow-auto">
+                    {activeTab === 'problem' && (
+                      <>
+                        <div className="mb-2 text-xs font-semibold text-zinc-600">
+                          Problem & Motivation
+                        </div>
+                        {result.sections.problem_and_motivation.central_problems.length === 0 &&
+                          result.sections.problem_and_motivation.origins.length === 0 &&
+                          result.sections.problem_and_motivation.nontriviality.length === 0 &&
+                          renderEmpty('No explicit items found.')}
+                        {result.sections.problem_and_motivation.central_problems.length > 0 && (
+                          <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                              Central problem
+                            </div>
+                            <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
+                              {result.sections.problem_and_motivation.central_problems.map(
+                                (item, idx) => (
+                                  <li key={`pm-cp-${idx}`} className="mb-2">
+                                    <div>{item.description}</div>
+                                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+                                      <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
+                                      <button
+                                        className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
+                                        onClick={() => focusSentences(item.sentence_ids)}
+                                        type="button"
+                                      >
+                                        View sentences
+                                      </button>
+                                    </div>
+                                  </li>
+                                )
+                              )}
+                            </ul>
+                          </div>
+                        )}
+                        {result.sections.problem_and_motivation.origins.length > 0 && (
+                          <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                              Origins
+                            </div>
+                            <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
+                              {result.sections.problem_and_motivation.origins.map((item, idx) => (
+                                <li key={`pm-or-${idx}`} className="mb-2">
+                                  <div>{item.description}</div>
+                                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+                                    <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
+                                    <button
+                                      className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
+                                      onClick={() => focusSentences(item.sentence_ids)}
+                                      type="button"
+                                    >
+                                      View sentences
+                                    </button>
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {result.sections.problem_and_motivation.nontriviality.length > 0 && (
+                          <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                              Nontriviality
+                            </div>
+                            <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
+                              {result.sections.problem_and_motivation.nontriviality.map(
+                                (item, idx) => (
+                                  <li key={`pm-nt-${idx}`} className="mb-2">
+                                    <div>{item.description}</div>
+                                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+                                      <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
+                                      <button
+                                        className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
+                                        onClick={() => focusSentences(item.sentence_ids)}
+                                        type="button"
+                                      >
+                                        View sentences
+                                      </button>
+                                    </div>
+                                  </li>
+                                )
+                              )}
+                            </ul>
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {activeTab === 'landscape' && (
+                      <>
+                        <div className="mb-2 text-xs font-semibold text-zinc-600">Landscape</div>
+                        {result.sections.landscape.known_results.length === 0 &&
+                          result.sections.landscape.limitations.length === 0 &&
+                          result.sections.landscape.competing_approaches.length === 0 &&
+                          renderEmpty('No explicit items found.')}
+                        {result.sections.landscape.known_results.length > 0 && (
+                          <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                              Known results
+                            </div>
+                            <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
+                              {result.sections.landscape.known_results.map((item, idx) => (
+                                <li key={`land-kr-${idx}`} className="mb-2">
+                                  <div>{item.description}</div>
+                                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+                                    <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
+                                    <button
+                                      className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
+                                      onClick={() => focusSentences(item.sentence_ids)}
+                                      type="button"
+                                    >
+                                      View sentences
+                                    </button>
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {result.sections.landscape.limitations.length > 0 && (
+                          <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                              Limitations
+                            </div>
+                            <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
+                              {result.sections.landscape.limitations.map((item, idx) => (
+                                <li key={`land-lim-${idx}`} className="mb-2">
+                                  <div>{item.description}</div>
+                                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+                                    <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
+                                    <button
+                                      className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
+                                      onClick={() => focusSentences(item.sentence_ids)}
+                                      type="button"
+                                    >
+                                      View sentences
+                                    </button>
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {result.sections.landscape.competing_approaches.length > 0 && (
+                          <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                              Competing approaches
+                            </div>
+                            <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
+                              {result.sections.landscape.competing_approaches.map((item, idx) => (
+                                <li key={`land-ca-${idx}`} className="mb-2">
+                                  <div>{item.description}</div>
+                                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+                                    <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
+                                    <button
+                                      className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
+                                      onClick={() => focusSentences(item.sentence_ids)}
+                                      type="button"
+                                    >
+                                      View sentences
+                                    </button>
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {activeTab === 'contrib' && (
+                      <>
+                        <div className="mb-2 text-xs font-semibold text-zinc-600">Contributions</div>
+                        {result.sections.contributions.contributions.length === 0 &&
+                          renderEmpty('No explicit items found.')}
+                        {result.sections.contributions.contributions.length > 0 && (
+                          <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                              Contributions
+                            </div>
+                            <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
+                              {result.sections.contributions.contributions.map((item, idx) => (
+                                <li key={`contrib-${idx}`} className="mb-3">
+                                  <div className="font-medium">{item.statement}</div>
+                                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+                                    <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
+                                    <button
+                                      className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
+                                      onClick={() => focusSentences(item.sentence_ids)}
+                                      type="button"
+                                    >
+                                      View sentences
+                                    </button>
+                                  </div>
+                                  {(item.prior_state.text ||
+                                    item.novelty.text ||
+                                    item.nontriviality.text) && (
+                                    <div className="mt-2 rounded-md border border-zinc-100 bg-white p-2 text-xs text-zinc-700">
+                                      {item.prior_state.text && (
+                                        <div className="mb-1">
+                                          <span className="font-semibold text-zinc-800">Prior:</span>{' '}
+                                          {item.prior_state.text}{' '}
+                                          <span className="text-zinc-500">
+                                            <span className="sr-only">
+                                              ids {formatIdRanges(item.prior_state.sentence_ids)}
+                                            </span>
+                                          </span>
+                                        </div>
+                                      )}
+                                      {item.novelty.text && (
+                                        <div className="mb-1">
+                                          <span className="font-semibold text-zinc-800">
+                                            Novelty:
+                                          </span>{' '}
+                                          {item.novelty.text}{' '}
+                                          <span className="text-zinc-500">
+                                            <span className="sr-only">
+                                              ids {formatIdRanges(item.novelty.sentence_ids)}
+                                            </span>
+                                          </span>
+                                        </div>
+                                      )}
+                                      {item.nontriviality.text && (
+                                        <div>
+                                          <span className="font-semibold text-zinc-800">
+                                            Nontriviality:
+                                          </span>{' '}
+                                          {item.nontriviality.text}{' '}
+                                          <span className="text-zinc-500">
+                                            <span className="sr-only">
+                                              ids {formatIdRanges(item.nontriviality.sentence_ids)}
+                                            </span>
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {activeTab === 'tech' && (
+                      <>
+                        <div className="mb-2 text-xs font-semibold text-zinc-600">Technical Core</div>
+                        {result.sections.technical_core.key_ideas.length === 0 &&
+                          result.sections.technical_core.technical_obstacles.length === 0 &&
+                          result.sections.technical_core.reusable_constructions.length === 0 &&
+                          renderEmpty('No explicit items found.')}
+                        {result.sections.technical_core.key_ideas.length > 0 && (
+                          <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                              Key ideas
+                            </div>
+                            <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
+                              {result.sections.technical_core.key_ideas.map((item, idx) => (
+                                <li key={`tech-ki-${idx}`} className="mb-2">
+                                  <div>{item.description}</div>
+                                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+                                    <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
+                                    <button
+                                      className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
+                                      onClick={() => focusSentences(item.sentence_ids)}
+                                      type="button"
+                                    >
+                                      View sentences
+                                    </button>
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {result.sections.technical_core.technical_obstacles.length > 0 && (
+                          <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                              Technical obstacles
+                            </div>
+                            <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
+                              {result.sections.technical_core.technical_obstacles.map((item, idx) => (
+                                <li key={`tech-to-${idx}`} className="mb-2">
+                                  <div>{item.description}</div>
+                                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+                                    <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
+                                    <button
+                                      className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
+                                      onClick={() => focusSentences(item.sentence_ids)}
+                                      type="button"
+                                    >
+                                      View sentences
+                                    </button>
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {result.sections.technical_core.reusable_constructions.length > 0 && (
+                          <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                              Reusable constructions
+                            </div>
+                            <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
+                              {result.sections.technical_core.reusable_constructions.map(
+                                (item, idx) => (
+                                  <li key={`tech-rc-${idx}`} className="mb-2">
+                                    <div>{item.description}</div>
+                                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+                                      <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
+                                      <button
+                                        className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
+                                        onClick={() => focusSentences(item.sentence_ids)}
+                                        type="button"
+                                      >
+                                        View sentences
+                                      </button>
+                                    </div>
+                                  </li>
+                                )
+                              )}
+                            </ul>
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {activeTab === 'cons' && (
+                      <>
+                        <div className="mb-2 text-xs font-semibold text-zinc-600">Consequences</div>
+                        {result.sections.consequences.open_questions.length === 0 &&
+                          result.sections.consequences.speculative_extensions.length === 0 &&
+                          renderEmpty('No explicit items found.')}
+                        {result.sections.consequences.open_questions.length > 0 && (
+                          <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                              Open questions
+                            </div>
+                            <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
+                              {result.sections.consequences.open_questions.map((item, idx) => (
+                                <li key={`cons-oq-${idx}`} className="mb-2">
+                                  <div>{item.description}</div>
+                                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+                                    <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
+                                    <button
+                                      className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
+                                      onClick={() => focusSentences(item.sentence_ids)}
+                                      type="button"
+                                    >
+                                      View sentences
+                                    </button>
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {result.sections.consequences.speculative_extensions.length > 0 && (
+                          <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                              Speculative extensions
+                            </div>
+                            <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
+                              {result.sections.consequences.speculative_extensions.map((item, idx) => (
+                                <li key={`cons-se-${idx}`} className="mb-2">
+                                  <div>{item.description}</div>
+                                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+                                    <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
+                                    <button
+                                      className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
+                                      onClick={() => focusSentences(item.sentence_ids)}
+                                      type="button"
+                                    >
+                                      View sentences
+                                    </button>
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  <details className="rounded-md border bg-white">
+                    <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-zinc-600 flex items-center gap-2">
+                      <span>Raw JSON</span>
+                      <button
+                        className="rounded-full border px-2 py-0.5 text-[11px] text-zinc-500 hover:bg-zinc-100"
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          navigator.clipboard.writeText(
+                            JSON.stringify(result.sections, null, 2)
+                          );
+                        }}
+                        aria-label="Copy raw JSON"
+                        title="Copy raw JSON"
+                      >
+                        ⧉
+                      </button>
+                    </summary>
+                    <pre className="whitespace-pre-wrap border-t bg-zinc-50 p-3 text-xs leading-5 overflow-auto max-h-[30vh]">
                       {JSON.stringify(result.sections, null, 2)}
                     </pre>
-                  </div>
+                  </details>
                 </>
               )}
             </div>
-          </div>
+          </details>
         </section>
       </main>
 
-      <footer className="mx-auto max-w-6xl px-6 pb-10 text-xs text-zinc-500">
-        <p>
-          Server-only OpenAI calls. Strict JSON schemas + retries. Pass 1 is union aggregation across sliding windows.
-        </p>
-      </footer>
+      <footer className="mx-auto max-w-6xl px-6 pb-10 text-xs text-zinc-500" />
     </div>
   );
 }
