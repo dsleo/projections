@@ -201,3 +201,71 @@ export function pass2UserPrompt(params: {
         '\n\n'
     )}`;
 }
+
+export const PASS3_AUDIENCE_A_SYSTEM = `You are producing a focused view for a domain expert.
+Goal: Answer in <10 minutes: "Is this worth my attention?"
+
+Use ONLY the provided canonical sections and their citations.
+
+Rules:
+- Do not invent content.
+- Use citation_keys only from the provided citation key map.
+- If a field has no explicit support, return an empty list.
+- Keep items concise and high-signal.
+- Output STRICT JSON with this shape:
+{"delta_summary":[{"text":"","citation_keys":["key"]}],"new_vs_prior":[{"text":"","citation_keys":["key"]}],"technical_highlights":{"nonstandard_ideas":[{"text":"","citation_keys":["key"]}],"clever_reductions":[{"text":"","citation_keys":["key"]}]},"reusable_components":[{"text":"","citation_keys":["key"]}],"suppress":[""]}`;
+
+export const PASS3_AUDIENCE_B_SYSTEM = `You are producing a view for an adjacent-field researcher.
+Goal: Answer "Do I need this, and can I enter this paper?"
+
+Use ONLY the provided canonical sections and their citations.
+
+Rules:
+- Do not invent content.
+- Use citation_keys only from the provided citation key map.
+- If a field has no explicit support, return an empty list or empty string.
+- Output STRICT JSON with this shape:
+{"problem_statement":{"text":"","citation_keys":["key"]},"why_matters":[{"text":"","citation_keys":["key"]}],"prerequisite_map":[""],"reading_path":{"read":[""],"skim":[""],"skip":[""]}}`;
+
+export const PASS3_AUDIENCE_C_SYSTEM = `You are producing a view for a grad student or apprentice.
+Goal: Answer "How do I learn from this paper without drowning?"
+
+Use ONLY the provided canonical sections and their citations.
+
+Rules:
+- Do not invent content.
+- Use citation_keys only from the provided citation key map.
+- Explicitly give permission to skip parts.
+- If a field has no explicit support, return an empty list.
+- Output STRICT JSON with this shape:
+{"conceptual_map":[""],"key_ideas":[{"text":"","citation_keys":["key"]}],"suggested_first_pass":[""],"ignore_initially":[""],"permission_to_skip":""}`;
+
+export const PASS3_AUDIENCE_D_SYSTEM = `You are producing a view for the author's future self.
+Goal: Answer "What did I actually do here?"
+
+Use ONLY the provided canonical sections and their citations.
+
+Rules:
+- Do not invent content.
+- Use citation_keys only from the provided citation key map.
+- If a field has no explicit support, return an empty list.
+- Output STRICT JSON with this shape:
+{"one_page_summary":"","dependency_graph":[""],"fragile_arguments":[{"text":"","citation_keys":["key"]}],"robust_arguments":[{"text":"","citation_keys":["key"]}],"notes_to_self":[""]}`;
+
+export function pass3UserPrompt(params: {
+    title?: string;
+    abstract?: string;
+    canonical_with_citations: string;
+    citation_legend: string;
+}): string {
+    const sections: string[] = [];
+    if (params.title && params.title.trim().length > 0) {
+        sections.push(`Title:\n${params.title.trim()}`);
+    }
+    if (params.abstract && params.abstract.trim().length > 0) {
+        sections.push(`Abstract:\n${params.abstract.trim()}`);
+    }
+    sections.push(`Citation key map:\n${params.citation_legend}`);
+    sections.push(`Canonical sections with citations:\n${params.canonical_with_citations}`);
+    return `Use ONLY the following material.\n\n${sections.join('\n\n')}`;
+}

@@ -61,6 +61,33 @@ function LabelPill({ label }: { label: DiscourseLabel }) {
   );
 }
 
+function MathText({ text, className }: { text: string; className?: string }) {
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    ref.current.textContent = text;
+    let cancelled = false;
+    import('katex/contrib/auto-render').then(({ default: renderMathInElement }) => {
+      if (cancelled || !ref.current) return;
+      renderMathInElement(ref.current, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$', right: '$', display: false },
+          { left: '\\(', right: '\\)', display: false },
+          { left: '\\[', right: '\\]', display: true },
+        ],
+        throwOnError: false,
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [text]);
+
+  return <div ref={ref} className={className} />;
+}
+
 export default function Home() {
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
   const [file, setFile] = useState<File | null>(null);
@@ -71,6 +98,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<
     'problem' | 'landscape' | 'contrib' | 'tech' | 'cons' | 'cites'
   >('problem');
+  const [audienceTab, setAudienceTab] = useState<'A' | 'B' | 'C' | 'D'>('A');
   const [highlightedIds, setHighlightedIds] = useState<number[]>([]);
   const [focusedCitationKeys, setFocusedCitationKeys] = useState<string[]>([]);
   const textDetailsRef = useRef<HTMLDetailsElement | null>(null);
@@ -139,6 +167,7 @@ export default function Home() {
       let sections_concatenated_text = '';
       let sentence_citations: AnalysisResult['sentence_citations'] = {};
       let citations: AnalysisResult['citations'] = {};
+      let audience_views: AnalysisResult['audience_views'] = undefined;
       let document_title = '';
       let filename = '';
 
@@ -156,6 +185,7 @@ export default function Home() {
           citations,
           sections,
           sections_concatenated_text,
+          audience_views,
         });
       };
 
@@ -180,6 +210,7 @@ export default function Home() {
           sections_concatenated_text = '';
           sentence_citations = {};
           citations = {};
+          audience_views = undefined;
           setProcessingWindows([]);
           setStatus({ kind: 'analyzing', message: `Segmented ${sentences.length} sentences…` });
           setResult({
@@ -199,6 +230,7 @@ export default function Home() {
               consequences: { open_questions: [], speculative_extensions: [] },
             },
             sections_concatenated_text: '',
+            audience_views: undefined,
           });
         }
 
@@ -240,6 +272,8 @@ export default function Home() {
           sentence_citations =
             (dataObj?.sentence_citations as AnalysisResult['sentence_citations'] | undefined) ?? {};
           citations = (dataObj?.citations as AnalysisResult['citations'] | undefined) ?? {};
+          audience_views =
+            (dataObj?.audience_views as AnalysisResult['audience_views'] | undefined) ?? undefined;
           applyPartialResult();
         }
 
@@ -339,6 +373,39 @@ export default function Home() {
     return entry.key;
   };
 
+  const formatCitationLabelFromKey = (key: string) => {
+    const entry =
+      result?.citations?.[key] ?? ({ key, text: '', labels: [], sentence_ids: [] } as const);
+    return formatCitationLabel(entry);
+  };
+
+  const renderCitationChips = (keys: string[]) => {
+    if (!keys || keys.length === 0) return null;
+    return (
+      <div className="mt-1 flex flex-wrap items-center gap-1">
+        {keys.map((key) => (
+          <span
+            key={`view-cite-${key}`}
+            className="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] text-zinc-600 bg-white"
+            title={result?.citations?.[key]?.text || key}
+          >
+            {formatCitationLabelFromKey(key)}
+          </span>
+        ))}
+        <button
+          className="rounded-full border px-2 py-0.5 text-[10px] hover:bg-white"
+          type="button"
+          onClick={() => {
+            setFocusedCitationKeys(keys);
+            setActiveTab('cites');
+          }}
+        >
+          View citations
+        </button>
+      </div>
+    );
+  };
+
   const getCitationsForSentenceIds = (ids: number[]) => {
     if (!result || !result.sentence_citations) return [];
     const keySet = new Set<string>();
@@ -368,6 +435,19 @@ export default function Home() {
 
   const renderEmpty = (label: string) => (
     <div className="text-xs text-zinc-500">{label}</div>
+  );
+
+  const renderGroundedList = (
+    items: Array<{ text: string; citation_keys: string[] }>
+  ) => (
+    <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
+      {items.map((item, idx) => (
+        <li key={`grounded-${idx}`} className="mb-2">
+          <MathText text={item.text} />
+          {renderCitationChips(item.citation_keys)}
+        </li>
+      ))}
+    </ul>
   );
 
   const focusSentences = (ids: number[]) => {
@@ -1019,6 +1099,290 @@ export default function Home() {
                       {JSON.stringify(result.sections, null, 2)}
                     </pre>
                   </details>
+                </>
+              )}
+            </div>
+          </details>
+
+          <details className="rounded-lg border bg-white" open>
+            <summary className="cursor-pointer border-b px-4 py-3 text-sm font-semibold">
+              Audience views (Pass 3)
+            </summary>
+            <div className="grid grid-cols-1 gap-4 p-4">
+              {!result?.audience_views && <div className="text-sm text-zinc-500">No data.</div>}
+              {result?.audience_views && (
+                <>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { id: 'A', label: 'Domain Expert' },
+                      { id: 'B', label: 'Adjacent-field Researcher' },
+                      { id: 'C', label: 'Grad Student' },
+                      { id: 'D', label: 'Author Self' },
+                    ].map((tab) => (
+                      <button
+                        key={tab.id}
+                        className={classNames(
+                          'rounded-full border px-3 py-1 text-xs',
+                          audienceTab === tab.id
+                            ? 'border-zinc-900 bg-zinc-900 text-white'
+                            : 'border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50'
+                        )}
+                        onClick={() => setAudienceTab(tab.id as typeof audienceTab)}
+                        type="button"
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="rounded-md border bg-white p-3 max-h-[42vh] overflow-auto">
+                    {audienceTab === 'A' && (
+                      <>
+                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                            Delta summary
+                          </div>
+                          {renderGroundedList(result.audience_views.domain_expert.delta_summary)}
+                        </div>
+
+                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                            What is new vs prior work
+                          </div>
+                          {renderGroundedList(result.audience_views.domain_expert.new_vs_prior)}
+                        </div>
+
+                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                            Technical highlights
+                          </div>
+                          <div className="mt-2 text-xs font-semibold text-zinc-500">
+                            Nonstandard ideas
+                          </div>
+                          {renderGroundedList(
+                            result.audience_views.domain_expert.technical_highlights
+                              .nonstandard_ideas
+                          )}
+                          <div className="mt-3 text-xs font-semibold text-zinc-500">
+                            Clever reductions
+                          </div>
+                          {renderGroundedList(
+                            result.audience_views.domain_expert.technical_highlights.clever_reductions
+                          )}
+                        </div>
+
+                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                            Reusable components
+                          </div>
+                          {renderGroundedList(result.audience_views.domain_expert.reusable_components)}
+                        </div>
+
+                        <div className="rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                            What to suppress
+                          </div>
+                          <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
+                            {result.audience_views.domain_expert.suppress.map((item, idx) => (
+                              <li key={`a-sup-${idx}`} className="mb-2">
+                                <MathText text={item} />
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </>
+                    )}
+
+                    {audienceTab === 'B' && (
+                      <>
+                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                            Problem statement (plain math)
+                          </div>
+                          <div className="mt-2 text-sm text-zinc-900">
+                            <MathText text={result.audience_views.adjacent_researcher.problem_statement.text} />
+                          </div>
+                          {renderCitationChips(
+                            result.audience_views.adjacent_researcher.problem_statement.citation_keys
+                          )}
+                        </div>
+
+                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                            Why this matters
+                          </div>
+                          {renderGroundedList(result.audience_views.adjacent_researcher.why_matters)}
+                        </div>
+
+                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                            Prerequisite map
+                          </div>
+                          <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
+                            {result.audience_views.adjacent_researcher.prerequisite_map.map(
+                              (item, idx) => (
+                                <li key={`b-pre-${idx}`} className="mb-2">
+                                  <MathText text={item} />
+                                </li>
+                              )
+                            )}
+                          </ul>
+                        </div>
+
+                        <div className="rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                            Reading path
+                          </div>
+                          <div className="mt-2 text-xs font-semibold text-zinc-500">Read</div>
+                          <ul className="mt-1 list-disc pl-4 text-sm text-zinc-900">
+                            {result.audience_views.adjacent_researcher.reading_path.read.map(
+                              (item, idx) => (
+                                <li key={`b-read-${idx}`} className="mb-2">
+                                  <MathText text={item} />
+                                </li>
+                              )
+                            )}
+                          </ul>
+                          <div className="mt-2 text-xs font-semibold text-zinc-500">Skim</div>
+                          <ul className="mt-1 list-disc pl-4 text-sm text-zinc-900">
+                            {result.audience_views.adjacent_researcher.reading_path.skim.map(
+                              (item, idx) => (
+                                <li key={`b-skim-${idx}`} className="mb-2">
+                                  <MathText text={item} />
+                                </li>
+                              )
+                            )}
+                          </ul>
+                          <div className="mt-2 text-xs font-semibold text-zinc-500">Skip</div>
+                          <ul className="mt-1 list-disc pl-4 text-sm text-zinc-900">
+                            {result.audience_views.adjacent_researcher.reading_path.skip.map(
+                              (item, idx) => (
+                                <li key={`b-skip-${idx}`} className="mb-2">
+                                  <MathText text={item} />
+                                </li>
+                              )
+                            )}
+                          </ul>
+                        </div>
+                      </>
+                    )}
+
+                    {audienceTab === 'C' && (
+                      <>
+                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                            Conceptual map
+                          </div>
+                          <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
+                            {result.audience_views.grad_student.conceptual_map.map((item, idx) => (
+                              <li key={`c-map-${idx}`} className="mb-2">
+                                <MathText text={item} />
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+
+                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                            Key ideas before technicalities
+                          </div>
+                          {renderGroundedList(result.audience_views.grad_student.key_ideas)}
+                        </div>
+
+                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                            Suggested first pass
+                          </div>
+                          <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
+                            {result.audience_views.grad_student.suggested_first_pass.map(
+                              (item, idx) => (
+                                <li key={`c-pass-${idx}`} className="mb-2">
+                                  <MathText text={item} />
+                                </li>
+                              )
+                            )}
+                          </ul>
+                        </div>
+
+                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                            What to ignore initially
+                          </div>
+                          <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
+                            {result.audience_views.grad_student.ignore_initially.map(
+                              (item, idx) => (
+                                <li key={`c-ign-${idx}`} className="mb-2">
+                                  <MathText text={item} />
+                                </li>
+                              )
+                            )}
+                          </ul>
+                        </div>
+
+                        <div className="rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                            Permission to skip
+                          </div>
+                          <div className="mt-2 text-sm text-zinc-900">
+                            <MathText text={result.audience_views.grad_student.permission_to_skip} />
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {audienceTab === 'D' && (
+                      <>
+                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                            One-page contribution summary
+                          </div>
+                          <div className="mt-2 text-sm text-zinc-900">
+                            <MathText text={result.audience_views.author_self.one_page_summary} />
+                          </div>
+                        </div>
+
+                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                            Internal dependency graph
+                          </div>
+                          <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
+                            {result.audience_views.author_self.dependency_graph.map((item, idx) => (
+                              <li key={`d-dep-${idx}`} className="mb-2">
+                                <MathText text={item} />
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+
+                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                            Fragile arguments
+                          </div>
+                          {renderGroundedList(result.audience_views.author_self.fragile_arguments)}
+                        </div>
+
+                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                            Robust arguments
+                          </div>
+                          {renderGroundedList(result.audience_views.author_self.robust_arguments)}
+                        </div>
+
+                        <div className="rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                            Notes to self
+                          </div>
+                          <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
+                            {result.audience_views.author_self.notes_to_self.map((item, idx) => (
+                              <li key={`d-note-${idx}`} className="mb-2">
+                                <MathText text={item} />
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </>
               )}
             </div>

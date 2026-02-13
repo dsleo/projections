@@ -6,6 +6,7 @@ import { segmentSentences } from './segment';
 import { buildSlidingWindows } from './windows';
 import { runPass1 } from './pass1';
 import { runPass2 } from './pass2';
+import { runPass3 } from './pass3';
 import { createLogger, time, type Logger } from '../logging';
 
 export type AnalyzeOptions = {
@@ -56,6 +57,16 @@ export async function analyzeLatex(
     const { sections, sections_concatenated_text } = pass2;
 
     const { sentence_citations, citations } = buildCitationData(latex, sentences, labels);
+    const { result: audience_views } = await time(logger, 'pass3', async () =>
+        runPass3(sections, {
+            concurrency: 4,
+            logger,
+            document_title: undefined,
+            abstract: undefined,
+            citations,
+            sentence_citations,
+        })
+    );
 
     logger.info('analyze:done', {
         sentences: sentences.length,
@@ -72,5 +83,6 @@ export async function analyzeLatex(
         citations,
         sections,
         sections_concatenated_text,
+        audience_views,
     };
 }

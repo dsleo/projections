@@ -6,6 +6,7 @@ import { segmentSentences } from '@/lib/pipeline/segment';
 import { buildSlidingWindows } from '@/lib/pipeline/windows';
 import { classifyWindow } from '@/lib/pipeline/pass1';
 import { runPass2 } from '@/lib/pipeline/pass2';
+import { runPass3 } from '@/lib/pipeline/pass3';
 
 export const runtime = 'nodejs';
 
@@ -174,7 +175,21 @@ export async function POST(req: Request) {
                     abstract: abstract ?? undefined,
                 });
                 const { sentence_citations, citations } = buildCitationData(latex, sentences, labels);
-                send('sections', { sections, sections_concatenated_text, sentence_citations, citations });
+                const audience_views = await runPass3(sections, {
+                    concurrency: 4,
+                    logger,
+                    document_title: document_title ?? undefined,
+                    abstract: abstract ?? undefined,
+                    citations,
+                    sentence_citations,
+                });
+                send('sections', {
+                    sections,
+                    sections_concatenated_text,
+                    sentence_citations,
+                    citations,
+                    audience_views,
+                });
 
                 // Final result
                 send('done', {
@@ -188,6 +203,7 @@ export async function POST(req: Request) {
                     citations,
                     sections,
                     sections_concatenated_text,
+                    audience_views,
                 });
             } catch (e) {
                 send('error', {

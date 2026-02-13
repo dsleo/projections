@@ -82,6 +82,56 @@ export type CanonicalSections = {
     consequences: Consequences;
 };
 
+export type GroundedCitationItem = {
+    text: string;
+    citation_keys: string[];
+};
+
+export type Pass3AudienceA = {
+    delta_summary: GroundedCitationItem[];
+    new_vs_prior: GroundedCitationItem[];
+    technical_highlights: {
+        nonstandard_ideas: GroundedCitationItem[];
+        clever_reductions: GroundedCitationItem[];
+    };
+    reusable_components: GroundedCitationItem[];
+    suppress: string[];
+};
+
+export type Pass3AudienceB = {
+    problem_statement: GroundedCitationItem;
+    why_matters: GroundedCitationItem[];
+    prerequisite_map: string[];
+    reading_path: {
+        read: string[];
+        skim: string[];
+        skip: string[];
+    };
+};
+
+export type Pass3AudienceC = {
+    conceptual_map: string[];
+    key_ideas: GroundedCitationItem[];
+    suggested_first_pass: string[];
+    ignore_initially: string[];
+    permission_to_skip: string;
+};
+
+export type Pass3AudienceD = {
+    one_page_summary: string;
+    dependency_graph: string[];
+    fragile_arguments: GroundedCitationItem[];
+    robust_arguments: GroundedCitationItem[];
+    notes_to_self: string[];
+};
+
+export type Pass3Views = {
+    domain_expert: Pass3AudienceA;
+    adjacent_researcher: Pass3AudienceB;
+    grad_student: Pass3AudienceC;
+    author_self: Pass3AudienceD;
+};
+
 export type CitationEntry = {
     key: string;
     label?: string;
@@ -104,4 +154,5 @@ export type AnalysisResult = {
     citations: CitationMap;
     sections: CanonicalSections;
     sections_concatenated_text: string;
+    audience_views?: Pass3Views;
 };
