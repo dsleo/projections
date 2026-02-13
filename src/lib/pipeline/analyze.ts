@@ -7,6 +7,8 @@ import { buildSlidingWindows } from './windows';
 import { runPass1 } from './pass1';
 import { runPass2 } from './pass2';
 import { runPass3 } from './pass3';
+import { propagateLabelsByEnvironment } from './env_propagation';
+import { extractDocumentTitle, extractAbstract } from './preprocess';
 import { createLogger, time, type Logger } from '../logging';
 
 export type AnalyzeOptions = {
@@ -14,6 +16,7 @@ export type AnalyzeOptions = {
     pass2Concurrency?: number;
     logger?: Logger;
     requestId?: string;
+    useEnvPropagation?: boolean;
 };
 
 export async function analyzeLatex(
@@ -40,12 +43,15 @@ export async function analyzeLatex(
     );
     logger.info('windows:stats', { windows: windows.length });
 
-    const { result: labels } = await time(logger, 'pass1', async () =>
+    const { result: labelsRaw } = await time(logger, 'pass1', async () =>
         runPass1(windows, sentences, {
             concurrency: opts.pass1Concurrency ?? 6,
             logger,
         })
     );
+    const labels = opts.useEnvPropagation
+        ? propagateLabelsByEnvironment(latex, sentences, labelsRaw)
+        : labelsRaw;
     logger.info('pass1:stats', { labeledSentences: Object.keys(labels).length });
 
     const { result: pass2 } = await time(logger, 'pass2', async () =>
@@ -57,14 +63,18 @@ export async function analyzeLatex(
     const { sections, sections_concatenated_text } = pass2;
 
     const { sentence_citations, citations } = buildCitationData(latex, sentences, labels);
+    const document_title = extractDocumentTitle(latex);
+    const abstract = extractAbstract(latex);
     const { result: audience_views } = await time(logger, 'pass3', async () =>
         runPass3(sections, {
             concurrency: 4,
             logger,
-            document_title: undefined,
-            abstract: undefined,
+            document_title: document_title ?? undefined,
+            abstract: abstract ?? undefined,
             citations,
             sentence_citations,
+            sentences,
+            original_latex: latex,
         })
     );
 
@@ -75,6 +85,9 @@ export async function analyzeLatex(
     });
 
     return {
+        document_title: document_title ?? undefined,
+        abstract: abstract ?? undefined,
+        filename: undefined,
         original_latex: latex,
         preprocessed_latex,
         sentences,

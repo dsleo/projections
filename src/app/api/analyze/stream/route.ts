@@ -1,12 +1,18 @@
 import { createLogger } from '@/lib/logging';
 import type { DiscourseLabel, SentenceLabelMap } from '@/lib/pipeline/types';
 import { buildCitationData } from '@/lib/pipeline/citations';
-import { mapSentencesToOriginal, preprocessLatexWithMap } from '@/lib/pipeline/preprocess';
+import {
+    extractAbstract,
+    extractDocumentTitle,
+    mapSentencesToOriginal,
+    preprocessLatexWithMap,
+} from '@/lib/pipeline/preprocess';
 import { segmentSentences } from '@/lib/pipeline/segment';
 import { buildSlidingWindows } from '@/lib/pipeline/windows';
 import { classifyWindow } from '@/lib/pipeline/pass1';
 import { runPass2 } from '@/lib/pipeline/pass2';
 import { runPass3 } from '@/lib/pipeline/pass3';
+import { propagateLabelsByEnvironment } from '@/lib/pipeline/env_propagation';
 
 export const runtime = 'nodejs';
 
@@ -32,31 +38,6 @@ function sortLabels(labels: Set<DiscourseLabel>): DiscourseLabel[] {
     return Array.from(labels).sort((a, b) => order.indexOf(a) - order.indexOf(b));
 }
 
-function extractDocumentTitle(latex: string): string | null {
-    const titleMatch = latex.match(/\\title(?:\[[^\]]*\])?\{([\s\S]*?)\}/);
-    if (!titleMatch) return null;
-    let title = titleMatch[1]
-        .replace(/\\[a-zA-Z*]+(?:\[[^\]]*\])?/g, '')
-        .replace(/[{}]/g, '')
-        .replace(/\s+/g, ' ')
-        .trim();
-    if (!title) return null;
-    return title;
-}
-
-function extractAbstract(latex: string): string | null {
-    const envMatch = latex.match(/\\begin\{abstract\}([\s\S]*?)\\end\{abstract\}/);
-    const cmdMatch = latex.match(/\\abstract\s*\{([\s\S]*?)\}/);
-    const raw = envMatch?.[1] ?? cmdMatch?.[1];
-    if (!raw) return null;
-    let abstract = raw
-        .replace(/\\[a-zA-Z*]+(?:\[[^\]]*\])?/g, '')
-        .replace(/[{}]/g, '')
-        .replace(/\s+/g, ' ')
-        .trim();
-    if (!abstract) return null;
-    return abstract;
-}
 
 export async function POST(req: Request) {
     const requestId = crypto.randomUUID();
@@ -73,6 +54,8 @@ export async function POST(req: Request) {
 
                 const form = await req.formData();
                 const file = form.get('file');
+                const useEnvPropagation =
+                    (form.get('use_env_propagation') as string | null) === '1';
                 if (!(file instanceof File)) {
                     send('error', { error: 'Missing file' });
                     controller.close();
@@ -103,6 +86,7 @@ export async function POST(req: Request) {
                 send('init', {
                     requestId,
                     document_title,
+                    abstract,
                     filename: file.name,
                     original_latex: latex,
                     preprocessed_latex,
@@ -160,11 +144,14 @@ export async function POST(req: Request) {
                     await new Promise((r) => setTimeout(r, 25));
                 }
 
-                const labels: SentenceLabelMap = {};
+                const labelsRaw: SentenceLabelMap = {};
                 for (const [sid, set] of Object.entries(agg)) {
                     const arr = sortLabels(set);
-                    if (arr.length > 0) labels[sid] = arr;
+                    if (arr.length > 0) labelsRaw[sid] = arr;
                 }
+                const labels = useEnvPropagation
+                    ? propagateLabelsByEnvironment(latex, sentences, labelsRaw)
+                    : labelsRaw;
                 send('pass1_done', { labeledSentences: Object.keys(labels).length });
 
                 // Phase 2: pass2 (already parallel across the 5 calls internally)
@@ -182,6 +169,8 @@ export async function POST(req: Request) {
                     abstract: abstract ?? undefined,
                     citations,
                     sentence_citations,
+                    sentences,
+                    original_latex: latex,
                 });
                 send('sections', {
                     sections,
@@ -194,6 +183,7 @@ export async function POST(req: Request) {
                 // Final result
                 send('done', {
                     document_title,
+                    abstract,
                     filename: file.name,
                     original_latex: latex,
                     preprocessed_latex,

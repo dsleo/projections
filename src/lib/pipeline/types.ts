@@ -84,18 +84,17 @@ export type CanonicalSections = {
 
 export type GroundedCitationItem = {
     text: string;
-    citation_keys: string[];
+    sentence_ids: number[];
 };
 
 export type Pass3AudienceA = {
+    problem_statement: GroundedCitationItem;
     delta_summary: GroundedCitationItem[];
-    new_vs_prior: GroundedCitationItem[];
     technical_highlights: {
         nonstandard_ideas: GroundedCitationItem[];
         clever_reductions: GroundedCitationItem[];
     };
     reusable_components: GroundedCitationItem[];
-    suppress: string[];
 };
 
 export type Pass3AudienceB = {
@@ -110,16 +109,17 @@ export type Pass3AudienceB = {
 };
 
 export type Pass3AudienceC = {
-    conceptual_map: string[];
     key_ideas: GroundedCitationItem[];
     suggested_first_pass: string[];
+    conceptual_map: string[];
     ignore_initially: string[];
     permission_to_skip: string;
+    problem_statement: GroundedCitationItem;
 };
 
 export type Pass3AudienceD = {
+    problem_statement: GroundedCitationItem;
     one_page_summary: string;
-    dependency_graph: string[];
     fragile_arguments: GroundedCitationItem[];
     robust_arguments: GroundedCitationItem[];
     notes_to_self: string[];
@@ -145,6 +145,7 @@ export type SentenceCitationMap = Record<string, string[]>;
 
 export type AnalysisResult = {
     document_title?: string;
+    abstract?: string;
     filename?: string;
     original_latex: string;
     preprocessed_latex: string;

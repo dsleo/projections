@@ -19,6 +19,7 @@ import type {
     CanonicalSections,
     CitationMap,
     Pass3Views,
+    Sentence,
     SentenceCitationMap,
 } from './types';
 
@@ -29,59 +30,17 @@ export type Pass3Options = {
     abstract?: string;
     citations: CitationMap;
     sentence_citations: SentenceCitationMap;
+    sentences: Sentence[];
+    original_latex: string;
 };
 
-function formatCitationLabel(key: string, citations: CitationMap): string {
-    const entry = citations[key];
-    if (!entry) return key;
-    if (entry.label?.trim()) return entry.label.trim();
-    if (entry.text) {
-        const year = entry.text.match(/\b(19|20)\d{2}\b/)?.[0];
-        const author = entry.text.split(',')[0]?.trim();
-        if (author && year) return `${author} ${year}`;
-        if (author) return author;
-    }
-    return key;
-}
-
-function citationKeysForSentenceIds(
-    sentenceIds: number[],
-    sentenceCitations: SentenceCitationMap,
-    citations: CitationMap
-): string[] {
-    const keys = new Set<string>();
-    for (const id of sentenceIds) {
-        const arr = sentenceCitations[String(id)] ?? [];
-        for (const k of arr) keys.add(k);
-    }
-    return Array.from(keys);
-}
-
-function formatCitationLegend(citations: CitationMap): string {
-    const lines: string[] = [];
-    for (const key of Object.keys(citations)) {
-        const label = formatCitationLabel(key, citations);
-        lines.push(`${key}: ${label}`);
-    }
-    return lines.length > 0 ? lines.join('\n') : '(none)';
-}
-
-function formatCanonicalWithCitations(
-    sections: CanonicalSections,
-    sentenceCitations: SentenceCitationMap,
-    citations: CitationMap
-): string {
+function formatCanonicalWithCitations(sections: CanonicalSections): string {
     const lines: string[] = [];
 
     const pushItems = (label: string, items: { description: string; sentence_ids: number[] }[]) => {
         for (const item of items) {
-            const cites = citationKeysForSentenceIds(
-                item.sentence_ids,
-                sentenceCitations,
-                citations
-            );
             lines.push(`- ${label}: ${item.description}`);
-            if (cites.length > 0) lines.push(`  citations: ${cites.join('; ')}`);
+            lines.push(`  sentence_ids: ${item.sentence_ids.join(', ')}`);
         }
     };
 
@@ -97,35 +56,19 @@ function formatCanonicalWithCitations(
 
     lines.push('\n# Contributions');
     for (const c of sections.contributions.contributions) {
-        const cites = citationKeysForSentenceIds(c.sentence_ids, sentenceCitations, citations);
         lines.push(`- Contribution: ${c.statement}`);
-        if (cites.length > 0) lines.push(`  citations: ${cites.join('; ')}`);
+        lines.push(`  sentence_ids: ${c.sentence_ids.join(', ')}`);
         if (c.prior_state.text) {
-            const priorCites = citationKeysForSentenceIds(
-                c.prior_state.sentence_ids,
-                sentenceCitations,
-                citations
-            );
             lines.push(`  prior_state: ${c.prior_state.text}`);
-            if (priorCites.length > 0) lines.push(`  citations: ${priorCites.join('; ')}`);
+            lines.push(`  sentence_ids: ${c.prior_state.sentence_ids.join(', ')}`);
         }
         if (c.novelty.text) {
-            const noveltyCites = citationKeysForSentenceIds(
-                c.novelty.sentence_ids,
-                sentenceCitations,
-                citations
-            );
             lines.push(`  novelty: ${c.novelty.text}`);
-            if (noveltyCites.length > 0) lines.push(`  citations: ${noveltyCites.join('; ')}`);
+            lines.push(`  sentence_ids: ${c.novelty.sentence_ids.join(', ')}`);
         }
         if (c.nontriviality.text) {
-            const ntCites = citationKeysForSentenceIds(
-                c.nontriviality.sentence_ids,
-                sentenceCitations,
-                citations
-            );
             lines.push(`  nontriviality: ${c.nontriviality.text}`);
-            if (ntCites.length > 0) lines.push(`  citations: ${ntCites.join('; ')}`);
+            lines.push(`  sentence_ids: ${c.nontriviality.sentence_ids.join(', ')}`);
         }
     }
 
@@ -146,16 +89,11 @@ export async function runPass3(
     opts: Pass3Options
 ): Promise<Pass3Views> {
     const limit = pLimit(opts.concurrency ?? 4);
-    const canonical_with_citations = formatCanonicalWithCitations(
-        sections,
-        opts.sentence_citations,
-        opts.citations
-    );
+    const canonical_with_citations = formatCanonicalWithCitations(sections);
     const user = pass3UserPrompt({
         title: opts.document_title,
         abstract: opts.abstract,
         canonical_with_citations,
-        citation_legend: formatCitationLegend(opts.citations),
     });
 
     const expertTask = limit(() =>

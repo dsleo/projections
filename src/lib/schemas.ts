@@ -68,18 +68,17 @@ export const CanonicalSectionsSchema = z.object({
 
 export const GroundedCitationItemSchema = z.object({
     text: z.string(),
-    citation_keys: z.array(z.string()),
+    sentence_ids: z.array(z.number().int().nonnegative()),
 });
 
 export const Pass3AudienceASchema = z.object({
+    problem_statement: GroundedCitationItemSchema,
     delta_summary: z.array(GroundedCitationItemSchema),
-    new_vs_prior: z.array(GroundedCitationItemSchema),
     technical_highlights: z.object({
         nonstandard_ideas: z.array(GroundedCitationItemSchema),
         clever_reductions: z.array(GroundedCitationItemSchema),
     }),
     reusable_components: z.array(GroundedCitationItemSchema),
-    suppress: z.array(z.string()),
 });
 
 export const Pass3AudienceBSchema = z.object({
@@ -94,16 +93,17 @@ export const Pass3AudienceBSchema = z.object({
 });
 
 export const Pass3AudienceCSchema = z.object({
-    conceptual_map: z.array(z.string()),
     key_ideas: z.array(GroundedCitationItemSchema),
     suggested_first_pass: z.array(z.string()),
+    conceptual_map: z.array(z.string()),
     ignore_initially: z.array(z.string()),
     permission_to_skip: z.string(),
+    problem_statement: GroundedCitationItemSchema,
 });
 
 export const Pass3AudienceDSchema = z.object({
+    problem_statement: GroundedCitationItemSchema,
     one_page_summary: z.string(),
-    dependency_graph: z.array(z.string()),
     fragile_arguments: z.array(GroundedCitationItemSchema),
     robust_arguments: z.array(GroundedCitationItemSchema),
     notes_to_self: z.array(z.string()),

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { AnalysisResult, DiscourseLabel, Sentence } from '@/lib/pipeline/client';
+import { propagateLabelsByEnvironment } from '@/lib/pipeline/env_propagation';
 import { LABEL_COLORS } from '@/lib/ui/labels';
 
 type Status =
@@ -92,6 +93,7 @@ export default function Home() {
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [useEnvPropagation, setUseEnvPropagation] = useState(false);
   const [processingWindows, setProcessingWindows] = useState<Array<{ start: number; end: number }>>(
     []
   );
@@ -99,12 +101,18 @@ export default function Home() {
     'problem' | 'landscape' | 'contrib' | 'tech' | 'cons' | 'cites'
   >('problem');
   const [audienceTab, setAudienceTab] = useState<'A' | 'B' | 'C' | 'D'>('A');
+  const [audienceShowText, setAudienceShowText] = useState(false);
   const [highlightedIds, setHighlightedIds] = useState<number[]>([]);
   const [focusedCitationKeys, setFocusedCitationKeys] = useState<string[]>([]);
   const textDetailsRef = useRef<HTMLDetailsElement | null>(null);
   const canonicalDetailsRef = useRef<HTMLDetailsElement | null>(null);
   const [labelFilter, setLabelFilter] = useState<DiscourseLabel[]>([]);
   const [showUnlabeledOnly, setShowUnlabeledOnly] = useState(false);
+  const [envPropagationMsg, setEnvPropagationMsg] = useState<string>('');
+  const [envPropagationDetails, setEnvPropagationDetails] = useState<string>('');
+  const [envPropagationPrev, setEnvPropagationPrev] = useState<AnalysisResult['labels'] | null>(
+    null
+  );
 
   useEffect(() => {
     try {
@@ -138,6 +146,7 @@ export default function Home() {
     try {
       const form = new FormData();
       form.append('file', file);
+      form.append('use_env_propagation', useEnvPropagation ? '1' : '0');
       setStatus({ kind: 'analyzing', message: 'Starting…' });
 
       const res = await fetch('/api/analyze/stream', {
@@ -171,6 +180,7 @@ export default function Home() {
       let sentence_citations: AnalysisResult['sentence_citations'] = {};
       let citations: AnalysisResult['citations'] = {};
       let audience_views: AnalysisResult['audience_views'] = undefined;
+      let abstract: AnalysisResult['abstract'] = undefined;
       let document_title = '';
       let filename = '';
 
@@ -179,6 +189,7 @@ export default function Home() {
         if (!sections) return;
         setResult({
           document_title,
+          abstract,
           filename,
           original_latex,
           preprocessed_latex,
@@ -214,10 +225,12 @@ export default function Home() {
           sentence_citations = {};
           citations = {};
           audience_views = undefined;
+          abstract = (dataObj?.abstract as string | undefined) ?? '';
           setProcessingWindows([]);
           setStatus({ kind: 'analyzing', message: `Segmented ${sentences.length} sentences…` });
           setResult({
             document_title,
+            abstract,
             filename,
             original_latex,
             preprocessed_latex,
@@ -326,6 +339,79 @@ export default function Home() {
     }
   }
 
+  async function rerunPass2Only() {
+    if (!result) return;
+    setStatus({ kind: 'analyzing', message: 'Re-running Pass 2…' });
+    try {
+      const res = await fetch('/api/analyze/pass2', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          original_latex: result.original_latex,
+          sentences: result.sentences,
+          labels: result.labels,
+          document_title: result.document_title,
+          abstract: (result as { abstract?: string }).abstract,
+        }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => null);
+        throw new Error(j?.error ?? `Request failed with status ${res.status}`);
+      }
+      const data = (await res.json()) as Partial<AnalysisResult>;
+      setResult((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          sections: data.sections ?? prev.sections,
+          sections_concatenated_text:
+            data.sections_concatenated_text ?? prev.sections_concatenated_text,
+        };
+      });
+      setStatus({ kind: 'done' });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Unknown error';
+      setStatus({ kind: 'error', message: msg });
+    }
+  }
+
+  async function rerunPass3Only() {
+    if (!result) return;
+    setStatus({ kind: 'analyzing', message: 'Re-running Pass 3…' });
+    try {
+      const res = await fetch('/api/analyze/pass3', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          original_latex: result.original_latex,
+          sentences: result.sentences,
+          labels: result.labels,
+          sections: result.sections,
+          document_title: result.document_title,
+          abstract: (result as { abstract?: string }).abstract,
+        }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => null);
+        throw new Error(j?.error ?? `Request failed with status ${res.status}`);
+      }
+      const data = (await res.json()) as Partial<AnalysisResult>;
+      setResult((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          audience_views: data.audience_views ?? prev.audience_views,
+          sentence_citations: data.sentence_citations ?? prev.sentence_citations,
+          citations: data.citations ?? prev.citations,
+        };
+      });
+      setStatus({ kind: 'done' });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Unknown error';
+      setStatus({ kind: 'error', message: msg });
+    }
+  }
+
   const documentTitle = useMemo(() => {
     if (result?.document_title?.trim()) return result.document_title.trim();
     if (result?.filename?.trim()) return result.filename.trim();
@@ -417,22 +503,20 @@ export default function Home() {
   const renderCitationActionForKeys = (keys: string[]) => {
     if (!keys || keys.length === 0) return null;
     return (
-      <div className="mt-1 flex items-center gap-2">
-        <button
-          className="rounded-full border px-2 py-0.5 text-[10px] hover:bg-white"
-          type="button"
-          onClick={() => {
-            setFocusedCitationKeys(keys);
-            setActiveTab('cites');
-            if (canonicalDetailsRef.current) {
-              canonicalDetailsRef.current.open = true;
-              canonicalDetailsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-          }}
-        >
-          View citations
-        </button>
-      </div>
+      <button
+        className="rounded-full border px-2 py-0.5 text-[10px] hover:bg-white"
+        type="button"
+        onClick={() => {
+          setFocusedCitationKeys(keys);
+          setActiveTab('cites');
+          if (canonicalDetailsRef.current) {
+            canonicalDetailsRef.current.open = true;
+            canonicalDetailsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }}
+      >
+        View citations
+      </button>
     );
   };
 
@@ -468,20 +552,93 @@ export default function Home() {
   );
 
   const renderGroundedList = (
-    items: Array<{ text: string; citation_keys: string[] }>
+    items: Array<{ text: string; sentence_ids?: number[] }>
   ) => (
     <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
       {items.map((item, idx) => (
         <li key={`grounded-${idx}`} className="mb-2">
           <MathText text={item.text} />
-          {renderCitationActionForKeys(item.citation_keys)}
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+            {item.sentence_ids && item.sentence_ids.length > 0 && (
+              <button
+                className="rounded-full border px-2 py-0.5 text-[10px] hover:bg-white"
+                type="button"
+                onClick={() => focusSentences(item.sentence_ids)}
+              >
+                View sentences
+              </button>
+            )}
+            {renderCitationActionForKeys(
+              item.sentence_ids ? getCitationsForSentenceIds(item.sentence_ids).map((e) => e.key) : []
+            )}
+          </div>
         </li>
       ))}
     </ul>
   );
 
-  const collectCitationKeys = (items: Array<{ citation_keys: string[] }>) =>
-    Array.from(new Set(items.flatMap((item) => item.citation_keys)));
+  const collectSentenceIds = (items: Array<{ sentence_ids?: number[] }>) =>
+    Array.from(new Set(items.flatMap((item) => item.sentence_ids ?? [])));
+
+  const collectAudienceSentenceIds = () => {
+    if (!result?.audience_views) return [];
+    const ids = new Set<number>();
+    const add = (arr?: Array<{ sentence_ids?: number[] }>) => {
+      if (!arr) return;
+      for (const item of arr) {
+        for (const id of item.sentence_ids ?? []) ids.add(id);
+      }
+    };
+    const addOne = (item?: { sentence_ids?: number[] }) => {
+      if (!item) return;
+      for (const id of item.sentence_ids ?? []) ids.add(id);
+    };
+    const v = result.audience_views;
+    if (audienceTab === 'A') {
+      addOne(v.domain_expert.problem_statement);
+      add(v.domain_expert.delta_summary);
+      add(v.domain_expert.technical_highlights.nonstandard_ideas);
+      add(v.domain_expert.technical_highlights.clever_reductions);
+      add(v.domain_expert.reusable_components);
+    } else if (audienceTab === 'B') {
+      addOne(v.adjacent_researcher.problem_statement);
+      add(v.adjacent_researcher.why_matters);
+    } else if (audienceTab === 'C') {
+      addOne(v.grad_student.problem_statement);
+      add(v.grad_student.key_ideas);
+    } else if (audienceTab === 'D') {
+      addOne(v.author_self.problem_statement);
+      add(v.author_self.fragile_arguments);
+      add(v.author_self.robust_arguments);
+    }
+    return Array.from(ids).sort((a, b) => a - b);
+  };
+
+  const renderAudienceFullText = () => {
+    if (!result) return null;
+    const ids = collectAudienceSentenceIds();
+    if (ids.length === 0) return renderEmpty('No supporting sentences found.');
+    const byId = new Map(result.sentences.map((s) => [s.id, s.text]));
+    const abstract = result.abstract?.trim();
+    return (
+      <div className="mt-3 rounded-md border bg-zinc-50 p-3 text-sm leading-6 whitespace-pre-wrap">
+        {abstract ? (
+          <>
+            <span className="font-semibold">Abstract</span>
+            {'\n'}
+            {abstract}
+            {'\n\n'}
+          </>
+        ) : null}
+        {ids.map((id, idx) => (
+          <span key={`aud-text-${id}-${idx}`}>
+            {byId.get(id) ?? ''}
+            {idx < ids.length - 1 ? '\n' : ''}
+          </span>
+        ))}
+      </div>
+    );
+  };
 
   const focusSentences = (ids: number[]) => {
     if (!ids || ids.length === 0) return;
@@ -591,6 +748,69 @@ export default function Home() {
               >
                 Unlabeled · {unlabeledCount}
               </button>
+              <label className="flex items-center gap-2 text-xs text-zinc-600 ml-1">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={useEnvPropagation}
+                  onChange={(e) => setUseEnvPropagation(e.target.checked)}
+                />
+                Propagate labels in environments
+              </label>
+              <button
+                className="rounded-full border px-2 py-0.5 text-xs text-zinc-600 hover:bg-zinc-50 disabled:opacity-50"
+                type="button"
+                disabled={!result}
+                onClick={() => {
+                  if (!result) return;
+                  if (envPropagationPrev) {
+                    setResult({ ...result, labels: envPropagationPrev });
+                    setEnvPropagationPrev(null);
+                    setEnvPropagationMsg('Reverted propagation');
+                    setTimeout(() => setEnvPropagationMsg(''), 2000);
+                    return;
+                  }
+                  const before = Object.keys(result.labels ?? {}).length;
+                  const updated = propagateLabelsByEnvironment(
+                    result.original_latex,
+                    result.sentences,
+                    result.labels
+                  );
+                  const after = Object.keys(updated ?? {}).length;
+                  setEnvPropagationPrev(result.labels);
+                  let addedTags = 0;
+                  let changedSentences = 0;
+                  const allIds = new Set([
+                    ...Object.keys(result.labels ?? {}),
+                    ...Object.keys(updated ?? {}),
+                  ]);
+                  for (const sid of allIds) {
+                    const beforeLabels = result.labels?.[sid] ?? [];
+                    const afterLabels = updated?.[sid] ?? [];
+                    const beforeSet = new Set(beforeLabels);
+                    const added = afterLabels.filter((l) => !beforeSet.has(l)).length;
+                    if (added > 0) {
+                      addedTags += added;
+                      changedSentences += 1;
+                    }
+                  }
+                  setResult({ ...result, labels: updated });
+                  setEnvPropagationMsg(`Applied: labeled sentences ${before} → ${after}`);
+                  setEnvPropagationDetails(
+                    `New labels added: ${addedTags} across ${changedSentences} sentences`
+                  );
+                  setTimeout(() => setEnvPropagationMsg(''), 2000);
+                  setTimeout(() => setEnvPropagationDetails(''), 4000);
+                }}
+              >
+                {envPropagationPrev ? 'Revert propagation' : 'Apply to current'}
+              </button>
+              {envPropagationMsg && (
+                <span className="text-xs text-zinc-500">{envPropagationMsg}</span>
+              )}
+              {envPropagationDetails && (
+                <span className="text-xs text-zinc-500">{envPropagationDetails}</span>
+              )}
               {result &&
                 (Object.keys(labelCounts) as DiscourseLabel[]).map((label) => (
                   <button
@@ -690,6 +910,16 @@ export default function Home() {
             </summary>
 
             <div className="grid grid-cols-1 gap-4 p-4">
+              <div className="flex items-center gap-2">
+                <button
+                  className="rounded-full border px-2 py-0.5 text-xs text-zinc-600 hover:bg-zinc-50 disabled:opacity-50"
+                  type="button"
+                  onClick={rerunPass2Only}
+                  disabled={!result || status.kind === 'analyzing' || status.kind === 'uploading'}
+                >
+                  Re-run Pass 2
+                </button>
+              </div>
               {!result && <div className="text-sm text-zinc-500">No data.</div>}
               {result && (
                 <>
@@ -734,7 +964,7 @@ export default function Home() {
                               {result.sections.problem_and_motivation.central_problems.map(
                                 (item, idx) => (
                                   <li key={`pm-cp-${idx}`} className="mb-2">
-                                    <div>{item.description}</div>
+                                    <MathText text={item.description} />
                                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                                     <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                                     <button
@@ -760,7 +990,7 @@ export default function Home() {
                             <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
                               {result.sections.problem_and_motivation.origins.map((item, idx) => (
                                 <li key={`pm-or-${idx}`} className="mb-2">
-                                  <div>{item.description}</div>
+                                  <MathText text={item.description} />
                                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                                     <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                                     <button
@@ -786,7 +1016,7 @@ export default function Home() {
                               {result.sections.problem_and_motivation.nontriviality.map(
                                 (item, idx) => (
                                   <li key={`pm-nt-${idx}`} className="mb-2">
-                                    <div>{item.description}</div>
+                                    <MathText text={item.description} />
                                     <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                                       <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                                       <button
@@ -821,7 +1051,7 @@ export default function Home() {
                             <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
                               {result.sections.landscape.known_results.map((item, idx) => (
                                 <li key={`land-kr-${idx}`} className="mb-2">
-                                  <div>{item.description}</div>
+                                  <MathText text={item.description} />
                                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                                     <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                                     <button
@@ -846,7 +1076,7 @@ export default function Home() {
                             <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
                               {result.sections.landscape.limitations.map((item, idx) => (
                                 <li key={`land-lim-${idx}`} className="mb-2">
-                                  <div>{item.description}</div>
+                                  <MathText text={item.description} />
                                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                                     <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                                     <button
@@ -871,7 +1101,7 @@ export default function Home() {
                             <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
                               {result.sections.landscape.competing_approaches.map((item, idx) => (
                                 <li key={`land-ca-${idx}`} className="mb-2">
-                                  <div>{item.description}</div>
+                                  <MathText text={item.description} />
                                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                                     <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                                     <button
@@ -903,7 +1133,9 @@ export default function Home() {
                             <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
                               {result.sections.contributions.contributions.map((item, idx) => (
                                 <li key={`contrib-${idx}`} className="mb-3">
-                                  <div className="font-medium">{item.statement}</div>
+                                  <div className="font-medium">
+                                    <MathText text={item.statement} />
+                                  </div>
                                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                                     <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                                     <button
@@ -980,7 +1212,7 @@ export default function Home() {
                             <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
                               {result.sections.technical_core.key_ideas.map((item, idx) => (
                                 <li key={`tech-ki-${idx}`} className="mb-2">
-                                  <div>{item.description}</div>
+                                  <MathText text={item.description} />
                                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                                     <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                                     <button
@@ -1005,7 +1237,7 @@ export default function Home() {
                             <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
                               {result.sections.technical_core.technical_obstacles.map((item, idx) => (
                                 <li key={`tech-to-${idx}`} className="mb-2">
-                                  <div>{item.description}</div>
+                                  <MathText text={item.description} />
                                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                                     <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                                     <button
@@ -1031,7 +1263,7 @@ export default function Home() {
                               {result.sections.technical_core.reusable_constructions.map(
                                 (item, idx) => (
                                   <li key={`tech-rc-${idx}`} className="mb-2">
-                                    <div>{item.description}</div>
+                                    <MathText text={item.description} />
                                     <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                                       <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                                       <button
@@ -1065,7 +1297,7 @@ export default function Home() {
                             <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
                               {result.sections.consequences.open_questions.map((item, idx) => (
                                 <li key={`cons-oq-${idx}`} className="mb-2">
-                                  <div>{item.description}</div>
+                                  <MathText text={item.description} />
                                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                                     <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                                     <button
@@ -1090,7 +1322,7 @@ export default function Home() {
                             <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
                               {result.sections.consequences.speculative_extensions.map((item, idx) => (
                                 <li key={`cons-se-${idx}`} className="mb-2">
-                                  <div>{item.description}</div>
+                                  <MathText text={item.description} />
                                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                                     <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                                     <button
@@ -1195,9 +1427,52 @@ export default function Home() {
 
           <details className="rounded-lg border bg-white" open>
             <summary className="cursor-pointer border-b px-4 py-3 text-sm font-semibold">
-              Audience views (Pass 3)
+              <span className="flex items-center gap-2">
+                <span>Audience views (Pass 3)</span>
+                <button
+                  className="rounded-full border px-2 py-0.5 text-[11px] text-zinc-500 hover:bg-zinc-100"
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!result?.audience_views) return;
+                    const view = result.audience_views;
+                    const pick =
+                      audienceTab === 'A'
+                        ? view.domain_expert
+                        : audienceTab === 'B'
+                        ? view.adjacent_researcher
+                        : audienceTab === 'C'
+                        ? view.grad_student
+                        : view.author_self;
+                    navigator.clipboard.writeText(JSON.stringify(pick, null, 2));
+                  }}
+                  aria-label="Copy audience view JSON"
+                  title="Copy audience view JSON"
+                >
+                  ⧉
+                </button>
+              </span>
             </summary>
             <div className="grid grid-cols-1 gap-4 p-4">
+              <div className="flex items-center gap-2">
+                <button
+                  className="rounded-full border px-2 py-0.5 text-xs text-zinc-600 hover:bg-zinc-50 disabled:opacity-50"
+                  type="button"
+                  onClick={rerunPass3Only}
+                  disabled={!result || status.kind === 'analyzing' || status.kind === 'uploading'}
+                >
+                  Re-run Pass 3
+                </button>
+                <button
+                  className="rounded-full border px-2 py-0.5 text-xs text-zinc-600 hover:bg-zinc-50 disabled:opacity-50"
+                  type="button"
+                  onClick={() => setAudienceShowText((prev) => !prev)}
+                  disabled={!result?.audience_views}
+                >
+                  {audienceShowText ? 'Hide supporting text' : 'Show supporting text'}
+                </button>
+              </div>
               {!result?.audience_views && <div className="text-sm text-zinc-500">No data.</div>}
               {result?.audience_views && (
                 <>
@@ -1229,16 +1504,40 @@ export default function Home() {
                       <>
                         <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
                           <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                            Delta summary
+                            Problem statement
                           </div>
-                          {renderGroundedList(result.audience_views.domain_expert.delta_summary)}
+                          <div className="mt-2 text-sm text-zinc-900">
+                            <MathText
+                              text={result.audience_views.domain_expert.problem_statement?.text ?? ''}
+                            />
+                          </div>
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+                            {result.audience_views.domain_expert.problem_statement?.sentence_ids?.length ? (
+                              <button
+                                className="rounded-full border px-2 py-0.5 text-[10px] hover:bg-white"
+                                type="button"
+                                onClick={() =>
+                                  focusSentences(
+                                    result.audience_views.domain_expert.problem_statement!.sentence_ids
+                                  )
+                                }
+                              >
+                                View sentences
+                              </button>
+                            ) : null}
+                            {renderCitationActionForKeys(
+                              getCitationsForSentenceIds(
+                                result.audience_views.domain_expert.problem_statement?.sentence_ids ?? []
+                              ).map((e) => e.key)
+                            )}
+                          </div>
                         </div>
 
                         <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
                           <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                            What is new vs prior work
+                            Delta summary
                           </div>
-                          {renderGroundedList(result.audience_views.domain_expert.new_vs_prior)}
+                          {renderGroundedList(result.audience_views.domain_expert.delta_summary)}
                         </div>
 
                         <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
@@ -1267,18 +1566,6 @@ export default function Home() {
                           {renderGroundedList(result.audience_views.domain_expert.reusable_components)}
                         </div>
 
-                        <div className="rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                            What to suppress
-                          </div>
-                          <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
-                            {result.audience_views.domain_expert.suppress.map((item, idx) => (
-                              <li key={`a-sup-${idx}`} className="mb-2">
-                                <MathText text={item} />
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
                       </>
                     )}
 
@@ -1291,9 +1578,27 @@ export default function Home() {
                           <div className="mt-2 text-sm text-zinc-900">
                             <MathText text={result.audience_views.adjacent_researcher.problem_statement.text} />
                           </div>
-                          {renderCitationActionForKeys(
-                            result.audience_views.adjacent_researcher.problem_statement.citation_keys
-                          )}
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+                            {result.audience_views.adjacent_researcher.problem_statement?.sentence_ids?.length ? (
+                              <button
+                                className="rounded-full border px-2 py-0.5 text-[10px] hover:bg-white"
+                                type="button"
+                                onClick={() =>
+                                  focusSentences(
+                                    result.audience_views.adjacent_researcher.problem_statement
+                                      .sentence_ids
+                                  )
+                                }
+                              >
+                                View sentences
+                              </button>
+                            ) : null}
+                            {renderCitationActionForKeys(
+                              getCitationsForSentenceIds(
+                                result.audience_views.adjacent_researcher.problem_statement.sentence_ids ?? []
+                              ).map((e) => e.key)
+                            )}
+                          </div>
                         </div>
 
                         <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
@@ -1360,6 +1665,37 @@ export default function Home() {
                       <>
                         <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
                           <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                            Problem statement
+                          </div>
+                          <div className="mt-2 text-sm text-zinc-900">
+                            <MathText
+                              text={result.audience_views.grad_student.problem_statement?.text ?? ''}
+                            />
+                          </div>
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+                            {result.audience_views.grad_student.problem_statement?.sentence_ids?.length ? (
+                              <button
+                                className="rounded-full border px-2 py-0.5 text-[10px] hover:bg-white"
+                                type="button"
+                                onClick={() =>
+                                  focusSentences(
+                                    result.audience_views.grad_student.problem_statement!.sentence_ids
+                                  )
+                                }
+                              >
+                                View sentences
+                              </button>
+                            ) : null}
+                            {renderCitationActionForKeys(
+                              getCitationsForSentenceIds(
+                                result.audience_views.grad_student.problem_statement?.sentence_ids ?? []
+                              ).map((e) => e.key)
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
                             Conceptual map
                           </div>
                           <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
@@ -1369,16 +1705,6 @@ export default function Home() {
                               </li>
                             ))}
                           </ul>
-                        </div>
-
-                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                            Key ideas before technicalities
-                          </div>
-                          {renderGroundedList(result.audience_views.grad_student.key_ideas)}
-                          {renderCitationActionForKeys(
-                            collectCitationKeys(result.audience_views.grad_student.key_ideas)
-                          )}
                         </div>
 
                         <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
@@ -1394,6 +1720,18 @@ export default function Home() {
                               )
                             )}
                           </ul>
+                        </div>
+
+                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                            Key ideas before technicalities
+                          </div>
+                          {renderGroundedList(result.audience_views.grad_student.key_ideas)}
+                          {renderCitationActionForKeys(
+                            getCitationsForSentenceIds(
+                              collectSentenceIds(result.audience_views.grad_student.key_ideas)
+                            ).map((e) => e.key)
+                          )}
                         </div>
 
                         <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
@@ -1426,6 +1764,37 @@ export default function Home() {
                       <>
                         <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
                           <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                            Problem statement
+                          </div>
+                          <div className="mt-2 text-sm text-zinc-900">
+                            <MathText
+                              text={result.audience_views.author_self.problem_statement?.text ?? ''}
+                            />
+                          </div>
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+                            {result.audience_views.author_self.problem_statement?.sentence_ids?.length ? (
+                              <button
+                                className="rounded-full border px-2 py-0.5 text-[10px] hover:bg-white"
+                                type="button"
+                                onClick={() =>
+                                  focusSentences(
+                                    result.audience_views.author_self.problem_statement!.sentence_ids
+                                  )
+                                }
+                              >
+                                View sentences
+                              </button>
+                            ) : null}
+                            {renderCitationActionForKeys(
+                              getCitationsForSentenceIds(
+                                result.audience_views.author_self.problem_statement?.sentence_ids ?? []
+                              ).map((e) => e.key)
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
                             One-page contribution summary
                           </div>
                           <div className="mt-2 text-sm text-zinc-900">
@@ -1435,24 +1804,13 @@ export default function Home() {
 
                         <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
                           <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                            Internal dependency graph
-                          </div>
-                          <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
-                            {result.audience_views.author_self.dependency_graph.map((item, idx) => (
-                              <li key={`d-dep-${idx}`} className="mb-2">
-                                <MathText text={item} />
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-
-                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
                             Fragile arguments
                           </div>
                           {renderGroundedList(result.audience_views.author_self.fragile_arguments)}
                           {renderCitationActionForKeys(
-                            collectCitationKeys(result.audience_views.author_self.fragile_arguments)
+                            getCitationsForSentenceIds(
+                              collectSentenceIds(result.audience_views.author_self.fragile_arguments)
+                            ).map((e) => e.key)
                           )}
                         </div>
 
@@ -1462,7 +1820,9 @@ export default function Home() {
                           </div>
                           {renderGroundedList(result.audience_views.author_self.robust_arguments)}
                           {renderCitationActionForKeys(
-                            collectCitationKeys(result.audience_views.author_self.robust_arguments)
+                            getCitationsForSentenceIds(
+                              collectSentenceIds(result.audience_views.author_self.robust_arguments)
+                            ).map((e) => e.key)
                           )}
                         </div>
 
@@ -1480,6 +1840,7 @@ export default function Home() {
                         </div>
                       </>
                     )}
+                    {audienceShowText && renderAudienceFullText()}
                   </div>
                 </>
               )}

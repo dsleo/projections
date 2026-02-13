@@ -299,3 +299,29 @@ export function preprocessLatexWithMap(tex: string): PreprocessResult {
 export function minimalPreprocessLatex(tex: string): string {
     return preprocessLatexWithMap(tex).text;
 }
+
+export function extractDocumentTitle(latex: string): string | null {
+    const titleMatch = latex.match(/\\title(?:\[[^\]]*\])?\{([\s\S]*?)\}/);
+    if (!titleMatch) return null;
+    let title = titleMatch[1]
+        .replace(/\\[a-zA-Z*]+(?:\[[^\]]*\])?/g, '')
+        .replace(/[{}]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    if (!title) return null;
+    return title;
+}
+
+export function extractAbstract(latex: string): string | null {
+    const envMatch = latex.match(/\\begin\{abstract\}([\s\S]*?)\\end\{abstract\}/);
+    const cmdMatch = latex.match(/\\abstract\s*\{([\s\S]*?)\}/);
+    const raw = envMatch?.[1] ?? cmdMatch?.[1];
+    if (!raw) return null;
+    let abstract = raw
+        .replace(/\\[a-zA-Z*]+(?:\[[^\]]*\])?/g, '')
+        .replace(/[{}]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    if (!abstract) return null;
+    return abstract;
+}

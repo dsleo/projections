@@ -89,6 +89,7 @@ Rules:
 - If the provided sentences do not contain explicit material supporting a field, return an empty list for that field.
 - Do not generate inferred or implicit content. Empty output is valid.
 - Avoid extracting more than 3–5 top-level items per field unless clearly justified by distinct content.
+- Preserve any mathematical expressions using LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]).
 - Do not invent content.
 - Be precise.
 - Output STRICT JSON with this shape:
@@ -111,6 +112,7 @@ Rules:
 - If the provided sentences do not contain explicit material supporting a field, return an empty list for that field.
 - Do not generate inferred or implicit content. Empty output is valid.
 - Avoid extracting more than 3–5 top-level items per field unless clearly justified by distinct content.
+- Preserve any mathematical expressions using LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]).
 - Do not invent content.
 - Be precise.
 - Output STRICT JSON with this shape:
@@ -135,6 +137,7 @@ Rules:
 - If the provided sentences do not contain explicit material supporting a field, return an empty list for that field.
 - Do not generate inferred or implicit content. Empty output is valid.
 - Avoid extracting more than 3–5 top-level items per field unless clearly justified by distinct content.
+- Preserve any mathematical expressions using LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]).
 - Do not invent content.
 - Be precise.
 - Output STRICT JSON with this shape:
@@ -155,6 +158,7 @@ Rules:
 - If the provided sentences do not contain explicit material supporting a field, return an empty list for that field.
 - Do not generate inferred or implicit content. Empty output is valid.
 - Avoid extracting more than 3–5 top-level items per field unless clearly justified by distinct content.
+- Preserve any mathematical expressions using LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]).
 - Do not invent content.
 - Be precise.
 - Output STRICT JSON with this shape:
@@ -179,6 +183,7 @@ Rules:
 - If the provided sentences do not contain explicit material supporting a field, return an empty list for that field.
 - Do not generate inferred or implicit content. Empty output is valid.
 - Avoid extracting more than 3–5 top-level items per field unless clearly justified by distinct content.
+- Preserve any mathematical expressions using LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]).
 - Do not invent content.
 - Be precise.
 - Output STRICT JSON with this shape:
@@ -202,61 +207,114 @@ export function pass2UserPrompt(params: {
     )}`;
 }
 
-export const PASS3_AUDIENCE_A_SYSTEM = `You are producing a focused view for a domain expert.
+export const PASS3_AUDIENCE_A_SYSTEM = `You are the author of the paper and are producing a concise, high-signal briefing for a domain expert who will decide quickly whether to invest attention.
 Goal: Answer in <10 minutes: "Is this worth my attention?"
 
-Use ONLY the provided canonical sections and their citations.
+Use ONLY the provided canonical sections and their sentence_ids.
 
 Rules:
 - Do not invent content.
-- Use citation_keys only from the provided citation key map.
-- If a field has no explicit support, return an empty list.
+- sentence_ids must come from the canonical sections; include all supporting sentence_ids.
+- Do not mention sentence IDs or ranges in any text field.
+- Preserve any mathematical expressions using LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]).
+- If a field has no explicit support, return an empty list or empty text.
 - Keep items concise and high-signal.
-- Output STRICT JSON with this shape:
-{"delta_summary":[{"text":"","citation_keys":["key"]}],"new_vs_prior":[{"text":"","citation_keys":["key"]}],"technical_highlights":{"nonstandard_ideas":[{"text":"","citation_keys":["key"]}],"clever_reductions":[{"text":"","citation_keys":["key"]}]},"reusable_components":[{"text":"","citation_keys":["key"]}],"suppress":[""]}`;
+- Suppress motivation fluff and background definitions in your content selection.
+- Tone: Use technical shorthand and assume deep familiarity with the field.
+- Do not repeat the same content across fields; each field must add new information.
+- Include only the minimal sentence_ids needed to justify each claim.
 
-export const PASS3_AUDIENCE_B_SYSTEM = `You are producing a view for an adjacent-field researcher.
+Field guidance:
+- problem_statement: ~3 sentences describing the exact research question/conjecture and objects of study; include brief context only if it helps this audience.
+- delta_summary: Each item should state one concrete new result or improvement; results only.
+- technical_highlights.nonstandard_ideas: Capture ideas that differ from standard approaches.
+- technical_highlights.clever_reductions: Include only if a reduction is central, not routine.
+- technical_highlights must describe methods only and must not restate results from delta_summary.
+- reusable_components: Highlight lemmas or constructions likely reusable beyond this paper.
+
+Output STRICT JSON with this shape:
+{"problem_statement":{"text":"","sentence_ids":[0]},"delta_summary":[{"text":"","sentence_ids":[0]}],"technical_highlights":{"nonstandard_ideas":[{"text":"","sentence_ids":[0]}],"clever_reductions":[{"text":"","sentence_ids":[0]}]},"reusable_components":[{"text":"","sentence_ids":[0]}]}`;
+
+export const PASS3_AUDIENCE_B_SYSTEM = `You are the author of the paper and are producing a bridge summary for an adjacent-field researcher deciding whether they need this paper and how to enter it.
 Goal: Answer "Do I need this, and can I enter this paper?"
 
-Use ONLY the provided canonical sections and their citations.
+Use ONLY the provided canonical sections and their sentence_ids.
 
 Rules:
 - Do not invent content.
-- Use citation_keys only from the provided citation key map.
+- sentence_ids must come from the canonical sections; include all supporting sentence_ids.
+- Do not mention sentence IDs or ranges in any text field.
+- Preserve any mathematical expressions using LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]).
 - If a field has no explicit support, return an empty list or empty string.
-- Output STRICT JSON with this shape:
-{"problem_statement":{"text":"","citation_keys":["key"]},"why_matters":[{"text":"","citation_keys":["key"]}],"prerequisite_map":[""],"reading_path":{"read":[""],"skim":[""],"skip":[""]}}`;
+- Tone: Explain minimally, focusing on transferability and relevance to adjacent fields.
+- Do not repeat the same content across fields; each field must add new information.
+- Include only the minimal sentence_ids needed to justify each claim.
 
-export const PASS3_AUDIENCE_C_SYSTEM = `You are producing a view for a grad student or apprentice.
+Field guidance:
+- problem_statement: ~3 sentences in plain math language (objects, setting, constraints); include brief context only if it helps this audience. Avoid proof language.
+- why_matters: Each item should express structural or conceptual relevance (not generic importance).
+- prerequisite_map: Each item should be one topic/tool they must already know.
+- reading_path: In read, include only high-level statements (main theorems, constructions); put technical lemmas in skim or skip. Describe parts by content (e.g., “the main theorem statements”, “the technical core ideas”, “the limitations discussion”).
+
+Output STRICT JSON with this shape:
+{"problem_statement":{"text":"","sentence_ids":[0]},"why_matters":[{"text":"","sentence_ids":[0]}],"prerequisite_map":[""],"reading_path":{"read":[""],"skim":[""],"skip":[""]}}`;
+
+export const PASS3_AUDIENCE_C_SYSTEM = `You are the author of the paper and are producing a guided learning plan for a grad student or apprentice who wants to understand the paper without being overwhelmed.
 Goal: Answer "How do I learn from this paper without drowning?"
 
-Use ONLY the provided canonical sections and their citations.
+Use ONLY the provided canonical sections and their sentence_ids.
 
 Rules:
 - Do not invent content.
-- Use citation_keys only from the provided citation key map.
+- sentence_ids must come from the canonical sections; include all supporting sentence_ids.
+- Do not mention sentence IDs or ranges in any text field.
+- Preserve any mathematical expressions using LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]).
 - Explicitly give permission to skip parts.
 - If a field has no explicit support, return an empty list.
-- Output STRICT JSON with this shape:
-{"conceptual_map":[""],"key_ideas":[{"text":"","citation_keys":["key"]}],"suggested_first_pass":[""],"ignore_initially":[""],"permission_to_skip":""}`;
+- Tone: Be encouraging and scaffolding; prioritize clarity over density.
+- Do not repeat the same content across fields; each field must add new information.
+- Include only the minimal sentence_ids needed to justify each claim.
 
-export const PASS3_AUDIENCE_D_SYSTEM = `You are producing a view for the author's future self.
+Field guidance (order matters):
+- problem_statement: ~3 sentences describing what the paper is about (objects and goals); include brief context only if it helps this audience.
+- conceptual_map: Format as “Definition → Lemma → Theorem” chains when possible.
+- suggested_first_pass: Describe where to start without diving into full technical pipelines.
+- key_ideas: Explain the core ideas before technicalities; avoid detailed inequalities unless absolutely central.
+- ignore_initially: Explicitly list parts that can be skipped on a first read.
+- permission_to_skip: One sentence explicitly granting permission to skip.
+
+Output STRICT JSON with this shape:
+{"problem_statement":{"text":"","sentence_ids":[0]},"conceptual_map":[""],"suggested_first_pass":[""],"key_ideas":[{"text":"","sentence_ids":[0]}],"ignore_initially":[""],"permission_to_skip":""}`;
+
+export const PASS3_AUDIENCE_D_SYSTEM = `You are the author of the paper and are producing an internal recollection note for your future self to quickly recover what was done and why it worked.
 Goal: Answer "What did I actually do here?"
 
-Use ONLY the provided canonical sections and their citations.
+Use ONLY the provided canonical sections and their sentence_ids.
 
 Rules:
 - Do not invent content.
-- Use citation_keys only from the provided citation key map.
+- sentence_ids must come from the canonical sections; include all supporting sentence_ids.
+- Do not mention sentence IDs or ranges in any text field.
+- Preserve any mathematical expressions using LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]).
 - If a field has no explicit support, return an empty list.
-- Output STRICT JSON with this shape:
-{"one_page_summary":"","dependency_graph":[""],"fragile_arguments":[{"text":"","citation_keys":["key"]}],"robust_arguments":[{"text":"","citation_keys":["key"]}],"notes_to_self":[""]}`;
+- Tone: Be candid and specific; note fragile parts and caveats explicitly.
+- Do not repeat the same content across fields; each field must add new information.
+- Include only the minimal sentence_ids needed to justify each claim.
+
+Field guidance:
+- problem_statement: ~3 sentences stating the exact problem and scope; include brief context only if it helps this audience.
+- one_page_summary: A dense internal recap; stay high-signal.
+- fragile_arguments: Identify arguments that hinge on delicate estimates or narrow assumptions.
+- robust_arguments: Identify arguments likely to generalize or survive assumptions changes.
+- notes_to_self: Author-only reminders (pitfalls, caveats, future improvements).
+
+Output STRICT JSON with this shape:
+{"problem_statement":{"text":"","sentence_ids":[0]},"one_page_summary":"","fragile_arguments":[{"text":"","sentence_ids":[0]}],"robust_arguments":[{"text":"","sentence_ids":[0]}],"notes_to_self":[""]}`;
 
 export function pass3UserPrompt(params: {
     title?: string;
     abstract?: string;
     canonical_with_citations: string;
-    citation_legend: string;
 }): string {
     const sections: string[] = [];
     if (params.title && params.title.trim().length > 0) {
@@ -265,7 +323,6 @@ export function pass3UserPrompt(params: {
     if (params.abstract && params.abstract.trim().length > 0) {
         sections.push(`Abstract:\n${params.abstract.trim()}`);
     }
-    sections.push(`Citation key map:\n${params.citation_legend}`);
-    sections.push(`Canonical sections with citations:\n${params.canonical_with_citations}`);
+    sections.push(`Canonical sections with sentence_ids:\n${params.canonical_with_citations}`);
     return `Use ONLY the following material.\n\n${sections.join('\n\n')}`;
 }
