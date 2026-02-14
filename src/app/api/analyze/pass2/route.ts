@@ -35,6 +35,7 @@ export async function POST(req: Request) {
         return Response.json({
             sections,
             sections_concatenated_text,
+            abstract,
         });
     } catch (e) {
         return Response.json(

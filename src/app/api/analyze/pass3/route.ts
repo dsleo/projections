@@ -52,6 +52,7 @@ export async function POST(req: Request) {
             audience_views,
             sentence_citations,
             citations,
+            abstract,
         });
     } catch (e) {
         return Response.json(

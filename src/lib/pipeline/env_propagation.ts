@@ -53,11 +53,42 @@ function findEnvironmentRanges(latex: string, envNames: Set<string>): EnvRange[]
     return ranges;
 }
 
+export function getEnvironmentRanges(
+    latex: string,
+    envList: readonly string[] = DEFAULT_PROPAGATION_ENVS
+): EnvRange[] {
+    const envNames = new Set(envList);
+    return findEnvironmentRanges(latex, envNames);
+}
+
 function sentenceIntersectsRange(sentence: Sentence, range: EnvRange): boolean {
     const start = sentence.original_start ?? sentence.start ?? 0;
     const end = sentence.original_end ?? sentence.end ?? 0;
     if (end <= start) return false;
     return start < range.end && end > range.start;
+}
+
+export function expandSentenceIdsByEnvironment(
+    latex: string,
+    sentences: Sentence[],
+    sentenceIds: number[],
+    envList: readonly string[] = DEFAULT_PROPAGATION_ENVS
+): number[] {
+    if (!sentenceIds || sentenceIds.length === 0) return [];
+    const envNames = new Set(envList);
+    const ranges = findEnvironmentRanges(latex, envNames);
+    if (ranges.length === 0) return Array.from(new Set(sentenceIds)).sort((a, b) => a - b);
+
+    const selected = new Set(sentenceIds);
+    const expanded = new Set<number>(sentenceIds);
+    for (const range of ranges) {
+        const inRange = sentences.filter((s) => sentenceIntersectsRange(s, range));
+        if (inRange.length === 0) continue;
+        const hasSelected = inRange.some((s) => selected.has(s.id));
+        if (!hasSelected) continue;
+        for (const s of inRange) expanded.add(s.id);
+    }
+    return Array.from(expanded).sort((a, b) => a - b);
 }
 
 export function propagateLabelsByEnvironment(

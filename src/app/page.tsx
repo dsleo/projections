@@ -1,10 +1,29 @@
 'use client';
 
+import type React from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { AnalysisResult, DiscourseLabel, Sentence } from '@/lib/pipeline/client';
 import { propagateLabelsByEnvironment } from '@/lib/pipeline/env_propagation';
-import { LABEL_COLORS } from '@/lib/ui/labels';
+import { buildAudienceSupportingText } from '@/lib/ui/supportingText';
+import { formatIdRanges } from '@/lib/ui/idRanges';
+import {
+  formatCitationLabel,
+  getCitationEntries,
+  getCitationKeysForSentenceIds,
+} from '@/lib/ui/citations';
+import { MathText } from '@/components/MathText';
+import { LabelPill } from '@/components/LabelPill';
+import { AudienceViewsCard } from '@/components/AudienceViewsCard';
+import { CanonicalSectionsCard } from '@/components/CanonicalSectionsCard';
+import { UploadCard } from '@/components/UploadCard';
+import { TextPanel } from '@/components/TextPanel';
+import {
+  buildCanonicalSectionTitles,
+  buildSentenceMap,
+  extractSectionHeadings,
+  renderReadingPathText as renderReadingPathTextRaw,
+} from '@/lib/ui/sectionHints';
 
 type Status =
   | { kind: 'idle' }
@@ -23,77 +42,6 @@ function downloadJson(data: unknown, filename: string) {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
-}
-
-function classNames(...xs: Array<string | undefined | false>) {
-  return xs.filter(Boolean).join(' ');
-}
-
-function formatIdRanges(ids: number[]): string {
-  if (!ids || ids.length === 0) return '[]';
-  const sorted = Array.from(new Set(ids)).sort((a, b) => a - b);
-  const ranges: string[] = [];
-  let start = sorted[0];
-  let prev = sorted[0];
-  for (let i = 1; i < sorted.length; i += 1) {
-    const cur = sorted[i];
-    if (cur === prev + 1) {
-      prev = cur;
-      continue;
-    }
-    ranges.push(start === prev ? `${start}` : `${start}-${prev}`);
-    start = cur;
-    prev = cur;
-  }
-  ranges.push(start === prev ? `${start}` : `${start}-${prev}`);
-  return `[${ranges.join(', ')}]`;
-}
-
-function LabelPill({ label }: { label: DiscourseLabel }) {
-  return (
-    <span
-      className={classNames(
-        'inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium',
-        LABEL_COLORS[label]
-      )}
-    >
-      {label}
-    </span>
-  );
-}
-
-let katexRenderPromise:
-  | Promise<{ default: (el: HTMLElement, options: Record<string, unknown>) => void }>
-  | null = null;
-
-function MathText({ text, className }: { text: string; className?: string }) {
-  const ref = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!ref.current) return;
-    ref.current.textContent = text;
-    let cancelled = false;
-    if (!katexRenderPromise) {
-      katexRenderPromise = import('katex/contrib/auto-render');
-    }
-    katexRenderPromise.then(({ default: renderMathInElement }) => {
-      if (cancelled || !ref.current) return;
-      renderMathInElement(ref.current, {
-        delimiters: [
-          { left: '$$', right: '$$', display: true },
-          { left: '$', right: '$', display: false },
-          { left: '\\(', right: '\\)', display: false },
-          { left: '\\[', right: '\\]', display: true },
-        ],
-        throwOnError: false,
-      });
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [text]);
-
-  return <div ref={ref} className={className} />;
 }
 
 export default function Home() {
@@ -372,6 +320,7 @@ export default function Home() {
           sections: data.sections ?? prev.sections,
           sections_concatenated_text:
             data.sections_concatenated_text ?? prev.sections_concatenated_text,
+          abstract: data.abstract ?? prev.abstract,
         };
       });
       setStatus({ kind: 'done' });
@@ -409,6 +358,7 @@ export default function Home() {
           audience_views: data.audience_views ?? prev.audience_views,
           sentence_citations: data.sentence_citations ?? prev.sentence_citations,
           citations: data.citations ?? prev.citations,
+          abstract: data.abstract ?? prev.abstract,
         };
       });
       setStatus({ kind: 'done' });
@@ -424,6 +374,26 @@ export default function Home() {
     if (file?.name) return file.name;
     return 'Untitled document';
   }, [result, file]);
+
+  const sentenceById = useMemo(
+    () => (result?.sentences ? buildSentenceMap(result) : new Map<number, Sentence>()),
+    [result]
+  );
+
+  const sectionHeadingMap = useMemo(
+    () => (result?.original_latex ? extractSectionHeadings(result.original_latex) : []),
+    [result?.original_latex]
+  );
+
+  const canonicalSectionTitles = useMemo(() => {
+    if (!result) return null;
+    return buildCanonicalSectionTitles(result, sectionHeadingMap, sentenceById);
+  }, [result, sectionHeadingMap, sentenceById]);
+
+  const renderReadingPathText = (text: string) => {
+    if (!canonicalSectionTitles) return <MathText text={text} />;
+    return <MathText text={renderReadingPathTextRaw(text, canonicalSectionTitles)} />;
+  };
 
   const isSentenceProcessing = (position: number) =>
     processingWindows.some((w) => position >= w.start && position < w.end);
@@ -461,8 +431,7 @@ export default function Home() {
     return segments;
   }, [result]);
 
-  const labelCounts = useMemo(() => {
-    if (!result) return {};
+  const labelCounts = useMemo<Record<DiscourseLabel, number>>(() => {
     const counts: Record<DiscourseLabel, number> = {
       Problem: 0,
       Landscape: 0,
@@ -470,6 +439,7 @@ export default function Home() {
       TechnicalCore: 0,
       Consequences: 0,
     };
+    if (!result) return counts;
     for (const s of result.sentences) {
       const labels = result.labels[String(s.id)] ?? [];
       for (const l of labels) counts[l] += 1;
@@ -481,29 +451,6 @@ export default function Home() {
     setLabelFilter((prev) =>
       prev.includes(label) ? prev.filter((l) => l !== label) : [...prev, label]
     );
-  };
-
-  const getCitationEntries = (keys: string[]) => {
-    if (!result) return [];
-    if (!result.citations) return [];
-    return keys.map((k) => result.citations?.[k]).filter(Boolean);
-  };
-
-  const formatCitationLabel = (entry: AnalysisResult['citations'][string]) => {
-    if (entry.label?.trim()) return entry.label.trim();
-    if (entry.text) {
-      const year = entry.text.match(/\b(19|20)\d{2}\b/)?.[0];
-      const author = entry.text.split(',')[0]?.trim();
-      if (author && year) return `${author} ${year}`;
-      if (author) return author;
-    }
-    return entry.key;
-  };
-
-  const formatCitationLabelFromKey = (key: string) => {
-    const entry =
-      result?.citations?.[key] ?? ({ key, text: '', labels: [], sentence_ids: [] } as const);
-    return formatCitationLabel(entry);
   };
 
   const renderCitationActionForKeys = (keys: string[]) => {
@@ -526,15 +473,8 @@ export default function Home() {
     );
   };
 
-  const getCitationsForSentenceIds = (ids: number[]) => {
-    if (!result || !result.sentence_citations) return [];
-    const keySet = new Set<string>();
-    for (const id of ids) {
-      const keys = result.sentence_citations?.[String(id)] ?? [];
-      for (const key of keys) keySet.add(key);
-    }
-    return getCitationEntries(Array.from(keySet));
-  };
+  const getCitationsForSentenceIds = (ids: number[]) =>
+    getCitationEntries(result, getCitationKeysForSentenceIds(result, ids));
 
   const renderCitationAction = (ids: number[]) => {
     const entries = getCitationsForSentenceIds(ids);
@@ -569,13 +509,15 @@ export default function Home() {
               <button
                 className="rounded-full border px-2 py-0.5 text-[10px] hover:bg-white"
                 type="button"
-                onClick={() => focusSentences(item.sentence_ids)}
+                onClick={() => focusSentences(item.sentence_ids ?? [])}
               >
                 View sentences
               </button>
             )}
             {renderCitationActionForKeys(
-              item.sentence_ids ? getCitationsForSentenceIds(item.sentence_ids).map((e) => e.key) : []
+              item.sentence_ids
+                ? getCitationsForSentenceIds(item.sentence_ids).map((e) => e.key)
+                : []
             )}
           </div>
         </li>
@@ -586,46 +528,16 @@ export default function Home() {
   const collectSentenceIds = (items: Array<{ sentence_ids?: number[] }>) =>
     Array.from(new Set(items.flatMap((item) => item.sentence_ids ?? [])));
 
-  const collectAudienceSentenceIds = () => {
-    if (!result?.audience_views) return [];
-    const ids = new Set<number>();
-    const add = (arr?: Array<{ sentence_ids?: number[] }>) => {
-      if (!arr) return;
-      for (const item of arr) {
-        for (const id of item.sentence_ids ?? []) ids.add(id);
-      }
-    };
-    const addOne = (item?: { sentence_ids?: number[] }) => {
-      if (!item) return;
-      for (const id of item.sentence_ids ?? []) ids.add(id);
-    };
-    const v = result.audience_views;
-    if (audienceTab === 'A') {
-      addOne(v.domain_expert.problem_statement);
-      add(v.domain_expert.delta_summary);
-      add(v.domain_expert.technical_highlights.nonstandard_ideas);
-      add(v.domain_expert.technical_highlights.clever_reductions);
-      add(v.domain_expert.reusable_components);
-    } else if (audienceTab === 'B') {
-      addOne(v.adjacent_researcher.problem_statement);
-      add(v.adjacent_researcher.why_matters);
-    } else if (audienceTab === 'C') {
-      addOne(v.grad_student.problem_statement);
-      add(v.grad_student.key_ideas);
-    } else if (audienceTab === 'D') {
-      addOne(v.author_self.problem_statement);
-      add(v.author_self.fragile_arguments);
-      add(v.author_self.robust_arguments);
+  const audienceSupporting = useMemo(() => {
+    if (!result?.audience_views) {
+      return { abstract: '', segments: [] as Array<{ text: string; startId: number; endId: number }> };
     }
-    return Array.from(ids).sort((a, b) => a - b);
-  };
+    return buildAudienceSupportingText(result, audienceTab);
+  }, [result, audienceTab]);
 
   const renderAudienceFullText = () => {
     if (!result) return null;
-    const ids = collectAudienceSentenceIds();
-    const byId = new Map(result.sentences.map((s) => [s.id, s.text]));
-    const abstract = result.abstract?.trim();
-    const sortedIds = Array.from(ids).sort((a, b) => a - b);
+    const { abstract, segments } = audienceSupporting;
     return (
       <div className="mt-3 rounded-md border bg-zinc-50 p-3 text-sm leading-6 whitespace-pre-wrap">
         {abstract ? (
@@ -636,14 +548,14 @@ export default function Home() {
             {'\n\n'}
           </>
         ) : null}
-        {sortedIds.length === 0 ? (
+        {segments.length === 0 ? (
           <div className="text-xs text-zinc-500">No supporting sentences found.</div>
         ) : (
-          sortedIds.map((id, idx) => {
-            const prevId = idx > 0 ? sortedIds[idx - 1] : null;
-            const showGap = prevId !== null && id !== prevId + 1;
+          segments.map((segment, idx) => {
+            const prevEnd = idx > 0 ? segments[idx - 1].endId : null;
+            const showGap = prevEnd !== null && segment.startId !== prevEnd + 1;
             return (
-              <span key={`aud-text-${id}-${idx}`}>
+              <span key={`aud-text-${segment.startId}-${idx}`}>
                 {showGap && (
                   <>
                     {'\n'}
@@ -651,14 +563,61 @@ export default function Home() {
                     {'\n'}
                   </>
                 )}
-                {byId.get(id) ?? ''}
-                {idx < sortedIds.length - 1 ? '\n' : ''}
+                {segment.text}
+                {idx < segments.length - 1 ? '\n' : ''}
               </span>
             );
           })
         )}
       </div>
     );
+  };
+
+  const handleCopyAudienceViews = () => {
+    if (!result?.audience_views) return;
+    navigator.clipboard.writeText(JSON.stringify(result.audience_views, null, 2));
+  };
+
+  const handleApplyPropagation = () => {
+    if (!result) return;
+    if (envPropagationPrev) {
+      setResult({ ...result, labels: envPropagationPrev });
+      setEnvPropagationPrev(null);
+      setEnvPropagationMsg('Reverted propagation');
+      setTimeout(() => setEnvPropagationMsg(''), 2000);
+      return;
+    }
+    const before = Object.keys(result.labels ?? {}).length;
+    const updated = propagateLabelsByEnvironment(
+      result.original_latex,
+      result.sentences,
+      result.labels
+    );
+    const after = Object.keys(updated ?? {}).length;
+    setEnvPropagationPrev(result.labels);
+    let addedTags = 0;
+    let changedSentences = 0;
+    const allIds = new Set([
+      ...Object.keys(result.labels ?? {}),
+      ...Object.keys(updated ?? {}),
+    ]);
+    for (const sid of allIds) {
+      const beforeLabels = result.labels?.[sid] ?? [];
+      const afterLabels = updated?.[sid] ?? [];
+      const beforeSet = new Set(beforeLabels);
+      const added = afterLabels.filter((l) => !beforeSet.has(l)).length;
+      if (added > 0) {
+        addedTags += added;
+        changedSentences += 1;
+      }
+    }
+    setResult({ ...result, labels: updated });
+    setEnvPropagationMsg(`Applied: labeled sentences ${before} → ${after}`);
+    setEnvPropagationDetails(
+      `New labels added: ${addedTags} across ${changedSentences} sentences`
+    );
+    setTimeout(() => setEnvPropagationMsg(''), 2000);
+    setTimeout(() => setEnvPropagationDetails(''), 4000);
   };
 
   const focusSentences = (ids: number[]) => {
@@ -697,1182 +656,82 @@ export default function Home() {
       </header>
 
       <main className="mx-auto grid max-w-6xl grid-cols-12 gap-6 px-6 py-6">
-        <section className="col-span-12 rounded-lg border bg-white p-5">
-          <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
-            <div>
-              <h2 className="text-sm font-semibold">Upload a LaTeX paper</h2>
-              <p className="text-xs text-zinc-500">We analyze .tex sources only.</p>
-            </div>
-
-            <div className="flex w-full flex-wrap items-center justify-center gap-2">
-              <label className="flex min-w-[220px] max-w-[360px] cursor-pointer items-center gap-2 rounded-md border border-dashed bg-zinc-50 px-3 py-2 text-xs text-zinc-600 hover:bg-white">
-                <input
-                  type="file"
-                  accept=".tex"
-                  className="hidden"
-                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                />
-                <span className="truncate">{file ? file.name : 'Choose .tex file'}</span>
-              </label>
-              <button
-                className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-                disabled={!file || status.kind === 'uploading' || status.kind === 'analyzing'}
-                onClick={onAnalyze}
-              >
-                Run analysis
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-zinc-600">
-            <span className="rounded-full border px-2 py-1">
-              {status.kind === 'idle' && 'Idle'}
-              {status.kind === 'uploading' && 'Uploading'}
-              {status.kind === 'analyzing' && 'Processing'}
-              {status.kind === 'done' && 'Complete'}
-              {status.kind === 'error' && 'Error'}
-            </span>
-            <span>
-              {status.kind === 'idle' && 'Ready to analyze.'}
-              {status.kind === 'uploading' && 'Uploading the file…'}
-              {status.kind === 'analyzing' && (status.message ?? 'Running Pass 1 + Pass 2…')}
-              {status.kind === 'done' && result && `Done. ${result.sentences.length} sentences.`}
-              {status.kind === 'error' && (
-                <span className="text-red-700">Error: {status.message}</span>
-              )}
-            </span>
-            {status.kind === 'analyzing' && processingWindows.length > 0 && (
-              <span className="text-zinc-500">{processingWindows.length} windows in flight</span>
-            )}
-          </div>
-        </section>
+        <UploadCard
+          file={file}
+          status={status}
+          processingWindows={processingWindows}
+          onFileChange={setFile}
+          onAnalyze={onAnalyze}
+        />
 
         <section className="col-span-12 flex flex-col gap-4">
-          <details ref={textDetailsRef} className="rounded-lg border bg-white" open>
-            <summary className="list-none cursor-pointer border-b px-4 py-3 text-sm font-semibold [&::-webkit-details-marker]:hidden">
-              <span className="inline-flex items-center gap-2">
-                <span>{documentTitle}</span>
-                <button
-                  className="rounded-full border px-2 py-0.5 text-[11px] font-normal text-zinc-500 hover:bg-zinc-100 disabled:opacity-50"
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onAnalyze();
-                  }}
-                  disabled={!file || status.kind === 'uploading' || status.kind === 'analyzing'}
-                  aria-label="Re-run Pass 1"
-                  title="Re-run Pass 1"
-                >
-                  ⟳
-                </button>
-              </span>
-            </summary>
-            <div className="border-b px-4 py-2 text-xs text-zinc-600 flex flex-wrap items-center gap-2">
-              <button
-                className={classNames(
-                  'rounded-full border px-2 py-0.5 text-xs',
-                  showUnlabeledOnly
-                    ? 'border-zinc-900 bg-zinc-900 text-white'
-                    : 'border-zinc-200 text-zinc-700 hover:bg-zinc-50'
-                )}
-                onClick={() => {
-                  setShowUnlabeledOnly((prev) => !prev);
-                  if (!showUnlabeledOnly) setLabelFilter([]);
-                }}
-                type="button"
-              >
-                Unlabeled · {unlabeledCount}
-              </button>
-              <label className="flex items-center gap-2 text-xs text-zinc-600 ml-1">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4"
-                  checked={useEnvPropagation}
-                  onChange={(e) => setUseEnvPropagation(e.target.checked)}
-                />
-                Propagate labels in environments
-              </label>
-              <button
-                className="rounded-full border px-2 py-0.5 text-xs text-zinc-600 hover:bg-zinc-50 disabled:opacity-50"
-                type="button"
-                disabled={!result}
-                onClick={() => {
-                  if (!result) return;
-                  if (envPropagationPrev) {
-                    setResult({ ...result, labels: envPropagationPrev });
-                    setEnvPropagationPrev(null);
-                    setEnvPropagationMsg('Reverted propagation');
-                    setTimeout(() => setEnvPropagationMsg(''), 2000);
-                    return;
-                  }
-                  const before = Object.keys(result.labels ?? {}).length;
-                  const updated = propagateLabelsByEnvironment(
-                    result.original_latex,
-                    result.sentences,
-                    result.labels
-                  );
-                  const after = Object.keys(updated ?? {}).length;
-                  setEnvPropagationPrev(result.labels);
-                  let addedTags = 0;
-                  let changedSentences = 0;
-                  const allIds = new Set([
-                    ...Object.keys(result.labels ?? {}),
-                    ...Object.keys(updated ?? {}),
-                  ]);
-                  for (const sid of allIds) {
-                    const beforeLabels = result.labels?.[sid] ?? [];
-                    const afterLabels = updated?.[sid] ?? [];
-                    const beforeSet = new Set(beforeLabels);
-                    const added = afterLabels.filter((l) => !beforeSet.has(l)).length;
-                    if (added > 0) {
-                      addedTags += added;
-                      changedSentences += 1;
-                    }
-                  }
-                  setResult({ ...result, labels: updated });
-                  setEnvPropagationMsg(`Applied: labeled sentences ${before} → ${after}`);
-                  setEnvPropagationDetails(
-                    `New labels added: ${addedTags} across ${changedSentences} sentences`
-                  );
-                  setTimeout(() => setEnvPropagationMsg(''), 2000);
-                  setTimeout(() => setEnvPropagationDetails(''), 4000);
-                }}
-              >
-                {envPropagationPrev ? 'Revert propagation' : 'Apply to current'}
-              </button>
-              {envPropagationMsg && (
-                <span className="text-xs text-zinc-500">{envPropagationMsg}</span>
-              )}
-              {envPropagationDetails && (
-                <span className="text-xs text-zinc-500">{envPropagationDetails}</span>
-              )}
-              {result &&
-                (Object.keys(labelCounts) as DiscourseLabel[]).map((label) => (
-                  <button
-                    key={`filter-${label}`}
-                    className={classNames(
-                      'rounded-full border px-2 py-0.5 text-xs',
-                      labelFilter.includes(label)
-                        ? 'border-zinc-900 bg-zinc-900 text-white'
-                        : LABEL_COLORS[label]
-                    )}
-                    onClick={() => toggleLabelFilter(label)}
-                    type="button"
-                  >
-                    {label} · {labelCounts[label]}
-                  </button>
-                ))}
-              {(labelFilter.length > 0 || showUnlabeledOnly) && (
-                <button
-                  className="rounded-full border px-2 py-0.5 text-xs text-zinc-600 hover:bg-zinc-50"
-                  onClick={() => {
-                    setLabelFilter([]);
-                    setShowUnlabeledOnly(false);
-                  }}
-                  type="button"
-                >
-                  Clear filter
-                </button>
-              )}
-            </div>
-            <div className="max-h-[70vh] overflow-auto">
-              {!result && <div className="p-4 text-sm text-zinc-500">Upload a .tex file to begin.</div>}
-              {result && (
-                <div className="p-4 text-sm leading-7 whitespace-pre-wrap">
-                  {(() => {
-                    if (!renderedOriginalText) return null;
-                    const rendered: JSX.Element[] = [];
-                    let lastRenderedSentenceId: number | null = null;
-                    renderedOriginalText.forEach((seg, idx) => {
-                      if (!seg.sentence) {
-                        if (labelFilter.length > 0 || showUnlabeledOnly) return;
-                        rendered.push(<span key={`plain-${idx}`}>{seg.text}</span>);
-                        return;
-                      }
-                      const labels = result.labels[String(seg.sentence.id)] ?? [];
-                      if (showUnlabeledOnly && labels.length > 0) return;
-                      if (labelFilter.length > 0 && !labels.some((l) => labelFilter.includes(l))) {
-                        return;
-                      }
-                      const shouldShowGap =
-                        (labelFilter.length > 0 || showUnlabeledOnly) &&
-                        lastRenderedSentenceId !== null &&
-                        seg.sentence.id !== lastRenderedSentenceId + 1;
-                      const isProcessing = isSentenceProcessing(seg.sentence.position);
-                      const isHighlighted = highlightedIds.includes(seg.sentence.id);
-                      rendered.push(
-                        <span key={`wrap-${seg.sentence.id}-${idx}`}>
-                          {shouldShowGap && (
-                            <span className="my-2 flex items-center gap-2 text-[11px] text-zinc-400">
-                              <span className="h-px w-6 bg-zinc-300" />
-                              <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5">
-                                ⋯ gap
-                              </span>
-                              <span className="h-px w-6 bg-zinc-300" />
-                            </span>
-                          )}
-                          <span
-                            id={`sentence-${seg.sentence.id}`}
-                            className={classNames(
-                              'rounded-sm',
-                              isProcessing && 'bg-amber-50',
-                              isHighlighted && 'bg-amber-100 ring-1 ring-amber-200'
-                            )}
-                          >
-                            {seg.text}
-                            {labels.length > 0 && labelFilter.length === 0 && !showUnlabeledOnly && (
-                              <span className="ml-1 inline-flex gap-1 align-middle">
-                                {labels.map((l) => (
-                                  <LabelPill key={l} label={l} />
-                                ))}
-                              </span>
-                            )}
-                          </span>
-                        </span>
-                      );
-                      lastRenderedSentenceId = seg.sentence.id;
-                    });
-                    return rendered;
-                  })()}
-                </div>
-              )}
-            </div>
-          </details>
+          <TextPanel
+            result={result}
+            documentTitle={documentTitle}
+            renderedOriginalText={renderedOriginalText}
+            labelCounts={labelCounts}
+            unlabeledCount={unlabeledCount}
+            labelFilter={labelFilter}
+            showUnlabeledOnly={showUnlabeledOnly}
+            envPropagationPrev={envPropagationPrev}
+            envPropagationMsg={envPropagationMsg}
+            envPropagationDetails={envPropagationDetails}
+            processingWindows={processingWindows}
+            highlightedIds={highlightedIds}
+            textDetailsRef={textDetailsRef}
+            useEnvPropagation={useEnvPropagation}
+            onToggleUseEnvPropagation={setUseEnvPropagation}
+            onToggleLabelFilter={toggleLabelFilter}
+            onClearFilters={() => {
+              setLabelFilter([]);
+              setShowUnlabeledOnly(false);
+            }}
+            onToggleUnlabeled={() => setShowUnlabeledOnly((prev) => !prev)}
+            onApplyPropagation={handleApplyPropagation}
+            onReRunPass1={onAnalyze}
+            isSentenceProcessing={isSentenceProcessing}
+            focusSentences={focusSentences}
+            setLabelFilter={setLabelFilter}
+            setShowUnlabeledOnly={setShowUnlabeledOnly}
+          />
 
-          <details ref={canonicalDetailsRef} className="rounded-lg border bg-white" open>
-            <summary className="flex cursor-pointer items-center border-b px-4 py-3 text-sm font-semibold">
-              <span className="inline-flex items-center gap-2">
-                <span>Canonical sections (Pass 2)</span>
-                <button
-                  className="rounded-full border px-2 py-0.5 text-[11px] font-normal text-zinc-500 hover:bg-zinc-100 disabled:opacity-50"
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    rerunPass2Only();
-                  }}
-                  disabled={!result || status.kind === 'analyzing' || status.kind === 'uploading'}
-                  aria-label="Re-run Pass 2"
-                  title="Re-run Pass 2"
-                >
-                  ⟳
-                </button>
-                <button
-                  className="rounded-full border px-2 py-0.5 text-[11px] text-zinc-500 hover:bg-zinc-100"
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (!result?.sections) return;
-                    navigator.clipboard.writeText(JSON.stringify(result.sections, null, 2));
-                  }}
-                  aria-label="Copy canonical JSON"
-                  title="Copy canonical JSON"
-                >
-                  ⧉
-                </button>
-              </span>
-            </summary>
+          <CanonicalSectionsCard
+            result={result}
+            detailsRef={canonicalDetailsRef}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            statusKind={status.kind}
+            onRerunPass2={rerunPass2Only}
+            onCopyCanonical={() => {
+              if (!result?.sections) return;
+              navigator.clipboard.writeText(JSON.stringify(result.sections, null, 2));
+            }}
+            renderEmpty={renderEmpty}
+            renderGroundedList={renderGroundedList}
+            renderCitationAction={renderCitationAction}
+            focusSentences={focusSentences}
+            formatIdRanges={formatIdRanges}
+            formatCitationLabel={formatCitationLabel}
+            LabelPill={LabelPill}
+            focusedCitationKeys={focusedCitationKeys}
+            setFocusedCitationKeys={setFocusedCitationKeys}
+          />
 
-            <div className="grid grid-cols-1 gap-4 p-4">
-              {!result && <div className="text-sm text-zinc-500">No data.</div>}
-              {result && (
-                <>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { id: 'problem', label: 'Problem & Motivation' },
-                      { id: 'landscape', label: 'Landscape' },
-                      { id: 'contrib', label: 'Contributions' },
-                      { id: 'tech', label: 'Technical Core' },
-                      { id: 'cons', label: 'Consequences' },
-                      { id: 'cites', label: 'Citations' },
-                    ].map((tab) => (
-                      <button
-                        key={tab.id}
-                        className={classNames(
-                          'rounded-full border px-3 py-1 text-xs',
-                          activeTab === tab.id
-                            ? 'border-zinc-900 bg-zinc-900 text-white'
-                            : 'border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50'
-                        )}
-                        onClick={() => setActiveTab(tab.id as typeof activeTab)}
-                        type="button"
-                      >
-                        {tab.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="rounded-md border bg-white p-3 max-h-[38vh] overflow-auto">
-                    {activeTab === 'problem' && (
-                      <>
-                        {result.sections.problem_and_motivation.central_problems.length === 0 &&
-                          result.sections.problem_and_motivation.origins.length === 0 &&
-                          result.sections.problem_and_motivation.nontriviality.length === 0 &&
-                          renderEmpty('No explicit items found.')}
-                        {result.sections.problem_and_motivation.central_problems.length > 0 && (
-                          <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                            <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                              Central problem
-                            </div>
-                            <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
-                              {result.sections.problem_and_motivation.central_problems.map(
-                                (item, idx) => (
-                                  <li key={`pm-cp-${idx}`} className="mb-2">
-                                    <MathText text={item.description} />
-                                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                                    <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
-                                    <button
-                                      className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
-                                      onClick={() => focusSentences(item.sentence_ids)}
-                                      type="button"
-                                    >
-                                      View sentences
-                                    </button>
-                                    {renderCitationAction(item.sentence_ids)}
-                                  </div>
-                                  </li>
-                                )
-                              )}
-                            </ul>
-                          </div>
-                        )}
-                        {result.sections.problem_and_motivation.origins.length > 0 && (
-                          <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                            <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                              Origins
-                            </div>
-                            <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
-                              {result.sections.problem_and_motivation.origins.map((item, idx) => (
-                                <li key={`pm-or-${idx}`} className="mb-2">
-                                  <MathText text={item.description} />
-                                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                                    <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
-                                    <button
-                                      className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
-                                      onClick={() => focusSentences(item.sentence_ids)}
-                                      type="button"
-                                    >
-                                      View sentences
-                                    </button>
-                                    {renderCitationAction(item.sentence_ids)}
-                                  </div>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                        {result.sections.problem_and_motivation.nontriviality.length > 0 && (
-                          <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                            <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                              Nontriviality
-                            </div>
-                            <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
-                              {result.sections.problem_and_motivation.nontriviality.map(
-                                (item, idx) => (
-                                  <li key={`pm-nt-${idx}`} className="mb-2">
-                                    <MathText text={item.description} />
-                                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                                      <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
-                                      <button
-                                        className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
-                                        onClick={() => focusSentences(item.sentence_ids)}
-                                        type="button"
-                                      >
-                                        View sentences
-                                      </button>
-                                      {renderCitationAction(item.sentence_ids)}
-                                    </div>
-                                  </li>
-                                )
-                              )}
-                            </ul>
-                          </div>
-                        )}
-                      </>
-                    )}
-
-                    {activeTab === 'landscape' && (
-                      <>
-                        {result.sections.landscape.known_results.length === 0 &&
-                          result.sections.landscape.limitations.length === 0 &&
-                          result.sections.landscape.competing_approaches.length === 0 &&
-                          renderEmpty('No explicit items found.')}
-                        {result.sections.landscape.known_results.length > 0 && (
-                          <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                            <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                              Known results
-                            </div>
-                            <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
-                              {result.sections.landscape.known_results.map((item, idx) => (
-                                <li key={`land-kr-${idx}`} className="mb-2">
-                                  <MathText text={item.description} />
-                                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                                    <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
-                                    <button
-                                      className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
-                                      onClick={() => focusSentences(item.sentence_ids)}
-                                      type="button"
-                                    >
-                                      View sentences
-                                    </button>
-                                    {renderCitationAction(item.sentence_ids)}
-                                  </div>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                        {result.sections.landscape.limitations.length > 0 && (
-                          <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                            <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                              Limitations
-                            </div>
-                            <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
-                              {result.sections.landscape.limitations.map((item, idx) => (
-                                <li key={`land-lim-${idx}`} className="mb-2">
-                                  <MathText text={item.description} />
-                                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                                    <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
-                                    <button
-                                      className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
-                                      onClick={() => focusSentences(item.sentence_ids)}
-                                      type="button"
-                                    >
-                                      View sentences
-                                    </button>
-                                    {renderCitationAction(item.sentence_ids)}
-                                  </div>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                        {result.sections.landscape.competing_approaches.length > 0 && (
-                          <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                            <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                              Competing approaches
-                            </div>
-                            <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
-                              {result.sections.landscape.competing_approaches.map((item, idx) => (
-                                <li key={`land-ca-${idx}`} className="mb-2">
-                                  <MathText text={item.description} />
-                                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                                    <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
-                                    <button
-                                      className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
-                                      onClick={() => focusSentences(item.sentence_ids)}
-                                      type="button"
-                                    >
-                                      View sentences
-                                    </button>
-                                    {renderCitationAction(item.sentence_ids)}
-                                  </div>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      </>
-                    )}
-
-                    {activeTab === 'contrib' && (
-                      <>
-                        {result.sections.contributions.contributions.length === 0 &&
-                          renderEmpty('No explicit items found.')}
-                        {result.sections.contributions.contributions.length > 0 && (
-                          <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                            <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                              Contributions
-                            </div>
-                            <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
-                              {result.sections.contributions.contributions.map((item, idx) => (
-                                <li key={`contrib-${idx}`} className="mb-3">
-                                  <div className="font-medium">
-                                    <MathText text={item.statement} />
-                                  </div>
-                                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                                    <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
-                                    <button
-                                      className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
-                                      onClick={() => focusSentences(item.sentence_ids)}
-                                      type="button"
-                                    >
-                                      View sentences
-                                    </button>
-                                    {renderCitationAction(item.sentence_ids)}
-                                  </div>
-                                  {(item.prior_state.text ||
-                                    item.novelty.text ||
-                                    item.nontriviality.text) && (
-                                    <div className="mt-2 rounded-md border border-zinc-100 bg-white p-2 text-xs text-zinc-700">
-                                      {item.prior_state.text && (
-                                        <div className="mb-1">
-                                          <span className="font-semibold text-zinc-800">Prior:</span>{' '}
-                                          {item.prior_state.text}{' '}
-                                          <span className="text-zinc-500">
-                                            <span className="sr-only">
-                                              ids {formatIdRanges(item.prior_state.sentence_ids)}
-                                            </span>
-                                          </span>
-                                        </div>
-                                      )}
-                                      {item.novelty.text && (
-                                        <div className="mb-1">
-                                          <span className="font-semibold text-zinc-800">
-                                            Novelty:
-                                          </span>{' '}
-                                          {item.novelty.text}{' '}
-                                          <span className="text-zinc-500">
-                                            <span className="sr-only">
-                                              ids {formatIdRanges(item.novelty.sentence_ids)}
-                                            </span>
-                                          </span>
-                                        </div>
-                                      )}
-                                      {item.nontriviality.text && (
-                                        <div>
-                                          <span className="font-semibold text-zinc-800">
-                                            Nontriviality:
-                                          </span>{' '}
-                                          {item.nontriviality.text}{' '}
-                                          <span className="text-zinc-500">
-                                            <span className="sr-only">
-                                              ids {formatIdRanges(item.nontriviality.sentence_ids)}
-                                            </span>
-                                          </span>
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      </>
-                    )}
-
-                    {activeTab === 'tech' && (
-                      <>
-                        {result.sections.technical_core.key_ideas.length === 0 &&
-                          result.sections.technical_core.technical_obstacles.length === 0 &&
-                          result.sections.technical_core.reusable_constructions.length === 0 &&
-                          renderEmpty('No explicit items found.')}
-                        {result.sections.technical_core.key_ideas.length > 0 && (
-                          <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                            <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                              Key ideas
-                            </div>
-                            <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
-                              {result.sections.technical_core.key_ideas.map((item, idx) => (
-                                <li key={`tech-ki-${idx}`} className="mb-2">
-                                  <MathText text={item.description} />
-                                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                                    <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
-                                    <button
-                                      className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
-                                      onClick={() => focusSentences(item.sentence_ids)}
-                                      type="button"
-                                    >
-                                      View sentences
-                                    </button>
-                                    {renderCitationAction(item.sentence_ids)}
-                                  </div>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                        {result.sections.technical_core.technical_obstacles.length > 0 && (
-                          <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                            <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                              Technical obstacles
-                            </div>
-                            <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
-                              {result.sections.technical_core.technical_obstacles.map((item, idx) => (
-                                <li key={`tech-to-${idx}`} className="mb-2">
-                                  <MathText text={item.description} />
-                                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                                    <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
-                                    <button
-                                      className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
-                                      onClick={() => focusSentences(item.sentence_ids)}
-                                      type="button"
-                                    >
-                                      View sentences
-                                    </button>
-                                    {renderCitationAction(item.sentence_ids)}
-                                  </div>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                        {result.sections.technical_core.reusable_constructions.length > 0 && (
-                          <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                            <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                              Reusable constructions
-                            </div>
-                            <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
-                              {result.sections.technical_core.reusable_constructions.map(
-                                (item, idx) => (
-                                  <li key={`tech-rc-${idx}`} className="mb-2">
-                                    <MathText text={item.description} />
-                                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                                      <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
-                                      <button
-                                        className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
-                                        onClick={() => focusSentences(item.sentence_ids)}
-                                        type="button"
-                                      >
-                                        View sentences
-                                      </button>
-                                      {renderCitationAction(item.sentence_ids)}
-                                    </div>
-                                  </li>
-                                )
-                              )}
-                            </ul>
-                          </div>
-                        )}
-                      </>
-                    )}
-
-                    {activeTab === 'cons' && (
-                      <>
-                        {result.sections.consequences.open_questions.length === 0 &&
-                          result.sections.consequences.speculative_extensions.length === 0 &&
-                          renderEmpty('No explicit items found.')}
-                        {result.sections.consequences.open_questions.length > 0 && (
-                          <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                            <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                              Open questions
-                            </div>
-                            <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
-                              {result.sections.consequences.open_questions.map((item, idx) => (
-                                <li key={`cons-oq-${idx}`} className="mb-2">
-                                  <MathText text={item.description} />
-                                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                                    <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
-                                    <button
-                                      className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
-                                      onClick={() => focusSentences(item.sentence_ids)}
-                                      type="button"
-                                    >
-                                      View sentences
-                                    </button>
-                                    {renderCitationAction(item.sentence_ids)}
-                                  </div>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                        {result.sections.consequences.speculative_extensions.length > 0 && (
-                          <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                            <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                              Speculative extensions
-                            </div>
-                            <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
-                              {result.sections.consequences.speculative_extensions.map((item, idx) => (
-                                <li key={`cons-se-${idx}`} className="mb-2">
-                                  <MathText text={item.description} />
-                                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                                    <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
-                                    <button
-                                      className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
-                                      onClick={() => focusSentences(item.sentence_ids)}
-                                      type="button"
-                                    >
-                                      View sentences
-                                    </button>
-                                    {renderCitationAction(item.sentence_ids)}
-                                  </div>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      </>
-                    )}
-
-                    {activeTab === 'cites' && (
-                      <>
-                        {Object.keys(result.citations ?? {}).length === 0 &&
-                          renderEmpty('No citations detected.')}
-                        {(focusedCitationKeys.length > 0
-                          ? focusedCitationKeys
-                              .map((key) => result.citations?.[key])
-                              .filter(Boolean)
-                          : Object.values(result.citations ?? {})
-                        ).map((entry) => (
-                          <div
-                            key={`cite-${entry.key}`}
-                            className={classNames(
-                              'mb-3 rounded-md border p-2 text-sm',
-                              focusedCitationKeys.includes(entry.key)
-                                ? 'border-amber-200 bg-amber-50'
-                                : 'border-zinc-100 bg-zinc-50'
-                            )}
-                          >
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="font-medium text-zinc-900">
-                                {formatCitationLabel(entry)}
-                              </span>
-                              {entry.labels.map((l) => (
-                                <LabelPill key={`${entry.key}-${l}`} label={l} />
-                              ))}
-                            </div>
-                            {entry.text && (
-                              <div className="mt-1 text-xs text-zinc-700">{entry.text}</div>
-                            )}
-                            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                              <span>{entry.sentence_ids.length} sentences</span>
-                              <button
-                                className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
-                                onClick={() => focusSentences(entry.sentence_ids)}
-                                type="button"
-                                disabled={entry.sentence_ids.length === 0}
-                              >
-                                View sentences
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                        {focusedCitationKeys.length > 0 && (
-                          <button
-                            className="rounded-full border px-3 py-1 text-[11px] text-zinc-600 hover:bg-zinc-50"
-                            type="button"
-                            onClick={() => setFocusedCitationKeys([])}
-                          >
-                            Clear filter
-                          </button>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          </details>
-
-          <details className="rounded-lg border bg-white" open>
-            <summary className="flex cursor-pointer items-center border-b px-4 py-3 text-sm font-semibold">
-              <span className="inline-flex items-center gap-2">
-                <span>Audience views (Pass 3)</span>
-                <button
-                  className="rounded-full border px-2 py-0.5 text-[11px] font-normal text-zinc-500 hover:bg-zinc-100 disabled:opacity-50"
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    rerunPass3Only();
-                  }}
-                  disabled={!result || status.kind === 'analyzing' || status.kind === 'uploading'}
-                  aria-label="Re-run Pass 3"
-                  title="Re-run Pass 3"
-                >
-                  ⟳
-                </button>
-                <button
-                  className="rounded-full border px-2 py-0.5 text-[11px] text-zinc-500 hover:bg-zinc-100"
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (!result?.audience_views) return;
-                    navigator.clipboard.writeText(
-                      JSON.stringify(result.audience_views, null, 2)
-                    );
-                  }}
-                  aria-label="Copy audience view JSON"
-                  title="Copy audience view JSON"
-                >
-                  ⧉
-                </button>
-              </span>
-            </summary>
-            <div className="grid grid-cols-1 gap-4 p-4">
-              {!result?.audience_views && <div className="text-sm text-zinc-500">No data.</div>}
-              {result?.audience_views && (
-                <>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { id: 'A', label: 'Domain Expert' },
-                      { id: 'B', label: 'Adjacent-field Researcher' },
-                      { id: 'C', label: 'Grad Student' },
-                      { id: 'D', label: 'Author Self' },
-                    ].map((tab) => (
-                      <button
-                        key={tab.id}
-                        className={classNames(
-                          'rounded-full border px-3 py-1 text-xs',
-                          audienceTab === tab.id
-                            ? 'border-zinc-900 bg-zinc-900 text-white'
-                            : 'border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50'
-                        )}
-                        onClick={() => setAudienceTab(tab.id as typeof audienceTab)}
-                        type="button"
-                      >
-                        {tab.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="rounded-md border bg-white p-3 max-h-[42vh] overflow-auto">
-                    {audienceTab === 'A' && (
-                      <>
-                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                            Problem statement
-                          </div>
-                          <div className="mt-2 text-sm text-zinc-900">
-                            <MathText
-                              text={result.audience_views.domain_expert.problem_statement?.text ?? ''}
-                            />
-                          </div>
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                            {result.audience_views.domain_expert.problem_statement?.sentence_ids?.length ? (
-                              <button
-                                className="rounded-full border px-2 py-0.5 text-[10px] hover:bg-white"
-                                type="button"
-                                onClick={() =>
-                                  focusSentences(
-                                    result.audience_views.domain_expert.problem_statement!.sentence_ids
-                                  )
-                                }
-                              >
-                                View sentences
-                              </button>
-                            ) : null}
-                            {renderCitationActionForKeys(
-                              getCitationsForSentenceIds(
-                                result.audience_views.domain_expert.problem_statement?.sentence_ids ?? []
-                              ).map((e) => e.key)
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                            Delta summary
-                          </div>
-                          {renderGroundedList(result.audience_views.domain_expert.delta_summary)}
-                        </div>
-
-                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                            Technical highlights
-                          </div>
-                          <div className="mt-2 text-xs font-semibold text-zinc-500">
-                            Nonstandard ideas
-                          </div>
-                          {renderGroundedList(
-                            result.audience_views.domain_expert.technical_highlights
-                              .nonstandard_ideas
-                          )}
-                          <div className="mt-3 text-xs font-semibold text-zinc-500">
-                            Clever reductions
-                          </div>
-                          {renderGroundedList(
-                            result.audience_views.domain_expert.technical_highlights.clever_reductions
-                          )}
-                        </div>
-
-                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                            Reusable components
-                          </div>
-                          {renderGroundedList(result.audience_views.domain_expert.reusable_components)}
-                        </div>
-
-                      </>
-                    )}
-
-                    {audienceTab === 'B' && (
-                      <>
-                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                            Problem statement (plain math)
-                          </div>
-                          <div className="mt-2 text-sm text-zinc-900">
-                            <MathText text={result.audience_views.adjacent_researcher.problem_statement.text} />
-                          </div>
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                            {result.audience_views.adjacent_researcher.problem_statement?.sentence_ids?.length ? (
-                              <button
-                                className="rounded-full border px-2 py-0.5 text-[10px] hover:bg-white"
-                                type="button"
-                                onClick={() =>
-                                  focusSentences(
-                                    result.audience_views.adjacent_researcher.problem_statement
-                                      .sentence_ids
-                                  )
-                                }
-                              >
-                                View sentences
-                              </button>
-                            ) : null}
-                            {renderCitationActionForKeys(
-                              getCitationsForSentenceIds(
-                                result.audience_views.adjacent_researcher.problem_statement.sentence_ids ?? []
-                              ).map((e) => e.key)
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                            Why this matters
-                          </div>
-                          {renderGroundedList(result.audience_views.adjacent_researcher.why_matters)}
-                        </div>
-
-                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                            Prerequisite map
-                          </div>
-                          <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
-                            {result.audience_views.adjacent_researcher.prerequisite_map.map(
-                              (item, idx) => (
-                                <li key={`b-pre-${idx}`} className="mb-2">
-                                  <MathText text={item} />
-                                </li>
-                              )
-                            )}
-                          </ul>
-                        </div>
-
-                        <div className="rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                            Reading path
-                          </div>
-                          <div className="mt-2 text-xs font-semibold text-zinc-500">Read</div>
-                          <ul className="mt-1 list-disc pl-4 text-sm text-zinc-900">
-                            {result.audience_views.adjacent_researcher.reading_path.read.map(
-                              (item, idx) => (
-                                <li key={`b-read-${idx}`} className="mb-2">
-                                  <MathText text={item} />
-                                </li>
-                              )
-                            )}
-                          </ul>
-                          <div className="mt-2 text-xs font-semibold text-zinc-500">Skim</div>
-                          <ul className="mt-1 list-disc pl-4 text-sm text-zinc-900">
-                            {result.audience_views.adjacent_researcher.reading_path.skim.map(
-                              (item, idx) => (
-                                <li key={`b-skim-${idx}`} className="mb-2">
-                                  <MathText text={item} />
-                                </li>
-                              )
-                            )}
-                          </ul>
-                          <div className="mt-2 text-xs font-semibold text-zinc-500">Skip</div>
-                          <ul className="mt-1 list-disc pl-4 text-sm text-zinc-900">
-                            {result.audience_views.adjacent_researcher.reading_path.skip.map(
-                              (item, idx) => (
-                                <li key={`b-skip-${idx}`} className="mb-2">
-                                  <MathText text={item} />
-                                </li>
-                              )
-                            )}
-                          </ul>
-                        </div>
-                      </>
-                    )}
-
-                    {audienceTab === 'C' && (
-                      <>
-                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                            Problem statement
-                          </div>
-                          <div className="mt-2 text-sm text-zinc-900">
-                            <MathText
-                              text={result.audience_views.grad_student.problem_statement?.text ?? ''}
-                            />
-                          </div>
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                            {result.audience_views.grad_student.problem_statement?.sentence_ids?.length ? (
-                              <button
-                                className="rounded-full border px-2 py-0.5 text-[10px] hover:bg-white"
-                                type="button"
-                                onClick={() =>
-                                  focusSentences(
-                                    result.audience_views.grad_student.problem_statement!.sentence_ids
-                                  )
-                                }
-                              >
-                                View sentences
-                              </button>
-                            ) : null}
-                            {renderCitationActionForKeys(
-                              getCitationsForSentenceIds(
-                                result.audience_views.grad_student.problem_statement?.sentence_ids ?? []
-                              ).map((e) => e.key)
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                            Conceptual map
-                          </div>
-                          <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
-                            {result.audience_views.grad_student.conceptual_map.map((item, idx) => (
-                              <li key={`c-map-${idx}`} className="mb-2">
-                                <MathText text={item} />
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-
-                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                            Suggested first pass
-                          </div>
-                          <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
-                            {result.audience_views.grad_student.suggested_first_pass.map(
-                              (item, idx) => (
-                                <li key={`c-pass-${idx}`} className="mb-2">
-                                  <MathText text={item} />
-                                </li>
-                              )
-                            )}
-                          </ul>
-                        </div>
-
-                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                            Key ideas before technicalities
-                          </div>
-                          {renderGroundedList(result.audience_views.grad_student.key_ideas)}
-                          {renderCitationActionForKeys(
-                            getCitationsForSentenceIds(
-                              collectSentenceIds(result.audience_views.grad_student.key_ideas)
-                            ).map((e) => e.key)
-                          )}
-                        </div>
-
-                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                            What to ignore initially
-                          </div>
-                          <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
-                            {result.audience_views.grad_student.ignore_initially.map(
-                              (item, idx) => (
-                                <li key={`c-ign-${idx}`} className="mb-2">
-                                  <MathText text={item} />
-                                </li>
-                              )
-                            )}
-                          </ul>
-                        </div>
-
-                        <div className="rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                            Permission to skip
-                          </div>
-                          <div className="mt-2 text-sm text-zinc-900">
-                            <MathText text={result.audience_views.grad_student.permission_to_skip} />
-                          </div>
-                        </div>
-                      </>
-                    )}
-
-                    {audienceTab === 'D' && (
-                      <>
-                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                            Problem statement
-                          </div>
-                          <div className="mt-2 text-sm text-zinc-900">
-                            <MathText
-                              text={result.audience_views.author_self.problem_statement?.text ?? ''}
-                            />
-                          </div>
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                            {result.audience_views.author_self.problem_statement?.sentence_ids?.length ? (
-                              <button
-                                className="rounded-full border px-2 py-0.5 text-[10px] hover:bg-white"
-                                type="button"
-                                onClick={() =>
-                                  focusSentences(
-                                    result.audience_views.author_self.problem_statement!.sentence_ids
-                                  )
-                                }
-                              >
-                                View sentences
-                              </button>
-                            ) : null}
-                            {renderCitationActionForKeys(
-                              getCitationsForSentenceIds(
-                                result.audience_views.author_self.problem_statement?.sentence_ids ?? []
-                              ).map((e) => e.key)
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                            One-page contribution summary
-                          </div>
-                          <div className="mt-2 text-sm text-zinc-900">
-                            <MathText text={result.audience_views.author_self.one_page_summary} />
-                          </div>
-                        </div>
-
-                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                            Fragile arguments
-                          </div>
-                          {renderGroundedList(result.audience_views.author_self.fragile_arguments)}
-                          {renderCitationActionForKeys(
-                            getCitationsForSentenceIds(
-                              collectSentenceIds(result.audience_views.author_self.fragile_arguments)
-                            ).map((e) => e.key)
-                          )}
-                        </div>
-
-                        <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                            Robust arguments
-                          </div>
-                          {renderGroundedList(result.audience_views.author_self.robust_arguments)}
-                          {renderCitationActionForKeys(
-                            getCitationsForSentenceIds(
-                              collectSentenceIds(result.audience_views.author_self.robust_arguments)
-                            ).map((e) => e.key)
-                          )}
-                        </div>
-
-                        <div className="rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                            Notes to self
-                          </div>
-                          <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
-                            {result.audience_views.author_self.notes_to_self.map((item, idx) => (
-                              <li key={`d-note-${idx}`} className="mb-2">
-                                <MathText text={item} />
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                  <details className="rounded-md border bg-white" open>
-                    <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-zinc-600">
-                      Supporting text
-                    </summary>
-                    {renderAudienceFullText()}
-                  </details>
-                </>
-              )}
-            </div>
-          </details>
+          <AudienceViewsCard
+            result={result}
+            audienceTab={audienceTab}
+            setAudienceTab={setAudienceTab}
+            statusKind={status.kind}
+            onRerunPass3={rerunPass3Only}
+            onCopyAudienceViews={handleCopyAudienceViews}
+            focusSentences={focusSentences}
+            renderGroundedList={renderGroundedList}
+            renderCitationActionForKeys={renderCitationActionForKeys}
+            getCitationsForSentenceIds={getCitationsForSentenceIds}
+            collectSentenceIds={collectSentenceIds}
+            renderReadingPathText={renderReadingPathText}
+            renderAudienceFullText={renderAudienceFullText}
+          />
         </section>
       </main>
 

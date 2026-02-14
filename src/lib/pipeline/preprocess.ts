@@ -315,13 +315,30 @@ export function extractDocumentTitle(latex: string): string | null {
 export function extractAbstract(latex: string): string | null {
     const envMatch = latex.match(/\\begin\{abstract\}([\s\S]*?)\\end\{abstract\}/);
     const cmdMatch = latex.match(/\\abstract\s*\{([\s\S]*?)\}/);
-    const raw = envMatch?.[1] ?? cmdMatch?.[1];
+    const sectionMatch = latex.match(
+        /\\section\*?\{\s*Abstract\s*\}([\s\S]*?)(?=\\section|\\subsection|\\paragraph|\\begin\{|\\end\{document\}|\Z)/
+    );
+    const raw = envMatch?.[1] ?? cmdMatch?.[1] ?? sectionMatch?.[1];
     if (!raw) return null;
-    let abstract = raw
+    const mathMatches = new Map<string, string>();
+    let mathIndex = 0;
+    const protectedRaw = raw.replace(
+        /\$\$[\s\S]*?\$\$|\$[^\$]*?\$|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\)/g,
+        (match) => {
+            const key = `__MATH_${mathIndex}__`;
+            mathIndex += 1;
+            mathMatches.set(key, match);
+            return key;
+        }
+    );
+    let abstract = protectedRaw
         .replace(/\\[a-zA-Z*]+(?:\[[^\]]*\])?/g, '')
         .replace(/[{}]/g, '')
         .replace(/\s+/g, ' ')
         .trim();
+    for (const [key, value] of mathMatches.entries()) {
+        abstract = abstract.replace(key, value);
+    }
     if (!abstract) return null;
     return abstract;
 }
