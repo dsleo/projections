@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { AnalysisResult, DiscourseLabel, Sentence } from '@/lib/pipeline/client';
 import {
+  expandSentenceIdsByEnvironment,
   propagateLabelsByEnvironment,
 } from '@/lib/pipeline/env_propagation';
 import { buildAudienceSupportingText } from '@/lib/ui/supportingText';
@@ -299,10 +300,21 @@ export default function Home() {
 
   const audienceSupporting = useMemo(() => {
     if (!result?.audience_views) {
-      return { abstract: '', segments: [] as Array<{ text: string; startId: number; endId: number }> };
+      return {
+        abstract: '',
+        segments: [] as Array<{ text: string; startId: number; endId: number }>,
+        sentenceIds: [] as number[],
+      };
     }
     return buildAudienceSupportingText(result, audienceTab);
   }, [result, audienceTab]);
+
+  const pdfSupporting = useMemo(() => {
+    if (!result?.audience_views || pdfTab === 'original') {
+      return { sentenceIds: [] as number[] };
+    }
+    return buildAudienceSupportingText(result, pdfTab as 'A' | 'B' | 'C' | 'D');
+  }, [result, pdfTab]);
 
   const renderAudienceFullText = () => {
     if (!result) return null;
@@ -342,42 +354,37 @@ export default function Home() {
     );
   };
 
-  const pdfSupporting = useMemo(() => {
-    if (!result?.audience_views || pdfTab === 'original') return null;
-    return buildAudienceSupportingText(result, pdfTab as 'A' | 'B' | 'C' | 'D');
-  }, [result, pdfTab]);
-
-  const pdfSupportingText = useMemo(() => {
-    if (!pdfSupporting) return null;
-    const parts: string[] = [];
-    if (pdfSupporting.abstract) {
-      parts.push(`\\section*{Abstract}\n${pdfSupporting.abstract}`);
-    }
-    for (const segment of pdfSupporting.segments) {
-      if (segment.text.trim()) parts.push(segment.text.trim());
-    }
-    const joined = parts.join('\n\n').trim();
-    return joined.length > 0 ? joined : null;
-  }, [pdfSupporting]);
+  const expandedAudienceHighlightIds = useMemo(() => {
+    if (!result || pdfTab === 'original') return [];
+    const ids = pdfSupporting.sentenceIds ?? [];
+    if (ids.length === 0) return [];
+    return expandSentenceIdsByEnvironment(result.original_latex, result.sentences, ids);
+  }, [result, pdfTab, pdfSupporting]);
 
   const { pdfUrl, status: pdfStatus, compilePdf } = usePdfCompile({
     file,
-    mode: pdfTab === 'original' ? 'original' : 'supporting',
+    mode: pdfTab === 'original' ? 'original' : 'highlighted',
     originalLatex: result?.original_latex ?? null,
-    supportingText: pdfSupportingText,
+    sentences: result?.sentences,
+    highlightIds: expandedAudienceHighlightIds,
   });
 
   useEffect(() => {
     if (pdfTab === 'original') return;
-    if (!pdfSupportingText || !result) return;
+    if (!result || expandedAudienceHighlightIds.length === 0) return;
     void compilePdf();
-  }, [pdfTab, pdfSupportingText, result, compilePdf]);
+  }, [pdfTab, expandedAudienceHighlightIds, result, compilePdf]);
 
   useEffect(() => {
     if (pdfTab !== 'original') return;
-    if (!file) return;
+    if (!file && !result?.original_latex) return;
     void compilePdf();
-  }, [pdfTab, file, compilePdf]);
+  }, [pdfTab, file, result, compilePdf]);
+
+  const handlePdfTabChange = (id: string) => {
+    setPdfTab(id as typeof pdfTab);
+  };
+
 
   const handleCopyAudienceViews = () => {
     if (!result?.audience_views) return;
@@ -544,7 +551,11 @@ export default function Home() {
         </section>
 
         <PdfViewerCard
-          file={file}
+          canCompile={
+            pdfTab === 'original'
+              ? !!file || !!result?.original_latex
+              : expandedAudienceHighlightIds.length > 0
+          }
           status={pdfStatus}
           pdfUrl={pdfUrl}
           onCompile={() => {
@@ -558,7 +569,7 @@ export default function Home() {
             { id: 'D', label: 'Author Self' },
           ]}
           selectedTab={pdfTab}
-          onTabChange={(id) => setPdfTab(id as typeof pdfTab)}
+          onTabChange={handlePdfTabChange}
         />
       </main>
 

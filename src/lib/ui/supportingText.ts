@@ -29,7 +29,11 @@ const STATEMENT_ENVS = [
 type AudienceTab = 'A' | 'B' | 'C' | 'D';
 
 export type SupportingTextSegment = { text: string; startId: number; endId: number };
-export type SupportingTextResult = { abstract: string; segments: SupportingTextSegment[] };
+export type SupportingTextResult = {
+  abstract: string;
+  segments: SupportingTextSegment[];
+  sentenceIds: number[];
+};
 
 function stripInjectedLabels(value: string) {
   return value.replace(
@@ -177,12 +181,14 @@ export function buildAudienceSupportingText(
 
   const renderedEnvKeys = new Set<string>();
   const segments: SupportingTextSegment[] = [];
+  const outputIds = new Set<number>();
   for (const s of sentencesSorted) {
     const env = sentenceToEnv.get(s.id);
     if (env) {
       if (renderedEnvKeys.has(env.key)) continue;
       renderedEnvKeys.add(env.key);
       const sortedEnvIds = Array.from(new Set(env.sentenceIds)).sort((a, b) => a - b);
+      for (const id of sortedEnvIds) outputIds.add(id);
       segments.push({
         text: env.text,
         startId: sortedEnvIds[0],
@@ -203,6 +209,7 @@ export function buildAudienceSupportingText(
       })();
     const allowDuplicate = filteredBaseIds.length === 0;
     if (!isDuplicate || allowDuplicate) {
+      outputIds.add(s.id);
       segments.push({
         text: stripInjectedLabels(byId.get(s.id) ?? ''),
         startId: s.id,
@@ -211,5 +218,5 @@ export function buildAudienceSupportingText(
     }
   }
 
-  return { abstract, segments };
+  return { abstract, segments, sentenceIds: Array.from(outputIds).sort((a, b) => a - b) };
 }

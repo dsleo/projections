@@ -4,30 +4,19 @@ import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
+import type { Sentence } from '@/lib/pipeline/client';
+import { highlightLatex } from '@/lib/latex/highlight';
 import { saveCompilation } from '@/lib/latex/compileStore';
 
 export const runtime = 'nodejs';
 
 const execFileAsync = promisify(execFile);
 
-function buildSupportingLatex(original: string, supportingText: string) {
-  const beginDoc = original.indexOf('\\begin{document}');
-  const preamble =
-    beginDoc !== -1
-      ? original.slice(0, beginDoc).trim()
-      : '\\documentclass{article}\\usepackage{amsmath,amssymb}';
-  const cleaned = supportingText
-    .replace(/\\begin\{document\}/g, '')
-    .replace(/\\end\{document\}/g, '')
-    .trim();
-  return `${preamble}\n\\begin{document}\n${cleaned}\n\\end{document}\n`;
-}
-
 async function compileLatex(source: string) {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'latex-supporting-'));
-  const texPath = path.join(tmpDir, 'supporting.tex');
-  const pdfPath = path.join(tmpDir, 'supporting.pdf');
-  const synctexPath = path.join(tmpDir, 'supporting.synctex.gz');
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'latex-highlight-'));
+  const texPath = path.join(tmpDir, 'main.tex');
+  const pdfPath = path.join(tmpDir, 'main.pdf');
+  const synctexPath = path.join(tmpDir, 'main.synctex.gz');
   const engine = process.env.TEX_ENGINE ?? 'tectonic';
 
   try {
@@ -47,26 +36,31 @@ async function compileLatex(source: string) {
 }
 
 export async function POST(req: Request) {
+  let source = '';
   try {
     const payload = (await req.json()) as {
       original_latex?: string;
-      supporting_text?: string;
+      sentences?: Sentence[];
+      sentence_ids?: number[];
+      envs?: string[];
     };
     const original = payload.original_latex ?? '';
-    const supportingText = payload.supporting_text ?? '';
+    const sentences = payload.sentences ?? [];
+    const sentenceIds = payload.sentence_ids ?? [];
+    const envs = payload.envs ?? [];
     if (!original.trim()) {
       return new Response(JSON.stringify({ error: 'Missing LaTeX.' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
       });
     }
-    if (!supportingText.trim()) {
-      return new Response(JSON.stringify({ error: 'Missing supporting text.' }), {
+    if (sentences.length === 0 || sentenceIds.length === 0) {
+      return new Response(JSON.stringify({ error: 'Missing sentences to highlight.' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
       });
     }
-    const source = buildSupportingLatex(original, supportingText);
+    source = highlightLatex(original, sentences, sentenceIds, envs);
     const compiled = await compileLatex(source);
     const token = await saveCompilation({
       dir: compiled.tmpDir,
@@ -80,11 +74,28 @@ export async function POST(req: Request) {
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (e: unknown) {
-    let msg = e instanceof Error ? e.message : 'Supporting PDF compile failed';
+    let msg = e instanceof Error ? e.message : 'Highlighted PDF compile failed';
     if (e && typeof e === 'object' && 'code' in e && (e as { code?: string }).code === 'ENOENT') {
       msg = 'TeX engine not found. Install tectonic or set TEX_ENGINE.';
     }
-    return new Response(JSON.stringify({ error: msg }), {
+    const debug: { line?: number; excerpt?: string } = {};
+    if (typeof msg === 'string') {
+      const match = msg.match(/main\.tex:(\d+)/);
+      if (match) {
+        const lineNo = Number.parseInt(match[1], 10);
+        if (!Number.isNaN(lineNo)) {
+          debug.line = lineNo;
+          if (source) {
+            const lines = source.split(/\r?\n/);
+            const idx = Math.max(0, Math.min(lines.length - 1, lineNo - 1));
+            const from = Math.max(0, idx - 2);
+            const to = Math.min(lines.length, idx + 3);
+            debug.excerpt = lines.slice(from, to).join('\n');
+          }
+        }
+      }
+    }
+    return new Response(JSON.stringify({ error: msg, debug }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });

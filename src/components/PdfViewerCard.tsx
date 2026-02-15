@@ -9,7 +9,7 @@ type Status =
   | { kind: 'error'; message: string };
 
 type Props = {
-  file: File | null;
+  canCompile: boolean;
   status: Status;
   pdfUrl: string | null;
   onCompile: () => void;
@@ -89,7 +89,7 @@ function PdfPage({
 }
 
 export function PdfViewerCard({
-  file,
+  canCompile,
   status,
   pdfUrl,
   onCompile,
@@ -151,7 +151,7 @@ export function PdfViewerCard({
             className="rounded-full border px-2 py-0.5 text-[11px] font-normal text-zinc-500 hover:bg-zinc-100 disabled:opacity-50"
             type="button"
             onClick={onCompile}
-            disabled={!file || status.kind === 'compiling'}
+            disabled={!canCompile || status.kind === 'compiling'}
             aria-label="Compile PDF"
             title="Compile PDF"
           >
