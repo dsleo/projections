@@ -99,6 +99,8 @@ export function PdfViewerCard({
 }: Props) {
   const [doc, setDoc] = useState<PdfDocument | null>(null);
   const [pageCount, setPageCount] = useState(0);
+  const downloadName =
+    selectedTab === 'original' ? 'paper-original.pdf' : `paper-supporting-${selectedTab}.pdf`;
 
   useEffect(() => {
     let cancelled = false;
@@ -147,6 +149,27 @@ export function PdfViewerCard({
               </button>
             ))}
           </div>
+          {pdfUrl ? (
+            <a
+              className="rounded-full border px-2 py-0.5 text-[11px] font-normal text-zinc-500 hover:bg-zinc-100"
+              href={pdfUrl}
+              download={downloadName}
+              aria-label="Download PDF"
+              title="Download PDF"
+            >
+              ⬇
+            </a>
+          ) : (
+            <button
+              className="rounded-full border px-2 py-0.5 text-[11px] font-normal text-zinc-300"
+              type="button"
+              disabled
+              aria-label="Download PDF"
+              title="Download PDF"
+            >
+              ⬇
+            </button>
+          )}
           <button
             className="rounded-full border px-2 py-0.5 text-[11px] font-normal text-zinc-500 hover:bg-zinc-100 disabled:opacity-50"
             type="button"
