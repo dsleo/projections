@@ -17,14 +17,9 @@ type Props = {
 
 export function UploadCard({ file, status, processingWindows, onFileChange, onAnalyze }: Props) {
   return (
-    <section className="col-span-12 rounded-lg border bg-white p-5">
+    <section className="w-full rounded-lg border bg-white p-5">
       <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
-        <div>
-          <h2 className="text-sm font-semibold">Upload a LaTeX paper</h2>
-          <p className="text-xs text-zinc-500">We analyze .tex sources only.</p>
-        </div>
-
-        <div className="flex w-full flex-wrap items-center justify-center gap-2">
+        <div className="flex w-full flex-wrap items-center justify-center gap-2 md:justify-end">
           <label className="flex min-w-[220px] max-w-[360px] cursor-pointer items-center gap-2 rounded-md border border-dashed bg-zinc-50 px-3 py-2 text-xs text-zinc-600 hover:bg-white">
             <input
               type="file"

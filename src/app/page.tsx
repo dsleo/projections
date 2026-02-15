@@ -1,10 +1,11 @@
 'use client';
 
-import type React from 'react';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { AnalysisResult, DiscourseLabel, Sentence } from '@/lib/pipeline/client';
-import { propagateLabelsByEnvironment } from '@/lib/pipeline/env_propagation';
+import {
+  propagateLabelsByEnvironment,
+} from '@/lib/pipeline/env_propagation';
 import { buildAudienceSupportingText } from '@/lib/ui/supportingText';
 import { formatIdRanges } from '@/lib/ui/idRanges';
 import {
@@ -13,12 +14,14 @@ import {
   getCitationKeysForSentenceIds,
 } from '@/lib/ui/citations';
 import { useAnalyzeStream } from '@/lib/ui/useAnalyzeStream';
+import { usePdfCompile } from '@/lib/ui/usePdfCompile';
 import { MathText } from '@/components/MathText';
 import { LabelPill } from '@/components/LabelPill';
 import { AudienceViewsCard } from '@/components/AudienceViewsCard';
 import { CanonicalSectionsCard } from '@/components/CanonicalSectionsCard';
 import { UploadCard } from '@/components/UploadCard';
 import { TextPanel } from '@/components/TextPanel';
+import { PdfViewerCard } from '@/components/PdfViewerCard';
 import {
   buildCanonicalSectionTitles,
   buildSentenceMap,
@@ -43,6 +46,7 @@ export default function Home() {
     file,
     useEnvPropagation,
   });
+  const [pdfTab, setPdfTab] = useState<'original' | 'A' | 'B' | 'C' | 'D'>('original');
   const [activeTab, setActiveTab] = useState<
     'problem' | 'landscape' | 'contrib' | 'tech' | 'cons' | 'cites'
   >('problem');
@@ -338,6 +342,43 @@ export default function Home() {
     );
   };
 
+  const pdfSupporting = useMemo(() => {
+    if (!result?.audience_views || pdfTab === 'original') return null;
+    return buildAudienceSupportingText(result, pdfTab as 'A' | 'B' | 'C' | 'D');
+  }, [result, pdfTab]);
+
+  const pdfSupportingText = useMemo(() => {
+    if (!pdfSupporting) return null;
+    const parts: string[] = [];
+    if (pdfSupporting.abstract) {
+      parts.push(`\\section*{Abstract}\n${pdfSupporting.abstract}`);
+    }
+    for (const segment of pdfSupporting.segments) {
+      if (segment.text.trim()) parts.push(segment.text.trim());
+    }
+    const joined = parts.join('\n\n').trim();
+    return joined.length > 0 ? joined : null;
+  }, [pdfSupporting]);
+
+  const { pdfUrl, status: pdfStatus, compilePdf } = usePdfCompile({
+    file,
+    mode: pdfTab === 'original' ? 'original' : 'supporting',
+    originalLatex: result?.original_latex ?? null,
+    supportingText: pdfSupportingText,
+  });
+
+  useEffect(() => {
+    if (pdfTab === 'original') return;
+    if (!pdfSupportingText || !result) return;
+    void compilePdf();
+  }, [pdfTab, pdfSupportingText, result, compilePdf]);
+
+  useEffect(() => {
+    if (pdfTab !== 'original') return;
+    if (!file) return;
+    void compilePdf();
+  }, [pdfTab, file, compilePdf]);
+
   const handleCopyAudienceViews = () => {
     if (!result?.audience_views) return;
     navigator.clipboard.writeText(JSON.stringify(result.audience_views, null, 2));
@@ -420,16 +461,19 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="mx-auto grid max-w-6xl grid-cols-12 gap-6 px-6 py-6">
-        <UploadCard
-          file={file}
-          status={status}
-          processingWindows={processingWindows}
-          onFileChange={setFile}
-          onAnalyze={onAnalyze}
-        />
+      <main className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-6 py-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <section className="flex flex-col gap-4">
+          <UploadCard
+            file={file}
+            status={status}
+            processingWindows={processingWindows}
+            onFileChange={setFile}
+            onAnalyze={() => {
+              void compilePdf();
+              void onAnalyze();
+            }}
+          />
 
-        <section className="col-span-12 flex flex-col gap-4">
           <TextPanel
             result={result}
             documentTitle={documentTitle}
@@ -498,6 +542,24 @@ export default function Home() {
             renderAudienceFullText={renderAudienceFullText}
           />
         </section>
+
+        <PdfViewerCard
+          file={file}
+          status={pdfStatus}
+          pdfUrl={pdfUrl}
+          onCompile={() => {
+            void compilePdf();
+          }}
+          tabs={[
+            { id: 'original', label: 'Original' },
+            { id: 'A', label: 'Domain Expert' },
+            { id: 'B', label: 'Adjacent-field Researcher' },
+            { id: 'C', label: 'Grad Student' },
+            { id: 'D', label: 'Author Self' },
+          ]}
+          selectedTab={pdfTab}
+          onTabChange={(id) => setPdfTab(id as typeof pdfTab)}
+        />
       </main>
 
       <footer className="mx-auto max-w-6xl px-6 pb-10 text-xs text-zinc-500" />

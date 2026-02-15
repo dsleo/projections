@@ -36,6 +36,48 @@ npm run dev
 
 Open http://localhost:3000
 
+### PDF preview (Tectonic)
+
+The side-by-side PDF preview uses the Tectonic TeX engine to compile the uploaded `.tex` file.
+You need the `tectonic` binary available in your PATH.
+
+Recommended installs:
+
+**macOS (Homebrew)**
+
+```bash
+brew install tectonic
+```
+
+**Linux / macOS (official install script)**
+
+```bash
+curl --proto '=https' --tlsv1.2 -fsSL https://drop-sh.fullyjustified.net | sh
+```
+
+**Windows (PowerShell)**
+
+```powershell
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+iex ((New-Object System.Net.WebClient).DownloadString('https://drop-ps1.fullyjustified.net'))
+```
+
+**Conda (cross-platform)**
+
+```bash
+conda install -c conda-forge tectonic
+```
+
+Verify the install:
+
+```bash
+tectonic --help
+```
+
+> Note: the compile endpoint currently uses `tectonic -X compile --synctex ...`
+> (Tectonic-specific flags). If you want to use a different TeX engine, update
+> `src/app/api/latex/compile/route.ts` accordingly.
+
 ### Notes
 
 - Minimal LaTeX preprocessing only: comment stripping, macro-definition removal, and bibliography removal.

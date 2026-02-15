@@ -417,7 +417,7 @@ export function AudienceViewsCard({
                 </>
               )}
             </div>
-            <details className="rounded-md border bg-white" open>
+            <details className="rounded-md border bg-white">
               <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-zinc-600">
                 Supporting text
               </summary>
