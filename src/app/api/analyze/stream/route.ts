@@ -162,6 +162,9 @@ export async function POST(req: Request) {
                     abstract: abstract ?? undefined,
                 });
                 const { sentence_citations, citations } = buildCitationData(latex, sentences, labels);
+                send('pass3_start', {
+                    message: 'Building audience views…',
+                });
                 const audience_views = await runPass3(sections, {
                     concurrency: 4,
                     logger,

@@ -15,18 +15,13 @@ type Props = {
   unlabeledCount: number;
   labelFilter: DiscourseLabel[];
   showUnlabeledOnly: boolean;
-  envPropagationPrev: AnalysisResult['labels'] | null;
-  envPropagationMsg: string;
-  envPropagationDetails: string;
-  useEnvPropagation: boolean;
   processingWindows: Array<{ start: number; end: number }>;
+  headerStatus?: React.ReactNode;
   highlightedIds: number[];
   textDetailsRef: React.RefObject<HTMLDetailsElement | null>;
   onToggleLabelFilter: (label: DiscourseLabel) => void;
   onClearFilters: () => void;
   onToggleUnlabeled: () => void;
-  onApplyPropagation: () => void;
-  onToggleUseEnvPropagation: (checked: boolean) => void;
   onReRunPass1: () => void;
   isSentenceProcessing: (position: number) => boolean;
   focusSentences: (ids: number[]) => void;
@@ -42,18 +37,13 @@ export function TextPanel({
   unlabeledCount,
   labelFilter,
   showUnlabeledOnly,
-  envPropagationPrev,
-  envPropagationMsg,
-  envPropagationDetails,
-  useEnvPropagation,
   processingWindows,
+  headerStatus,
   highlightedIds,
   textDetailsRef,
   onToggleLabelFilter,
   onClearFilters,
   onToggleUnlabeled,
-  onApplyPropagation,
-  onToggleUseEnvPropagation,
   onReRunPass1,
   isSentenceProcessing,
   focusSentences,
@@ -63,23 +53,28 @@ export function TextPanel({
   return (
     <details ref={textDetailsRef} className="rounded-lg border bg-white" open>
       <summary className="list-none cursor-pointer border-b px-4 py-3 text-sm font-semibold [&::-webkit-details-marker]:hidden">
-        <span className="inline-flex items-center gap-2">
-          <span>{documentTitle}</span>
-          <button
-            className="rounded-full border px-2 py-0.5 text-[11px] font-normal text-zinc-500 hover:bg-zinc-100 disabled:opacity-50"
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onReRunPass1();
-            }}
-            disabled={!result || processingWindows.length > 0}
-            aria-label="Re-run Pass 1"
-            title="Re-run Pass 1"
-          >
-            ⟳
-          </button>
-        </span>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span className="inline-flex items-center gap-2">
+            <span>{documentTitle}</span>
+            <button
+              className="rounded-full border px-2 py-0.5 text-[11px] font-normal text-zinc-500 hover:bg-zinc-100 disabled:opacity-50"
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onReRunPass1();
+              }}
+              disabled={!result || processingWindows.length > 0}
+              aria-label="Re-run Pass 1"
+              title="Re-run Pass 1"
+            >
+              ⟳
+            </button>
+          </span>
+          {headerStatus && (
+            <span className="text-xs font-normal text-zinc-500">{headerStatus}</span>
+          )}
+        </div>
       </summary>
       <LabelFilterBar
         resultExists={Boolean(result)}
@@ -87,13 +82,7 @@ export function TextPanel({
         unlabeledCount={unlabeledCount}
         labelFilter={labelFilter}
         showUnlabeledOnly={showUnlabeledOnly}
-        useEnvPropagation={useEnvPropagation}
-        envPropagationPrev={Boolean(envPropagationPrev)}
-        envPropagationMsg={envPropagationMsg}
-        envPropagationDetails={envPropagationDetails}
         onToggleUnlabeled={onToggleUnlabeled}
-        onToggleUseEnvPropagation={onToggleUseEnvPropagation}
-        onApplyPropagation={onApplyPropagation}
         onToggleLabelFilter={onToggleLabelFilter}
         onClearFilters={onClearFilters}
         setLabelFilter={setLabelFilter}

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="4Fold">
+  <rect width="64" height="64" rx="12" fill="#0f172a"/>
+  <g transform="translate(6 8)" fill="none" stroke="#f8fafc" stroke-width="4" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M6 26 L42 12 L42 44 L6 30 Z" />
+    <path d="M42 18 L52 18" />
+    <path d="M42 26 L54 26" />
+    <path d="M42 34 L52 34" />
+    <path d="M10 32 L16 48" />
+    <path d="M18 30 L24 48" />
+  </g>
+</svg>

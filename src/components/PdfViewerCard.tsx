@@ -13,9 +13,11 @@ type Props = {
   status: Status;
   pdfUrl: string | null;
   onCompile: () => void;
-  tabs: Array<{ id: string; label: string }>;
   selectedTab: string;
   onTabChange: (id: string) => void;
+  showToggle?: boolean;
+  focusSentenceIndex?: number | null;
+  totalSentences?: number;
 };
 
 type PdfDocument = {
@@ -39,10 +41,12 @@ function PdfPage({
   doc,
   pageNumber,
   scale,
+  containerRef,
 }: {
   doc: PdfDocument;
   pageNumber: number;
   scale: number;
+  containerRef?: (instance: HTMLDivElement | null) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [dims, setDims] = useState<{ width: number; height: number } | null>(null);
@@ -82,7 +86,11 @@ function PdfPage({
   }, [doc, pageNumber, scale]);
 
   return (
-    <div className="relative mb-4" style={{ width: dims?.width, height: dims?.height }}>
+    <div
+      ref={containerRef}
+      className="relative mb-4"
+      style={{ width: dims?.width, height: dims?.height }}
+    >
       <canvas ref={canvasRef} className="block" />
     </div>
   );
@@ -93,14 +101,20 @@ export function PdfViewerCard({
   status,
   pdfUrl,
   onCompile,
-  tabs,
   selectedTab,
   onTabChange,
+  showToggle = true,
+  focusSentenceIndex,
+  totalSentences,
 }: Props) {
   const [doc, setDoc] = useState<PdfDocument | null>(null);
   const [pageCount, setPageCount] = useState(0);
+  const pageRefs = useRef<Array<HTMLDivElement | null>>([]);
   const downloadName =
     selectedTab === 'original' ? 'paper-original.pdf' : `paper-supporting-${selectedTab}.pdf`;
+  const showOriginal = selectedTab === 'original';
+  const toggleLabel = showOriginal ? 'Show audience PDF' : 'Show original PDF';
+  const toggleIcon = showOriginal ? '✦' : '↩︎';
 
   useEffect(() => {
     let cancelled = false;
@@ -128,46 +142,34 @@ export function PdfViewerCard({
       cancelled = true;
     };
   }, [pdfUrl]);
+
+  useEffect(() => {
+    pageRefs.current = [];
+  }, [pdfUrl, pageCount]);
+
+  useEffect(() => {
+    if (focusSentenceIndex == null) return;
+    if (!pageCount || !totalSentences) return;
+    const ratio = (focusSentenceIndex + 1) / totalSentences;
+    const targetPage = Math.min(pageCount, Math.max(1, Math.round(ratio * pageCount)));
+    const target = pageRefs.current[targetPage - 1];
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [focusSentenceIndex, pageCount, totalSentences, pdfUrl]);
   return (
     <section className="rounded-lg border bg-white p-4 flex flex-col min-h-[60vh] w-full lg:w-[560px]">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2 text-sm font-semibold">
         <span>PDF preview</span>
         <div className="flex items-center gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => onTabChange(tab.id)}
-                className={
-                  selectedTab === tab.id
-                    ? 'rounded-full border border-zinc-900 bg-zinc-900 px-2 py-0.5 text-[11px] text-white'
-                    : 'rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-[11px] text-zinc-600 hover:bg-zinc-50'
-                }
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-          {pdfUrl ? (
-            <a
-              className="rounded-full border px-2 py-0.5 text-[11px] font-normal text-zinc-500 hover:bg-zinc-100"
-              href={pdfUrl}
-              download={downloadName}
-              aria-label="Download PDF"
-              title="Download PDF"
-            >
-              ⬇
-            </a>
-          ) : (
+          {showToggle && (
             <button
-              className="rounded-full border px-2 py-0.5 text-[11px] font-normal text-zinc-300"
+              className="rounded-full border px-2 py-0.5 text-[11px] font-normal text-zinc-500 hover:bg-zinc-100"
               type="button"
-              disabled
-              aria-label="Download PDF"
-              title="Download PDF"
+              onClick={() => onTabChange(showOriginal ? 'audience' : 'original')}
+              aria-label={toggleLabel}
+              title={toggleLabel}
             >
-              ⬇
+              {toggleIcon}
             </button>
           )}
           <button
@@ -180,6 +182,27 @@ export function PdfViewerCard({
           >
             ⟳
           </button>
+          {pdfUrl ? (
+            <a
+              className="rounded-full border px-2 py-0.5 text-[11px] font-normal text-zinc-500 hover:bg-zinc-100"
+              href={pdfUrl}
+              download={downloadName}
+              aria-label="Download PDF"
+              title="Download PDF"
+            >
+              ⤓
+            </a>
+          ) : (
+            <button
+              className="rounded-full border px-2 py-0.5 text-[11px] font-normal text-zinc-300"
+              type="button"
+              disabled
+              aria-label="Download PDF"
+              title="Download PDF"
+            >
+              ⤓
+            </button>
+          )}
         </div>
       </div>
       <div className="mt-2 text-xs text-zinc-500">
@@ -201,6 +224,9 @@ export function PdfViewerCard({
                 doc={doc}
                 pageNumber={pageNumber}
                 scale={1.2}
+                containerRef={(el) => {
+                  pageRefs.current[pageNumber - 1] = el;
+                }}
               />
             ))}
           </div>

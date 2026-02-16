@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 
 import type { AnalysisResult } from '@/lib/pipeline/client';
 
-type Status =
+export type AnalyzeStatus =
   | { kind: 'idle' }
   | { kind: 'uploading' }
   | { kind: 'analyzing'; message?: string }
@@ -19,7 +19,7 @@ type Params = {
 };
 
 export function useAnalyzeStream({ file, useEnvPropagation }: Params) {
-  const [status, setStatus] = useState<Status>({ kind: 'idle' });
+  const [status, setStatus] = useState<AnalyzeStatus>({ kind: 'idle' });
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [processingWindows, setProcessingWindows] = useState<
     Array<{ start: number; end: number }>
@@ -192,6 +192,11 @@ export function useAnalyzeStream({ file, useEnvPropagation }: Params) {
         if (event === 'pass1_done') {
           setProcessingWindows([]);
           setStatus({ kind: 'analyzing', message: `Pass 1 done. Building canonical sections…` });
+        }
+
+        if (event === 'pass3_start') {
+          const message = (dataObj?.message as string | undefined) ?? 'Building audience views…';
+          setStatus({ kind: 'analyzing', message });
         }
 
         if (event === 'sections') {

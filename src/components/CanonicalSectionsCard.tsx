@@ -11,6 +11,7 @@ type Props = {
   activeTab: 'problem' | 'landscape' | 'contrib' | 'tech' | 'cons' | 'cites';
   setActiveTab: (tab: 'problem' | 'landscape' | 'contrib' | 'tech' | 'cons' | 'cites') => void;
   statusKind: 'idle' | 'uploading' | 'analyzing' | 'done' | 'error';
+  headerStatus?: React.ReactNode;
   onRerunPass2: () => void;
   onCopyCanonical: () => void;
   renderEmpty: (label: string) => React.ReactElement;
@@ -22,6 +23,7 @@ type Props = {
   LabelPill: React.ComponentType<{ label: DiscourseLabel }>;
   focusedCitationKeys: string[];
   setFocusedCitationKeys: (keys: string[]) => void;
+  showSentenceActions?: boolean;
 };
 
 export function CanonicalSectionsCard({
@@ -30,6 +32,7 @@ export function CanonicalSectionsCard({
   activeTab,
   setActiveTab,
   statusKind,
+  headerStatus,
   onRerunPass2,
   onCopyCanonical,
   renderEmpty,
@@ -41,7 +44,11 @@ export function CanonicalSectionsCard({
   LabelPill,
   focusedCitationKeys,
   setFocusedCitationKeys,
+  showSentenceActions = true,
 }: Props) {
+  const sentenceActionClass = showSentenceActions
+    ? 'rounded-full border px-2 py-0.5 text-[10px] hover:bg-white'
+    : 'hidden';
   const problem = result?.sections.problem_and_motivation;
   const landscape = result?.sections.landscape;
   const contributions = result?.sections.contributions;
@@ -60,37 +67,42 @@ export function CanonicalSectionsCard({
   return (
     <details ref={detailsRef} className="rounded-lg border bg-white" open>
       <summary className="flex cursor-pointer items-center border-b px-4 py-3 text-sm font-semibold">
-        <span className="inline-flex items-center gap-2">
-          <span>Canonical sections (Pass 2)</span>
-          <button
-            className="rounded-full border px-2 py-0.5 text-[11px] font-normal text-zinc-500 hover:bg-zinc-100 disabled:opacity-50"
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onRerunPass2();
-            }}
-            disabled={!result || statusKind === 'analyzing' || statusKind === 'uploading'}
-            aria-label="Re-run Pass 2"
-            title="Re-run Pass 2"
-          >
-            ⟳
-          </button>
-          <button
-            className="rounded-full border px-2 py-0.5 text-[11px] text-zinc-500 hover:bg-zinc-100"
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              if (!result?.sections) return;
-              onCopyCanonical();
-            }}
-            aria-label="Copy canonical JSON"
-            title="Copy canonical JSON"
-          >
-            ⧉
-          </button>
-        </span>
+        <div className="flex flex-1 flex-wrap items-center justify-between gap-3">
+          <span className="inline-flex items-center gap-2">
+            <span>Canonical sections</span>
+            <button
+              className="rounded-full border px-2 py-0.5 text-[11px] font-normal text-zinc-500 hover:bg-zinc-100 disabled:opacity-50"
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onRerunPass2();
+              }}
+              disabled={!result || statusKind === 'analyzing' || statusKind === 'uploading'}
+              aria-label="Re-run Pass 2"
+              title="Re-run Pass 2"
+            >
+              ⟳
+            </button>
+            <button
+              className="rounded-full border px-2 py-0.5 text-[11px] text-zinc-500 hover:bg-zinc-100"
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!result?.sections) return;
+                onCopyCanonical();
+              }}
+              aria-label="Copy canonical JSON"
+              title="Copy canonical JSON"
+            >
+              ⧉
+            </button>
+          </span>
+          {headerStatus && (
+            <span className="text-xs font-normal text-zinc-500">{headerStatus}</span>
+          )}
+        </div>
       </summary>
 
       <div className="grid grid-cols-1 gap-4 p-4">
@@ -140,11 +152,13 @@ export function CanonicalSectionsCard({
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                               <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                               <button
-                                className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
+                                className={sentenceActionClass}
                                 onClick={() => focusSentences(item.sentence_ids)}
                                 type="button"
+                                aria-label="Focus highlighted sentences in PDF"
+                                title="Focus highlighted sentences in PDF"
                               >
-                                View sentences
+                                🔎
                               </button>
                               {renderCitationAction(item.sentence_ids)}
                             </div>
@@ -165,11 +179,13 @@ export function CanonicalSectionsCard({
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                               <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                               <button
-                                className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
+                                className={sentenceActionClass}
                                 onClick={() => focusSentences(item.sentence_ids)}
                                 type="button"
+                                aria-label="Focus highlighted sentences in PDF"
+                                title="Focus highlighted sentences in PDF"
                               >
-                                View sentences
+                                🔎
                               </button>
                               {renderCitationAction(item.sentence_ids)}
                             </div>
@@ -190,11 +206,13 @@ export function CanonicalSectionsCard({
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                               <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                               <button
-                                className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
+                                className={sentenceActionClass}
                                 onClick={() => focusSentences(item.sentence_ids)}
                                 type="button"
+                                aria-label="Focus highlighted sentences in PDF"
+                                title="Focus highlighted sentences in PDF"
                               >
-                                View sentences
+                                🔎
                               </button>
                               {renderCitationAction(item.sentence_ids)}
                             </div>
@@ -224,11 +242,13 @@ export function CanonicalSectionsCard({
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                               <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                               <button
-                                className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
+                                className={sentenceActionClass}
                                 onClick={() => focusSentences(item.sentence_ids)}
                                 type="button"
+                                aria-label="Focus highlighted sentences in PDF"
+                                title="Focus highlighted sentences in PDF"
                               >
-                                View sentences
+                                🔎
                               </button>
                               {renderCitationAction(item.sentence_ids)}
                             </div>
@@ -249,11 +269,13 @@ export function CanonicalSectionsCard({
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                               <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                               <button
-                                className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
+                                className={sentenceActionClass}
                                 onClick={() => focusSentences(item.sentence_ids)}
                                 type="button"
+                                aria-label="Focus highlighted sentences in PDF"
+                                title="Focus highlighted sentences in PDF"
                               >
-                                View sentences
+                                🔎
                               </button>
                               {renderCitationAction(item.sentence_ids)}
                             </div>
@@ -274,11 +296,13 @@ export function CanonicalSectionsCard({
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                               <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                               <button
-                                className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
+                                className={sentenceActionClass}
                                 onClick={() => focusSentences(item.sentence_ids)}
                                 type="button"
+                                aria-label="Focus highlighted sentences in PDF"
+                                title="Focus highlighted sentences in PDF"
                               >
-                                View sentences
+                                🔎
                               </button>
                               {renderCitationAction(item.sentence_ids)}
                             </div>
@@ -303,11 +327,13 @@ export function CanonicalSectionsCard({
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                               <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                               <button
-                                className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
+                                className={sentenceActionClass}
                                 onClick={() => focusSentences(item.sentence_ids)}
                                 type="button"
+                                aria-label="Focus highlighted sentences in PDF"
+                                title="Focus highlighted sentences in PDF"
                               >
-                                View sentences
+                                🔎
                               </button>
                               {renderCitationAction(item.sentence_ids)}
                             </div>
@@ -337,11 +363,13 @@ export function CanonicalSectionsCard({
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                               <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                               <button
-                                className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
+                                className={sentenceActionClass}
                                 onClick={() => focusSentences(item.sentence_ids)}
                                 type="button"
+                                aria-label="Focus highlighted sentences in PDF"
+                                title="Focus highlighted sentences in PDF"
                               >
-                                View sentences
+                                🔎
                               </button>
                               {renderCitationAction(item.sentence_ids)}
                             </div>
@@ -362,11 +390,13 @@ export function CanonicalSectionsCard({
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                               <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                               <button
-                                className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
+                                className={sentenceActionClass}
                                 onClick={() => focusSentences(item.sentence_ids)}
                                 type="button"
+                                aria-label="Focus highlighted sentences in PDF"
+                                title="Focus highlighted sentences in PDF"
                               >
-                                View sentences
+                                🔎
                               </button>
                               {renderCitationAction(item.sentence_ids)}
                             </div>
@@ -387,11 +417,13 @@ export function CanonicalSectionsCard({
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                               <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                               <button
-                                className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
+                                className={sentenceActionClass}
                                 onClick={() => focusSentences(item.sentence_ids)}
                                 type="button"
+                                aria-label="Focus highlighted sentences in PDF"
+                                title="Focus highlighted sentences in PDF"
                               >
-                                View sentences
+                                🔎
                               </button>
                               {renderCitationAction(item.sentence_ids)}
                             </div>
@@ -420,11 +452,13 @@ export function CanonicalSectionsCard({
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                               <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                               <button
-                                className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
+                                className={sentenceActionClass}
                                 onClick={() => focusSentences(item.sentence_ids)}
                                 type="button"
+                                aria-label="Focus highlighted sentences in PDF"
+                                title="Focus highlighted sentences in PDF"
                               >
-                                View sentences
+                                🔎
                               </button>
                               {renderCitationAction(item.sentence_ids)}
                             </div>
@@ -445,11 +479,13 @@ export function CanonicalSectionsCard({
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                               <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                               <button
-                                className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
+                                className={sentenceActionClass}
                                 onClick={() => focusSentences(item.sentence_ids)}
                                 type="button"
+                                aria-label="Focus highlighted sentences in PDF"
+                                title="Focus highlighted sentences in PDF"
                               >
-                                View sentences
+                                🔎
                               </button>
                               {renderCitationAction(item.sentence_ids)}
                             </div>
@@ -491,12 +527,12 @@ export function CanonicalSectionsCard({
                       <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                         <span>{entry.sentence_ids.length} sentences</span>
                         <button
-                          className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-white"
+                          className={sentenceActionClass}
                           onClick={() => focusSentences(entry.sentence_ids)}
                           type="button"
                           disabled={entry.sentence_ids.length === 0}
                         >
-                          View sentences
+                          🔎
                         </button>
                       </div>
                     </div>

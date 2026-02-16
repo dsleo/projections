@@ -33,6 +33,8 @@ export function usePdfCompile({
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const lastUrlRef = useRef<string | null>(null);
+  const inFlightKeyRef = useRef<string | null>(null);
+  const lastSuccessKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     return () => {
@@ -64,9 +66,22 @@ export function usePdfCompile({
     setPdfUrl(null);
   }, [mode]);
 
-  const compilePdf = useCallback(async () => {
-    if (mode === 'original' && !file && !originalLatex) return;
-    if (mode === 'highlighted' && (!originalLatex || !sentences || !highlightIds?.length)) return;
+  const compilePdf = useCallback(
+    async (opts?: { force?: boolean }) => {
+      if (mode === 'original' && !file && !originalLatex) return;
+      if (mode === 'highlighted' && (!originalLatex || !sentences || !highlightIds?.length)) return;
+
+      const key =
+        mode === 'original'
+          ? `orig:${file?.name ?? ''}:${originalLatex?.length ?? 0}`
+          : `hl:${originalLatex?.length ?? 0}:${sentences?.length ?? 0}:${
+              highlightIds?.join(',') ?? ''
+            }`;
+
+      if (inFlightKeyRef.current === key) return;
+      if (!opts?.force && lastSuccessKeyRef.current === key) return;
+
+      inFlightKeyRef.current = key;
     setStatus({ kind: 'compiling' });
     try {
       let res: Response;
@@ -124,11 +139,18 @@ export function usePdfCompile({
       setToken(data.token);
       setPdfUrl(url);
       setStatus({ kind: 'ready' });
+      lastSuccessKeyRef.current = key;
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Unknown error';
       setStatus({ kind: 'error', message: msg });
+    } finally {
+      if (inFlightKeyRef.current === key) {
+        inFlightKeyRef.current = null;
+      }
     }
-  }, [file, mode, originalLatex, sentences, highlightIds]);
+  },
+    [file, mode, originalLatex, sentences, highlightIds]
+  );
 
   return { pdfUrl, status, compilePdf, token };
 }

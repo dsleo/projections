@@ -87,6 +87,7 @@ tectonic --help
 - Sentence IDs are global and strictly increasing.
 - Pass 1 aggregation is **union** across windows (no majority vote).
 - Outputs are validated with Zod schemas; invalid JSON is retried.
+- Environment-aware label propagation is implemented but currently hidden in the UI; we can review and re-enable it when needed.
 
 ### Highlighting status (PDF)
 
