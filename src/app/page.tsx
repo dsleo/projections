@@ -1,7 +1,7 @@
 'use client';
 
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 import { UploadCard } from '@/components/UploadCard';
 import { useAnalysis } from '@/components/AnalysisContext';
@@ -14,44 +14,37 @@ export default function Home() {
     status,
     processingWindows,
     onAnalyze,
-    result,
   } = useAnalysis();
 
-  const handleAnalyze = () => {
+  // Auto-run analysis after file selection. We wait for React state to apply
+  // before calling onAnalyze (which reads the latest `file` from context).
+  useEffect(() => {
+    if (!file) return;
+    if (status.kind === 'uploading' || status.kind === 'analyzing') return;
     void onAnalyze();
     router.push('/analysis');
-  };
-
-  const hasResult = !!result;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file]);
 
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-900">
-      <header className="border-b bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-6">
-          <div>
-            <h1 className="text-xl font-semibold">LLM-Based Scientific Discourse Structuring</h1>
-          </div>
-          <div className="flex items-center gap-2">
-            {hasResult && (
-              <Link
-                className="text-sm text-zinc-600 hover:text-zinc-900"
-                href="/analysis"
-              >
-                View last analysis
-              </Link>
-            )}
-          </div>
+      <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center px-6 py-12">
+        <div
+          className="text-5xl font-semibold"
+          style={{ fontFamily: "Georgia, 'Times New Roman', Times, serif", fontStyle: 'italic' }}
+        >
+          FourFold
         </div>
-      </header>
+        <p className="mt-3 max-w-xl text-center text-base text-zinc-600">
+          Turn your paper into 4 audience-specific summaries.
+        </p>
 
-      <main className="mx-auto flex w-full max-w-5xl flex-col items-center px-6 py-12">
-        <div className="w-full max-w-2xl">
+        <div className="mt-10 w-full max-w-2xl">
           <UploadCard
             file={file}
             status={status}
             processingWindows={processingWindows}
             onFileChange={setFile}
-            onAnalyze={handleAnalyze}
             hideDone
           />
         </div>

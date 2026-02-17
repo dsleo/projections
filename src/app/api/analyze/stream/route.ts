@@ -10,7 +10,6 @@ import {
 import { segmentSentences } from '@/lib/pipeline/segment';
 import { buildSlidingWindows } from '@/lib/pipeline/windows';
 import { classifyWindow } from '@/lib/pipeline/pass1';
-import { runPass2 } from '@/lib/pipeline/pass2';
 import { runPass3 } from '@/lib/pipeline/pass3';
 import { propagateLabelsByEnvironment } from '@/lib/pipeline/env_propagation';
 
@@ -155,12 +154,26 @@ export async function POST(req: Request) {
                 send('pass1_done', { labeledSentences: Object.keys(labels).length });
 
                 // Phase 2: pass2 (already parallel across the 5 calls internally)
-                const { sections, sections_concatenated_text } = await runPass2(sentences, labels, {
-                    concurrency: 5,
-                    logger,
-                    document_title: document_title ?? undefined,
-                    abstract: abstract ?? undefined,
-                });
+                send('pass2_start', { message: 'Building canonical sections…' });
+                const { runPass2Streaming } = await import('@/lib/pipeline/pass2');
+                const { sections, sections_concatenated_text } = await runPass2Streaming(
+                    sentences,
+                    labels,
+                    {
+                        concurrency: 5,
+                        logger,
+                        document_title: document_title ?? undefined,
+                        abstract: abstract ?? undefined,
+                        onPartial: ({ section, sections, sections_concatenated_text }) => {
+                            send('pass2_section', {
+                                section,
+                                sections,
+                                sections_concatenated_text,
+                            });
+                        },
+                    }
+                );
+                send('pass2_done', { message: 'Canonical sections ready.' });
                 const { sentence_citations, citations } = buildCitationData(latex, sentences, labels);
                 send('pass3_start', {
                     message: 'Building audience views…',
@@ -182,6 +195,7 @@ export async function POST(req: Request) {
                     citations,
                     audience_views,
                 });
+                send('pass3_done', { message: 'Audience views ready.' });
 
                 // Final result
                 send('done', {

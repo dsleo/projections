@@ -201,7 +201,7 @@ export function preprocessLatexWithMap(tex: string): PreprocessResult {
     let inDocument = !hasBeginDocument;
     let inBibliography = false;
 
-    for (let cursor = 0; cursor < tex.length; ) {
+    for (let cursor = 0; cursor < tex.length;) {
         let lineEnd = tex.indexOf('\n', cursor);
         let newline = '';
         if (lineEnd === -1) {
@@ -223,7 +223,8 @@ export function preprocessLatexWithMap(tex: string): PreprocessResult {
             cursor = lineEnd + newline.length;
         }
 
-        let { chars, idxs } = stripCommentsWithMap(lineRaw, lineStart);
+        const { chars, idxs: idxsRaw } = stripCommentsWithMap(lineRaw, lineStart);
+        let idxs = idxsRaw;
         let line = chars.join('');
 
         if (!inDocument) {
@@ -303,7 +304,7 @@ export function minimalPreprocessLatex(tex: string): string {
 export function extractDocumentTitle(latex: string): string | null {
     const titleMatch = latex.match(/\\title(?:\[[^\]]*\])?\{([\s\S]*?)\}/);
     if (!titleMatch) return null;
-    let title = titleMatch[1]
+    const title = titleMatch[1]
         .replace(/\\[a-zA-Z*]+(?:\[[^\]]*\])?/g, '')
         .replace(/[{}]/g, '')
         .replace(/\s+/g, ' ')

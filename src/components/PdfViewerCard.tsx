@@ -1,6 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
+import { Download, RefreshCw, Sparkles, Undo2 } from 'lucide-react';
+
+import { IconButton } from '@/components/IconButton';
+import { classNames } from '@/lib/ui/classNames';
 
 type Status =
   | { kind: 'idle' }
@@ -15,6 +20,9 @@ type Props = {
   onCompile: () => void;
   selectedTab: string;
   onTabChange: (id: string) => void;
+  supportingTitle?: string;
+  supportingContent?: ReactNode;
+  defaultView?: 'pdf' | 'supporting';
   showToggle?: boolean;
   focusSentenceIndex?: number | null;
   totalSentences?: number;
@@ -91,7 +99,7 @@ function PdfPage({
   return (
     <div
       ref={containerRef}
-      className="relative mb-4"
+      className="relative mb-4 mx-auto"
       style={{ width: dims?.width, height: dims?.height }}
     >
       <canvas ref={canvasRef} className="block" />
@@ -106,6 +114,9 @@ export function PdfViewerCard({
   onCompile,
   selectedTab,
   onTabChange,
+  supportingTitle = 'Supporting text',
+  supportingContent,
+  defaultView = 'pdf',
   showToggle = true,
   focusSentenceIndex,
   totalSentences,
@@ -121,7 +132,15 @@ export function PdfViewerCard({
     selectedTab === 'original' ? 'paper-original.pdf' : `paper-supporting-${selectedTab}.pdf`;
   const showOriginal = selectedTab === 'original';
   const toggleLabel = showOriginal ? 'Show audience PDF' : 'Show original PDF';
-  const toggleIcon = showOriginal ? '✦' : '↩︎';
+  const ToggleIcon = showOriginal ? Sparkles : Undo2;
+  const [activeView, setActiveView] = useState<'pdf' | 'supporting'>(defaultView);
+  const showSupporting = Boolean(supportingContent);
+
+  useEffect(() => {
+    if (!showSupporting && activeView !== 'pdf') {
+      setActiveView('pdf');
+    }
+  }, [showSupporting, activeView]);
 
   useEffect(() => {
     let cancelled = false;
@@ -171,7 +190,37 @@ export function PdfViewerCard({
   return (
     <section className={containerClass}>
       <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2 font-semibold">
-        <span>PDF preview</span>
+        <div className="flex flex-wrap items-center gap-3">
+          <span>Document viewer</span>
+          {showSupporting && (
+            <div className="inline-flex rounded-full border bg-white p-1 text-sm text-zinc-600">
+              <button
+                type="button"
+                className={classNames(
+                  'rounded-full px-3 py-1.5',
+                  activeView === 'pdf'
+                    ? 'bg-zinc-900 text-white'
+                    : 'hover:bg-zinc-50'
+                )}
+                onClick={() => setActiveView('pdf')}
+              >
+                PDF
+              </button>
+              <button
+                type="button"
+                className={classNames(
+                  'rounded-full px-3 py-1.5',
+                  activeView === 'supporting'
+                    ? 'bg-zinc-900 text-white'
+                    : 'hover:bg-zinc-50'
+                )}
+                onClick={() => setActiveView('supporting')}
+              >
+                {supportingTitle}
+              </button>
+            </div>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           {collapsible && (
             <button
@@ -185,76 +234,69 @@ export function PdfViewerCard({
             </button>
           )}
           {showToggle && (
-            <button
-              className="rounded-full border px-2 py-1 font-normal text-zinc-500 hover:bg-zinc-100"
-              type="button"
+            <IconButton
+              icon={ToggleIcon}
+              label={toggleLabel}
               onClick={() => onTabChange(showOriginal ? 'audience' : 'original')}
-              aria-label={toggleLabel}
-              title={toggleLabel}
-            >
-              {toggleIcon}
-            </button>
+            />
           )}
-          <button
-            className="rounded-full border px-2 py-1 font-normal text-zinc-500 hover:bg-zinc-100 disabled:opacity-50"
-            type="button"
+          <IconButton
+            icon={RefreshCw}
+            label="Compile PDF"
             onClick={onCompile}
             disabled={!canCompile || status.kind === 'compiling'}
-            aria-label="Compile PDF"
-            title="Compile PDF"
-          >
-            ⟳
-          </button>
+          />
           {pdfUrl ? (
-            <a
-              className="rounded-full border px-2 py-1 font-normal text-zinc-500 hover:bg-zinc-100"
+            <IconButton
+              icon={Download}
+              label="Download PDF"
               href={pdfUrl}
               download={downloadName}
-              aria-label="Download PDF"
-              title="Download PDF"
-            >
-              ⤓
-            </a>
+            />
           ) : (
-            <button
-              className="rounded-full border px-2 py-1 font-normal text-zinc-300"
-              type="button"
-              disabled
-              aria-label="Download PDF"
-              title="Download PDF"
-            >
-              ⤓
-            </button>
+            <IconButton icon={Download} label="Download PDF" disabled />
           )}
         </div>
       </div>
-      <div className="mt-2 text-base text-zinc-500">
-        {status.kind === 'idle' && 'No PDF rendered yet.'}
-        {status.kind === 'compiling' && 'Compiling with TeX engine…'}
-        {status.kind === 'error' && <span className="text-red-700">Error: {status.message}</span>}
-      </div>
-      {(!collapsible || isOpen) && (
+      {activeView === 'pdf' && (
+        <>
+          <div className="mt-2 text-base text-zinc-500">
+            {status.kind === 'idle' && 'No PDF rendered yet.'}
+            {status.kind === 'compiling' && 'Compiling with TeX engine…'}
+            {status.kind === 'error' && (
+              <span className="text-red-700">Error: {status.message}</span>
+            )}
+          </div>
+          {(!collapsible || isOpen) && (
+            <div className="mt-3 flex-1 rounded-md border bg-zinc-50 overflow-auto max-h-[75vh]">
+              {!pdfUrl && (
+                <div className="flex h-full items-center justify-center text-base text-zinc-400">
+                  No PDF rendered yet.
+                </div>
+              )}
+              {pdfUrl && doc && (
+                <div className="p-3 flex flex-col items-center">
+                  {Array.from({ length: pageCount }, (_, idx) => idx + 1).map((pageNumber) => (
+                    <PdfPage
+                      key={`pdf-page-${pageNumber}`}
+                      doc={doc}
+                      pageNumber={pageNumber}
+                      scale={1.2}
+                      containerRef={(el) => {
+                        pageRefs.current[pageNumber - 1] = el;
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      {activeView === 'supporting' && (
         <div className="mt-3 flex-1 rounded-md border bg-zinc-50 overflow-auto max-h-[75vh]">
-          {!pdfUrl && (
-            <div className="flex h-full items-center justify-center text-base text-zinc-400">
-              No PDF rendered yet.
-            </div>
-          )}
-          {pdfUrl && doc && (
-            <div className="p-3">
-              {Array.from({ length: pageCount }, (_, idx) => idx + 1).map((pageNumber) => (
-                <PdfPage
-                  key={`pdf-page-${pageNumber}`}
-                  doc={doc}
-                  pageNumber={pageNumber}
-                  scale={1.2}
-                  containerRef={(el) => {
-                    pageRefs.current[pageNumber - 1] = el;
-                  }}
-                />
-              ))}
-            </div>
-          )}
+          <div className="p-4">{supportingContent}</div>
         </div>
       )}
     </section>

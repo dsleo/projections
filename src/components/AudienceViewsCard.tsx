@@ -1,7 +1,8 @@
 'use client';
 
 import type React from 'react';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
+import { ChevronDown, Download, Search } from 'lucide-react';
 import type { AnalysisResult } from '@/lib/pipeline/client';
 import { MathText } from '@/components/MathText';
 import { classNames } from '@/lib/ui/classNames';
@@ -17,6 +18,7 @@ type Props = {
   renderGroundedList: (items: Array<{ text: string; sentence_ids?: number[] }>) => React.ReactElement;
   renderReadingPathText: (text: string) => React.ReactElement;
   renderAudienceFullText: () => React.ReactElement | null;
+  showSupportingText?: boolean;
   editable?: boolean;
   onUpdateAudienceViews?: (
     updater: (views: NonNullable<AnalysisResult['audience_views']>) => void
@@ -34,6 +36,7 @@ export function AudienceViewsCard({
   renderGroundedList,
   renderReadingPathText,
   renderAudienceFullText,
+  showSupportingText = true,
   editable = false,
   onUpdateAudienceViews,
 }: Props) {
@@ -109,63 +112,55 @@ export function AudienceViewsCard({
     );
   };
 
-  const renderEditableGroundedList = useMemo(
-    () =>
-      (
-        items: Array<{ text: string; sentence_ids?: number[] }>,
-        onUpdateItem: (views: NonNullable<AnalysisResult['audience_views']>, idx: number, value: string) => void
-      ) => (
-        <ul className="mt-2 list-disc pl-4 text-base text-zinc-900">
-          {items.map((item, idx) => (
-            <li key={`aud-edit-${idx}`} className="mb-2">
-              <div className="flex items-start gap-2">
-                <div className="min-w-0 flex-1">
-                  <EditableText
-                    value={item.text}
-                    onSave={(next) => applyUpdate((views) => onUpdateItem(views, idx, next))}
-                  />
-                </div>
-                <div className="flex items-center gap-2 text-base text-zinc-500 shrink-0">
-                  {item.sentence_ids && item.sentence_ids.length > 0 && (
-                    <button
-                      className="rounded-full border px-2 py-0.5 text-sm hover:bg-white"
-                      type="button"
-                      onClick={() => focusSentences(item.sentence_ids ?? [])}
-                      aria-label="Focus highlighted sentences in PDF"
-                      title="Focus highlighted sentences in PDF"
-                    >
-                      🔎
-                    </button>
-                  )}
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      ),
-    [applyUpdate, focusSentences]
+  const renderEditableGroundedList = (
+    items: Array<{ text: string; sentence_ids?: number[] }>,
+    onUpdateItem: (views: NonNullable<AnalysisResult['audience_views']>, idx: number, value: string) => void
+  ) => (
+    <ul className="mt-2 list-disc pl-4 text-base text-zinc-900">
+      {items.map((item, idx) => (
+        <li key={`aud-edit-${idx}`} className="mb-2">
+          <div className="flex items-start gap-2">
+            <div className="min-w-0 flex-1">
+              <EditableText
+                value={item.text}
+                onSave={(next) => applyUpdate((views) => onUpdateItem(views, idx, next))}
+              />
+            </div>
+            <div className="flex items-center gap-2 text-base text-zinc-500 shrink-0">
+              {item.sentence_ids && item.sentence_ids.length > 0 && (
+                <button
+                  className="rounded-full border px-2 py-0.5 text-sm hover:bg-white"
+                  type="button"
+                  onClick={() => focusSentences(item.sentence_ids ?? [])}
+                  aria-label="Focus highlighted sentences in PDF"
+                  title="Focus highlighted sentences in PDF"
+                >
+                  <Search className="h-4 w-4" aria-hidden />
+                </button>
+              )}
+            </div>
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 
-  const renderEditableStringList = useMemo(
-    () =>
-      (
-        items: string[],
-        onUpdateItem: (views: NonNullable<AnalysisResult['audience_views']>, idx: number, value: string) => void,
-        renderDisplay?: (value: string) => React.ReactElement
-      ) => (
-        <ul className="mt-2 list-disc pl-4 text-base text-zinc-900">
-          {items.map((item, idx) => (
-            <li key={`aud-str-${idx}`} className="mb-2">
-              <EditableText
-                value={item}
-                onSave={(next) => applyUpdate((views) => onUpdateItem(views, idx, next))}
-                renderDisplay={renderDisplay}
-              />
-            </li>
-          ))}
-        </ul>
-      ),
-    [applyUpdate]
+  const renderEditableStringList = (
+    items: string[],
+    onUpdateItem: (views: NonNullable<AnalysisResult['audience_views']>, idx: number, value: string) => void,
+    renderDisplay?: (value: string) => React.ReactElement
+  ) => (
+    <ul className="mt-2 list-disc pl-4 text-base text-zinc-900">
+      {items.map((item, idx) => (
+        <li key={`aud-str-${idx}`} className="mb-2">
+          <EditableText
+            value={item}
+            onSave={(next) => applyUpdate((views) => onUpdateItem(views, idx, next))}
+            renderDisplay={renderDisplay}
+          />
+        </li>
+      ))}
+    </ul>
   );
 
   const renderGroundedListMaybe = (
@@ -255,9 +250,8 @@ export function AudienceViewsCard({
             <div className="flex items-center gap-2">
               <details className="relative">
                 <summary
-                  className={`list-none rounded-full border px-2 py-1 text-base font-normal text-zinc-500 hover:bg-zinc-100 [&::-webkit-details-marker]:hidden ${
-                    exportDisabled ? 'opacity-50' : ''
-                  }`}
+                  className={`list-none rounded-full border px-3 py-1 text-base font-normal text-zinc-600 hover:bg-zinc-100 [&::-webkit-details-marker]:hidden flex items-center gap-2 ${exportDisabled ? 'opacity-50' : ''
+                    }`}
                   aria-label="Download audience view"
                   title="Download audience view"
                   onClick={(e) => {
@@ -266,7 +260,9 @@ export function AudienceViewsCard({
                     }
                   }}
                 >
-                  ⤓
+                  <Download className="h-4 w-4" aria-hidden />
+                  <span className="hidden sm:inline">Export</span>
+                  <ChevronDown className="h-4 w-4" aria-hidden />
                 </summary>
                 <div className="absolute right-0 z-10 mt-2 w-40 rounded-md border bg-white p-1 text-base shadow">
                   <button
@@ -290,363 +286,365 @@ export function AudienceViewsCard({
             </div>
           </div>
 
-            <div className="rounded-md border bg-white p-4 text-base">
-              {audienceTab === 'A' && (
-                <>
-                  <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                    <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
-                      Problem statement
+          <div className="rounded-md border bg-white p-4 text-base">
+            {audienceTab === 'A' && (
+              <>
+                <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                  <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
+                    Problem statement
+                  </div>
+                  <div className="mt-2 flex items-start gap-2">
+                    <div className="min-w-0 flex-1 text-base text-zinc-900">
+                      <EditableText
+                        value={audienceViews.domain_expert.problem_statement?.text ?? ''}
+                        onSave={(next) =>
+                          applyUpdate((views) => {
+                            views.domain_expert.problem_statement.text = next;
+                          })
+                        }
+                      />
                     </div>
-                    <div className="mt-2 flex items-start gap-2">
-                      <div className="min-w-0 flex-1 text-base text-zinc-900">
-                        <EditableText
-                          value={audienceViews.domain_expert.problem_statement?.text ?? ''}
-                          onSave={(next) =>
-                            applyUpdate((views) => {
-                              views.domain_expert.problem_statement.text = next;
-                            })
+                    <div className="flex items-center gap-2 text-base text-zinc-500 shrink-0">
+                      {audienceViews.domain_expert.problem_statement?.sentence_ids?.length ? (
+                        <button
+                          className="rounded-full border px-2 py-0.5 text-sm hover:bg-white"
+                          type="button"
+                          onClick={() =>
+                            focusSentences(
+                              audienceViews.domain_expert.problem_statement!.sentence_ids
+                            )
                           }
-                        />
-                      </div>
-                      <div className="flex items-center gap-2 text-base text-zinc-500 shrink-0">
-                        {audienceViews.domain_expert.problem_statement?.sentence_ids?.length ? (
-                          <button
-                            className="rounded-full border px-2 py-0.5 text-sm hover:bg-white"
-                            type="button"
-                            onClick={() =>
-                              focusSentences(
-                                audienceViews.domain_expert.problem_statement!.sentence_ids
-                              )
-                            }
-                            aria-label="Focus highlighted sentences in PDF"
-                            title="Focus highlighted sentences in PDF"
-                          >
-                            🔎
-                          </button>
-                        ) : null}
-                      </div>
+                          aria-label="Focus highlighted sentences in PDF"
+                          title="Focus highlighted sentences in PDF"
+                        >
+                          <Search className="h-4 w-4" aria-hidden />
+                        </button>
+                      ) : null}
                     </div>
                   </div>
+                </div>
 
-                  <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                    <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
-                      Delta summary
-                    </div>
-                    {renderGroundedListMaybe(audienceViews.domain_expert.delta_summary, (views, idx, next) => {
-                      views.domain_expert.delta_summary[idx].text = next;
-                    })}
+                <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                  <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
+                    Delta summary
                   </div>
+                  {renderGroundedListMaybe(audienceViews.domain_expert.delta_summary, (views, idx, next) => {
+                    views.domain_expert.delta_summary[idx].text = next;
+                  })}
+                </div>
 
-                  {(audienceViews.domain_expert.technical_highlights.nonstandard_ideas.length > 0 ||
-                    audienceViews.domain_expert.technical_highlights.clever_reductions.length > 0) && (
+                {(audienceViews.domain_expert.technical_highlights.nonstandard_ideas.length > 0 ||
+                  audienceViews.domain_expert.technical_highlights.clever_reductions.length > 0) && (
                     <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
                       <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
                         Technical highlights
                       </div>
                       {audienceViews.domain_expert.technical_highlights.nonstandard_ideas.length >
                         0 && (
-                        <>
-                          <div className="mt-2 text-base font-semibold text-zinc-500">
-                            Nonstandard ideas
-                          </div>
-                          {renderGroundedListMaybe(
-                            audienceViews.domain_expert.technical_highlights.nonstandard_ideas,
-                            (views, idx, next) => {
-                              views.domain_expert.technical_highlights.nonstandard_ideas[idx].text =
-                                next;
-                            }
-                          )}
-                        </>
-                      )}
+                          <>
+                            <div className="mt-2 text-base font-semibold text-zinc-500">
+                              Nonstandard ideas
+                            </div>
+                            {renderGroundedListMaybe(
+                              audienceViews.domain_expert.technical_highlights.nonstandard_ideas,
+                              (views, idx, next) => {
+                                views.domain_expert.technical_highlights.nonstandard_ideas[idx].text =
+                                  next;
+                              }
+                            )}
+                          </>
+                        )}
                       {audienceViews.domain_expert.technical_highlights.clever_reductions.length >
                         0 && (
-                        <>
-                          <div className="mt-3 text-base font-semibold text-zinc-500">
-                            Clever reductions
-                          </div>
-                          {renderGroundedListMaybe(
-                            audienceViews.domain_expert.technical_highlights.clever_reductions,
-                            (views, idx, next) => {
-                              views.domain_expert.technical_highlights.clever_reductions[idx].text =
-                                next;
-                            }
-                          )}
-                        </>
-                      )}
+                          <>
+                            <div className="mt-3 text-base font-semibold text-zinc-500">
+                              Clever reductions
+                            </div>
+                            {renderGroundedListMaybe(
+                              audienceViews.domain_expert.technical_highlights.clever_reductions,
+                              (views, idx, next) => {
+                                views.domain_expert.technical_highlights.clever_reductions[idx].text =
+                                  next;
+                              }
+                            )}
+                          </>
+                        )}
                     </div>
                   )}
 
-                  <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                    <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
-                      Reusable components
-                    </div>
-                    {renderGroundedListMaybe(audienceViews.domain_expert.reusable_components, (views, idx, next) => {
-                      views.domain_expert.reusable_components[idx].text = next;
-                    })}
+                <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                  <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
+                    Reusable components
                   </div>
-                </>
-              )}
+                  {renderGroundedListMaybe(audienceViews.domain_expert.reusable_components, (views, idx, next) => {
+                    views.domain_expert.reusable_components[idx].text = next;
+                  })}
+                </div>
+              </>
+            )}
 
-              {audienceTab === 'B' && (
-                <>
-                  <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                    <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
-                      Problem statement
+            {audienceTab === 'B' && (
+              <>
+                <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                  <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
+                    Problem statement
+                  </div>
+                  <div className="mt-2 flex items-start gap-2">
+                    <div className="min-w-0 flex-1 text-base text-zinc-900">
+                      <EditableText
+                        value={audienceViews.adjacent_researcher.problem_statement.text}
+                        onSave={(next) =>
+                          applyUpdate((views) => {
+                            views.adjacent_researcher.problem_statement.text = next;
+                          })
+                        }
+                      />
                     </div>
-                    <div className="mt-2 flex items-start gap-2">
-                      <div className="min-w-0 flex-1 text-base text-zinc-900">
-                        <EditableText
-                          value={audienceViews.adjacent_researcher.problem_statement.text}
-                          onSave={(next) =>
-                            applyUpdate((views) => {
-                              views.adjacent_researcher.problem_statement.text = next;
-                            })
+                    <div className="flex items-center gap-2 text-base text-zinc-500 shrink-0">
+                      {audienceViews.adjacent_researcher.problem_statement?.sentence_ids?.length ? (
+                        <button
+                          className="rounded-full border px-2 py-0.5 text-sm hover:bg-white"
+                          type="button"
+                          onClick={() =>
+                            focusSentences(
+                              audienceViews.adjacent_researcher.problem_statement.sentence_ids
+                            )
                           }
-                        />
-                      </div>
-                      <div className="flex items-center gap-2 text-base text-zinc-500 shrink-0">
-                        {audienceViews.adjacent_researcher.problem_statement?.sentence_ids?.length ? (
-                          <button
-                            className="rounded-full border px-2 py-0.5 text-sm hover:bg-white"
-                            type="button"
-                            onClick={() =>
-                              focusSentences(
-                                audienceViews.adjacent_researcher.problem_statement.sentence_ids
-                              )
-                            }
-                            aria-label="Focus highlighted sentences in PDF"
-                            title="Focus highlighted sentences in PDF"
-                          >
-                            🔎
-                          </button>
-                        ) : null}
-                      </div>
+                          aria-label="Focus highlighted sentences in PDF"
+                          title="Focus highlighted sentences in PDF"
+                        >
+                          <Search className="h-4 w-4" aria-hidden />
+                        </button>
+                      ) : null}
                     </div>
                   </div>
+                </div>
 
-                  <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                    <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
-                      Why this matters
+                <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                  <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
+                    Why this matters
+                  </div>
+                  {renderGroundedListMaybe(
+                    audienceViews.adjacent_researcher.why_matters,
+                    (views, idx, next) => {
+                      views.adjacent_researcher.why_matters[idx].text = next;
+                    }
+                  )}
+                </div>
+
+                <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                  <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
+                    Prerequisite map
+                  </div>
+                  {renderStringListMaybe(
+                    audienceViews.adjacent_researcher.prerequisite_map,
+                    (views, idx, next) => {
+                      views.adjacent_researcher.prerequisite_map[idx] = next;
+                    },
+                    renderReadingPathText
+                  )}
+                </div>
+
+                <div className="rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                  <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
+                    Reading path
+                  </div>
+                  <div className="mt-2 text-base font-semibold text-zinc-500">Read</div>
+                  {renderStringListMaybe(
+                    audienceViews.adjacent_researcher.reading_path.read,
+                    (views, idx, next) => {
+                      views.adjacent_researcher.reading_path.read[idx] = next;
+                    },
+                    renderReadingPathText
+                  )}
+                  <div className="mt-2 text-base font-semibold text-zinc-500">Skim</div>
+                  {renderStringListMaybe(
+                    audienceViews.adjacent_researcher.reading_path.skim,
+                    (views, idx, next) => {
+                      views.adjacent_researcher.reading_path.skim[idx] = next;
+                    },
+                    renderReadingPathText
+                  )}
+                  <div className="mt-2 text-base font-semibold text-zinc-500">Skip</div>
+                  {renderStringListMaybe(
+                    audienceViews.adjacent_researcher.reading_path.skip,
+                    (views, idx, next) => {
+                      views.adjacent_researcher.reading_path.skip[idx] = next;
+                    },
+                    renderReadingPathText
+                  )}
+                </div>
+              </>
+            )}
+
+            {audienceTab === 'C' && (
+              <>
+                <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                  <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
+                    Problem statement
+                  </div>
+                  <div className="mt-2 flex items-start gap-2">
+                    <div className="min-w-0 flex-1 text-base text-zinc-900">
+                      <EditableText
+                        value={audienceViews.grad_student.problem_statement?.text ?? ''}
+                        onSave={(next) =>
+                          applyUpdate((views) => {
+                            views.grad_student.problem_statement.text = next;
+                          })
+                        }
+                      />
                     </div>
-                    {renderGroundedListMaybe(
-                      audienceViews.adjacent_researcher.why_matters,
-                      (views, idx, next) => {
-                        views.adjacent_researcher.why_matters[idx].text = next;
+                    <div className="flex items-center gap-2 text-base text-zinc-500 shrink-0">
+                      {audienceViews.grad_student.problem_statement?.sentence_ids?.length ? (
+                        <button
+                          className="rounded-full border px-2 py-0.5 text-sm hover:bg-white"
+                          type="button"
+                          onClick={() =>
+                            focusSentences(
+                              audienceViews.grad_student.problem_statement!.sentence_ids
+                            )
+                          }
+                          aria-label="Focus highlighted sentences in PDF"
+                          title="Focus highlighted sentences in PDF"
+                        >
+                          <Search className="h-4 w-4" aria-hidden />
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                  <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
+                    Reading path
+                  </div>
+                  <div className="mt-2 text-base font-semibold text-zinc-500">Read</div>
+                  {renderStringListMaybe(
+                    gradReadingPath.read,
+                    (views, idx, next) => {
+                      if (!views.grad_student.reading_path) {
+                        views.grad_student.reading_path = { read: [], skim: [], skip: [] };
                       }
-                    )}
-                  </div>
+                      views.grad_student.reading_path.read[idx] = next;
+                    },
+                    renderReadingPathText
+                  )}
+                  <div className="mt-2 text-base font-semibold text-zinc-500">Skim</div>
+                  {renderStringListMaybe(
+                    gradReadingPath.skim,
+                    (views, idx, next) => {
+                      if (!views.grad_student.reading_path) {
+                        views.grad_student.reading_path = { read: [], skim: [], skip: [] };
+                      }
+                      views.grad_student.reading_path.skim[idx] = next;
+                    },
+                    renderReadingPathText
+                  )}
+                  <div className="mt-2 text-base font-semibold text-zinc-500">Skip</div>
+                  {renderStringListMaybe(
+                    gradReadingPath.skip,
+                    (views, idx, next) => {
+                      if (!views.grad_student.reading_path) {
+                        views.grad_student.reading_path = { read: [], skim: [], skip: [] };
+                      }
+                      views.grad_student.reading_path.skip[idx] = next;
+                    },
+                    renderReadingPathText
+                  )}
+                </div>
 
-                  <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                    <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
-                      Prerequisite map
-                    </div>
-                    {renderStringListMaybe(
-                      audienceViews.adjacent_researcher.prerequisite_map,
-                      (views, idx, next) => {
-                        views.adjacent_researcher.prerequisite_map[idx] = next;
-                      },
-                      renderReadingPathText
-                    )}
+                <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                  <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
+                    Key ideas before technicalities
                   </div>
+                  {renderGroundedListMaybe(audienceViews.grad_student.key_ideas, (views, idx, next) => {
+                    views.grad_student.key_ideas[idx].text = next;
+                  })}
+                </div>
+              </>
+            )}
 
-                  <div className="rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                    <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
-                      Reading path
-                    </div>
-                    <div className="mt-2 text-base font-semibold text-zinc-500">Read</div>
-                    {renderStringListMaybe(
-                      audienceViews.adjacent_researcher.reading_path.read,
-                      (views, idx, next) => {
-                        views.adjacent_researcher.reading_path.read[idx] = next;
-                      },
-                      renderReadingPathText
-                    )}
-                    <div className="mt-2 text-base font-semibold text-zinc-500">Skim</div>
-                    {renderStringListMaybe(
-                      audienceViews.adjacent_researcher.reading_path.skim,
-                      (views, idx, next) => {
-                        views.adjacent_researcher.reading_path.skim[idx] = next;
-                      },
-                      renderReadingPathText
-                    )}
-                    <div className="mt-2 text-base font-semibold text-zinc-500">Skip</div>
-                    {renderStringListMaybe(
-                      audienceViews.adjacent_researcher.reading_path.skip,
-                      (views, idx, next) => {
-                        views.adjacent_researcher.reading_path.skip[idx] = next;
-                      },
-                      renderReadingPathText
-                    )}
+            {audienceTab === 'D' && (
+              <>
+                <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                  <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
+                    Problem statement
                   </div>
-                </>
-              )}
-
-              {audienceTab === 'C' && (
-                <>
-                  <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                    <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
-                      Problem statement
-                    </div>
-                    <div className="mt-2 flex items-start gap-2">
-                      <div className="min-w-0 flex-1 text-base text-zinc-900">
-                        <EditableText
-                          value={audienceViews.grad_student.problem_statement?.text ?? ''}
-                          onSave={(next) =>
-                            applyUpdate((views) => {
-                              views.grad_student.problem_statement.text = next;
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="flex items-center gap-2 text-base text-zinc-500 shrink-0">
-                        {audienceViews.grad_student.problem_statement?.sentence_ids?.length ? (
-                          <button
-                            className="rounded-full border px-2 py-0.5 text-sm hover:bg-white"
-                            type="button"
-                            onClick={() =>
-                              focusSentences(
-                                audienceViews.grad_student.problem_statement!.sentence_ids
-                              )
-                            }
-                            aria-label="Focus highlighted sentences in PDF"
-                            title="Focus highlighted sentences in PDF"
-                          >
-                            🔎
-                          </button>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                    <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
-                      Reading path
-                    </div>
-                    <div className="mt-2 text-base font-semibold text-zinc-500">Read</div>
-                    {renderStringListMaybe(
-                      gradReadingPath.read,
-                      (views, idx, next) => {
-                        if (!views.grad_student.reading_path) {
-                          views.grad_student.reading_path = { read: [], skim: [], skip: [] };
-                        }
-                        views.grad_student.reading_path.read[idx] = next;
-                      },
-                      renderReadingPathText
-                    )}
-                    <div className="mt-2 text-base font-semibold text-zinc-500">Skim</div>
-                    {renderStringListMaybe(
-                      gradReadingPath.skim,
-                      (views, idx, next) => {
-                        if (!views.grad_student.reading_path) {
-                          views.grad_student.reading_path = { read: [], skim: [], skip: [] };
-                        }
-                        views.grad_student.reading_path.skim[idx] = next;
-                      },
-                      renderReadingPathText
-                    )}
-                    <div className="mt-2 text-base font-semibold text-zinc-500">Skip</div>
-                    {renderStringListMaybe(
-                      gradReadingPath.skip,
-                      (views, idx, next) => {
-                        if (!views.grad_student.reading_path) {
-                          views.grad_student.reading_path = { read: [], skim: [], skip: [] };
-                        }
-                        views.grad_student.reading_path.skip[idx] = next;
-                      },
-                      renderReadingPathText
-                    )}
-                  </div>
-
-                  <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                    <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
-                      Key ideas before technicalities
-                    </div>
-                    {renderGroundedListMaybe(audienceViews.grad_student.key_ideas, (views, idx, next) => {
-                      views.grad_student.key_ideas[idx].text = next;
-                    })}
-                  </div>
-                </>
-              )}
-
-              {audienceTab === 'D' && (
-                <>
-                  <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                    <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
-                      Problem statement
-                    </div>
-                    <div className="mt-2 flex items-start gap-2">
-                      <div className="min-w-0 flex-1 text-base text-zinc-900">
-                        <EditableText
-                          value={audienceViews.author_self.problem_statement?.text ?? ''}
-                          onSave={(next) =>
-                            applyUpdate((views) => {
-                              views.author_self.problem_statement.text = next;
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="flex items-center gap-2 text-base text-zinc-500 shrink-0">
-                        {audienceViews.author_self.problem_statement?.sentence_ids?.length ? (
-                          <button
-                            className="rounded-full border px-2 py-0.5 text-sm hover:bg-white"
-                            type="button"
-                            onClick={() =>
-                              focusSentences(
-                                audienceViews.author_self.problem_statement!.sentence_ids
-                              )
-                            }
-                            aria-label="Focus highlighted sentences in PDF"
-                            title="Focus highlighted sentences in PDF"
-                          >
-                            🔎
-                          </button>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                    <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
-                      Contribution Summary
-                    </div>
-                    <div className="mt-2 text-base text-zinc-900">
+                  <div className="mt-2 flex items-start gap-2">
+                    <div className="min-w-0 flex-1 text-base text-zinc-900">
                       <EditableText
-                        value={audienceViews.author_self.one_page_summary}
-                        renderDisplay={renderContributionSummary}
+                        value={audienceViews.author_self.problem_statement?.text ?? ''}
                         onSave={(next) =>
                           applyUpdate((views) => {
-                            views.author_self.one_page_summary = next;
+                            views.author_self.problem_statement.text = next;
                           })
                         }
                       />
                     </div>
+                    <div className="flex items-center gap-2 text-base text-zinc-500 shrink-0">
+                      {audienceViews.author_self.problem_statement?.sentence_ids?.length ? (
+                        <button
+                          className="rounded-full border px-2 py-0.5 text-sm hover:bg-white"
+                          type="button"
+                          onClick={() =>
+                            focusSentences(
+                              audienceViews.author_self.problem_statement!.sentence_ids
+                            )
+                          }
+                          aria-label="Focus highlighted sentences in PDF"
+                          title="Focus highlighted sentences in PDF"
+                        >
+                          <Search className="h-4 w-4" aria-hidden />
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
+                </div>
 
-                  <div className="rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                    <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
-                      Notes to self
-                    </div>
-                    <div className="mt-2 text-base text-zinc-900">
-                      <EditableText
-                        value={audienceViews.author_self.notes_to_self?.[0] ?? ''}
-                        onSave={(next) =>
-                          applyUpdate((views) => {
-                            const trimmed = next.trim();
-                            views.author_self.notes_to_self = trimmed ? [trimmed] : [];
-                          })
-                        }
-                      />
-                    </div>
+                <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                  <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
+                    Contribution Summary
                   </div>
-                </>
-              )}
-            </div>
-          <details className="rounded-md border bg-white">
-            <summary className="cursor-pointer px-3 py-2 text-base font-semibold text-zinc-600">
-              Supporting text
-            </summary>
-            {renderAudienceFullText()}
-          </details>
+                  <div className="mt-2 text-base text-zinc-900">
+                    <EditableText
+                      value={audienceViews.author_self.one_page_summary}
+                      renderDisplay={renderContributionSummary}
+                      onSave={(next) =>
+                        applyUpdate((views) => {
+                          views.author_self.one_page_summary = next;
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                  <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
+                    Notes to self
+                  </div>
+                  <div className="mt-2 text-base text-zinc-900">
+                    <EditableText
+                      value={audienceViews.author_self.notes_to_self?.[0] ?? ''}
+                      onSave={(next) =>
+                        applyUpdate((views) => {
+                          const trimmed = next.trim();
+                          views.author_self.notes_to_self = trimmed ? [trimmed] : [];
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+          {showSupportingText && (
+            <details className="rounded-md border bg-white">
+              <summary className="cursor-pointer px-3 py-2 text-base font-semibold text-zinc-600">
+                Supporting text
+              </summary>
+              {renderAudienceFullText()}
+            </details>
+          )}
         </>
       )}
     </div>

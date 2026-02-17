@@ -163,7 +163,7 @@ export function buildAudienceExport(params: {
     const v = views.author_self;
     text += `## Problem statement\n${v.problem_statement?.text ?? ''}\n\n`;
     text += `## Contribution Summary\n${v.one_page_summary}\n\n`;
-    text += `## Notes to self\n${textList(v.notes_to_self)}\n\n`;
+    text += `## Notes to self\n${textList(v.notes_to_self ?? [])}\n\n`;
 
     body += `<section>\n<h3>Problem statement</h3>\n${formatParagraphs(
       v.problem_statement?.text ?? ''
@@ -172,7 +172,7 @@ export function buildAudienceExport(params: {
       v.one_page_summary
     )}\n</section>\n`;
     body += `<section>\n<h3>Notes to self</h3>\n${renderList(
-      v.notes_to_self
+      v.notes_to_self ?? []
     )}\n</section>\n`;
   }
 

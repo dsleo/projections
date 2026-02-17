@@ -121,7 +121,7 @@ export type Pass3AudienceC = {
 export type Pass3AudienceD = {
     problem_statement: GroundedCitationItem;
     one_page_summary: string;
-    notes_to_self: string[];
+    notes_to_self?: string[];
 };
 
 export type Pass3Views = {

@@ -1,9 +1,11 @@
 'use client';
 
 import type React from 'react';
+import { Copy, RefreshCw, Search } from 'lucide-react';
 
 import type { AnalysisResult, DiscourseLabel } from '@/lib/pipeline/client';
 import { MathText } from '@/components/MathText';
+import { IconButton } from '@/components/IconButton';
 
 type Props = {
   result: AnalysisResult | null;
@@ -57,9 +59,9 @@ export function CanonicalSectionsCard({
 
   const landscapeKnown = landscape?.known_results ?? [];
   const landscapeLimitations = landscape?.limitations ?? [];
-  const landscapeRelations = landscape?.relations ?? [];
-  const technicalCore = technical?.core_mechanisms ?? [];
-  const technicalSteps = technical?.key_steps ?? [];
+  const landscapeCompeting = landscape?.competing_approaches ?? [];
+  const technicalKeyIdeas = technical?.key_ideas ?? [];
+  const technicalObstacles = technical?.technical_obstacles ?? [];
   const technicalReusable = technical?.reusable_constructions ?? [];
   const consequenceOpen = consequences?.open_questions ?? [];
   const consequenceSpec = consequences?.speculative_extensions ?? [];
@@ -70,34 +72,31 @@ export function CanonicalSectionsCard({
         <div className="flex flex-1 flex-wrap items-center justify-between gap-3">
           <span className="inline-flex items-center gap-2">
             <span>Canonical sections</span>
-            <button
-              className="rounded-full border px-2 py-0.5 text-[11px] font-normal text-zinc-500 hover:bg-zinc-100 disabled:opacity-50"
-              type="button"
+            <span
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                onRerunPass2();
               }}
-              disabled={!result || statusKind === 'analyzing' || statusKind === 'uploading'}
-              aria-label="Re-run Pass 2"
-              title="Re-run Pass 2"
+              className="inline-flex items-center gap-1"
             >
-              ⟳
-            </button>
-            <button
-              className="rounded-full border px-2 py-0.5 text-[11px] text-zinc-500 hover:bg-zinc-100"
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (!result?.sections) return;
-                onCopyCanonical();
-              }}
-              aria-label="Copy canonical JSON"
-              title="Copy canonical JSON"
-            >
-              ⧉
-            </button>
+              <IconButton
+                icon={RefreshCw}
+                label="Re-run Pass 2"
+                onClick={onRerunPass2}
+                disabled={!result || statusKind === 'analyzing' || statusKind === 'uploading'}
+                size="sm"
+              />
+              <IconButton
+                icon={Copy}
+                label="Copy canonical JSON"
+                onClick={() => {
+                  if (!result?.sections) return;
+                  onCopyCanonical();
+                }}
+                disabled={!result?.sections}
+                size="sm"
+              />
+            </span>
           </span>
           {headerStatus && (
             <span className="text-xs font-normal text-zinc-500">{headerStatus}</span>
@@ -158,7 +157,7 @@ export function CanonicalSectionsCard({
                                 aria-label="Focus highlighted sentences in PDF"
                                 title="Focus highlighted sentences in PDF"
                               >
-                                🔎
+                                <Search className="h-3.5 w-3.5" aria-hidden />
                               </button>
                               {renderCitationAction(item.sentence_ids)}
                             </div>
@@ -185,7 +184,7 @@ export function CanonicalSectionsCard({
                                 aria-label="Focus highlighted sentences in PDF"
                                 title="Focus highlighted sentences in PDF"
                               >
-                                🔎
+                                <Search className="h-3.5 w-3.5" aria-hidden />
                               </button>
                               {renderCitationAction(item.sentence_ids)}
                             </div>
@@ -212,7 +211,7 @@ export function CanonicalSectionsCard({
                                 aria-label="Focus highlighted sentences in PDF"
                                 title="Focus highlighted sentences in PDF"
                               >
-                                🔎
+                                <Search className="h-3.5 w-3.5" aria-hidden />
                               </button>
                               {renderCitationAction(item.sentence_ids)}
                             </div>
@@ -228,7 +227,7 @@ export function CanonicalSectionsCard({
                 <>
                   {landscapeKnown.length === 0 &&
                     landscapeLimitations.length === 0 &&
-                    landscapeRelations.length === 0 &&
+                    landscapeCompeting.length === 0 &&
                     renderEmpty('No explicit items found.')}
                   {landscapeKnown.length > 0 && (
                     <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
@@ -248,7 +247,7 @@ export function CanonicalSectionsCard({
                                 aria-label="Focus highlighted sentences in PDF"
                                 title="Focus highlighted sentences in PDF"
                               >
-                                🔎
+                                <Search className="h-3.5 w-3.5" aria-hidden />
                               </button>
                               {renderCitationAction(item.sentence_ids)}
                             </div>
@@ -275,7 +274,7 @@ export function CanonicalSectionsCard({
                                 aria-label="Focus highlighted sentences in PDF"
                                 title="Focus highlighted sentences in PDF"
                               >
-                                🔎
+                                <Search className="h-3.5 w-3.5" aria-hidden />
                               </button>
                               {renderCitationAction(item.sentence_ids)}
                             </div>
@@ -284,13 +283,13 @@ export function CanonicalSectionsCard({
                       </ul>
                     </div>
                   )}
-                  {landscapeRelations.length > 0 && (
+                  {landscapeCompeting.length > 0 && (
                     <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
                       <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                        Relations
+                        Competing approach
                       </div>
                       <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
-                        {landscapeRelations.map((item, idx) => (
+                        {landscapeCompeting.map((item, idx) => (
                           <li key={`ls-rel-${idx}`} className="mb-2">
                             <MathText text={item.description} />
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
@@ -302,7 +301,7 @@ export function CanonicalSectionsCard({
                                 aria-label="Focus highlighted sentences in PDF"
                                 title="Focus highlighted sentences in PDF"
                               >
-                                🔎
+                                <Search className="h-3.5 w-3.5" aria-hidden />
                               </button>
                               {renderCitationAction(item.sentence_ids)}
                             </div>
@@ -333,7 +332,7 @@ export function CanonicalSectionsCard({
                                 aria-label="Focus highlighted sentences in PDF"
                                 title="Focus highlighted sentences in PDF"
                               >
-                                🔎
+                                <Search className="h-3.5 w-3.5" aria-hidden />
                               </button>
                               {renderCitationAction(item.sentence_ids)}
                             </div>
@@ -347,17 +346,17 @@ export function CanonicalSectionsCard({
 
               {activeTab === 'tech' && technical && (
                 <>
-                  {technicalCore.length === 0 &&
-                    technicalSteps.length === 0 &&
+                  {technicalKeyIdeas.length === 0 &&
+                    technicalObstacles.length === 0 &&
                     technicalReusable.length === 0 &&
                     renderEmpty('No explicit items found.')}
-                  {technicalCore.length > 0 && (
+                  {technicalKeyIdeas.length > 0 && (
                     <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
                       <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                        Core mechanism
+                        Key idea
                       </div>
                       <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
-                        {technicalCore.map((item, idx) => (
+                        {technicalKeyIdeas.map((item, idx) => (
                           <li key={`tc-cm-${idx}`} className="mb-2">
                             <MathText text={item.description} />
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
@@ -369,7 +368,7 @@ export function CanonicalSectionsCard({
                                 aria-label="Focus highlighted sentences in PDF"
                                 title="Focus highlighted sentences in PDF"
                               >
-                                🔎
+                                <Search className="h-3.5 w-3.5" aria-hidden />
                               </button>
                               {renderCitationAction(item.sentence_ids)}
                             </div>
@@ -378,13 +377,13 @@ export function CanonicalSectionsCard({
                       </ul>
                     </div>
                   )}
-                  {technicalSteps.length > 0 && (
+                  {technicalObstacles.length > 0 && (
                     <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
                       <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                        Key step
+                        Technical obstacle
                       </div>
                       <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
-                        {technicalSteps.map((item, idx) => (
+                        {technicalObstacles.map((item, idx) => (
                           <li key={`tc-ks-${idx}`} className="mb-2">
                             <MathText text={item.description} />
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
@@ -396,7 +395,7 @@ export function CanonicalSectionsCard({
                                 aria-label="Focus highlighted sentences in PDF"
                                 title="Focus highlighted sentences in PDF"
                               >
-                                🔎
+                                <Search className="h-3.5 w-3.5" aria-hidden />
                               </button>
                               {renderCitationAction(item.sentence_ids)}
                             </div>
@@ -423,7 +422,7 @@ export function CanonicalSectionsCard({
                                 aria-label="Focus highlighted sentences in PDF"
                                 title="Focus highlighted sentences in PDF"
                               >
-                                🔎
+                                <Search className="h-3.5 w-3.5" aria-hidden />
                               </button>
                               {renderCitationAction(item.sentence_ids)}
                             </div>
@@ -458,7 +457,7 @@ export function CanonicalSectionsCard({
                                 aria-label="Focus highlighted sentences in PDF"
                                 title="Focus highlighted sentences in PDF"
                               >
-                                🔎
+                                <Search className="h-3.5 w-3.5" aria-hidden />
                               </button>
                               {renderCitationAction(item.sentence_ids)}
                             </div>
@@ -485,7 +484,7 @@ export function CanonicalSectionsCard({
                                 aria-label="Focus highlighted sentences in PDF"
                                 title="Focus highlighted sentences in PDF"
                               >
-                                🔎
+                                <Search className="h-3.5 w-3.5" aria-hidden />
                               </button>
                               {renderCitationAction(item.sentence_ids)}
                             </div>
@@ -503,8 +502,8 @@ export function CanonicalSectionsCard({
                     renderEmpty('No citations detected.')}
                   {(focusedCitationKeys.length > 0
                     ? focusedCitationKeys
-                        .map((key) => result.citations?.[key])
-                        .filter(Boolean)
+                      .map((key) => result.citations?.[key])
+                      .filter(Boolean)
                     : Object.values(result.citations ?? {})
                   ).map((entry) => (
                     <div
@@ -532,7 +531,7 @@ export function CanonicalSectionsCard({
                           type="button"
                           disabled={entry.sentence_ids.length === 0}
                         >
-                          🔎
+                          <Search className="h-3.5 w-3.5" aria-hidden />
                         </button>
                       </div>
                     </div>

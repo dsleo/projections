@@ -13,7 +13,12 @@ type AnalysisContextValue = {
   status: AnalyzeStatus;
   setStatus: (next: AnalyzeStatus) => void;
   result: AnalysisResult | null;
-  setResult: (next: AnalysisResult | null) => void;
+  setResult: (
+    next:
+      | AnalysisResult
+      | null
+      | ((prev: AnalysisResult | null) => AnalysisResult | null)
+  ) => void;
   processingWindows: Array<{ start: number; end: number }>;
   setProcessingWindows: (
     next: Array<{ start: number; end: number }> | ((prev: Array<{ start: number; end: number }>) => Array<{ start: number; end: number }>)

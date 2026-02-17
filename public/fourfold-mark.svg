@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Fourfold mark</title>
+  <desc>Italic F to the power of 4.</desc>
+
+  <!-- F^4 using italic serif to read as math -->
+  <text x="28" y="68" fill="#18181B" font-size="58" font-style="italic" font-weight="600" font-family="Georgia, 'Times New Roman', Times, serif">F</text>
+  <text x="63" y="36" fill="#18181B" font-size="24" font-weight="600" font-family="Georgia, 'Times New Roman', Times, serif">4</text>
+</svg>

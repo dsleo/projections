@@ -72,14 +72,14 @@ export function buildCanonicalSectionTitles(
   const landscapeIds = [
     ...(result.sections.landscape.known_results ?? []).flatMap((i) => i.sentence_ids),
     ...(result.sections.landscape.limitations ?? []).flatMap((i) => i.sentence_ids),
-    ...(result.sections.landscape.relations ?? []).flatMap((i) => i.sentence_ids),
+    ...(result.sections.landscape.competing_approaches ?? []).flatMap((i) => i.sentence_ids),
   ];
   const contribIds = result.sections.contributions.contributions.flatMap(
     (i) => i.sentence_ids
   );
   const techIds = [
-    ...(result.sections.technical_core.core_mechanisms ?? []).flatMap((i) => i.sentence_ids),
-    ...(result.sections.technical_core.key_steps ?? []).flatMap((i) => i.sentence_ids),
+    ...(result.sections.technical_core.key_ideas ?? []).flatMap((i) => i.sentence_ids),
+    ...(result.sections.technical_core.technical_obstacles ?? []).flatMap((i) => i.sentence_ids),
     ...(result.sections.technical_core.reusable_constructions ?? []).flatMap((i) => i.sentence_ids),
   ];
   const consIds = [

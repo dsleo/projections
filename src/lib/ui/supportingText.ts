@@ -26,6 +26,8 @@ const STATEMENT_ENVS = [
   'example',
 ] as const;
 
+type StatementEnvName = (typeof STATEMENT_ENVS)[number];
+
 type AudienceTab = 'A' | 'B' | 'C' | 'D';
 
 export type SupportingTextSegment = { text: string; startId: number; endId: number };
@@ -127,10 +129,10 @@ export function buildAudienceSupportingText(
       };
     })
     .filter(Boolean) as Array<{
-    range: { name: string; start: number; end: number };
-    sentenceIds: number[];
-    text: string;
-  }>;
+      range: { name: string; start: number; end: number };
+      sentenceIds: number[];
+      text: string;
+    }>;
 
   if (selectedEnvInfos.length > 0) {
     const selectedKeys = new Set(
@@ -139,7 +141,11 @@ export function buildAudienceSupportingText(
     const proofEnvs = selectedEnvInfos.filter((env) => env.range.name === 'proof');
     for (const proofEnv of proofEnvs) {
       const statementEnv = [...ranges]
-        .filter((r) => STATEMENT_ENVS.includes(r.name) && r.end <= proofEnv.range.start)
+        .filter(
+          (r): r is { name: StatementEnvName; start: number; end: number } =>
+            STATEMENT_ENVS.includes(r.name as StatementEnvName) &&
+            r.end <= proofEnv.range.start
+        )
         .sort((a, b) => b.end - a.end)[0];
       if (!statementEnv) continue;
       const key = `${statementEnv.start}-${statementEnv.end}`;
@@ -169,8 +175,8 @@ export function buildAudienceSupportingText(
       if (
         !existing ||
         env.range.end - env.range.start >
-          parseInt(existing.key.split('-')[1], 10) -
-            parseInt(existing.key.split('-')[0], 10)
+        parseInt(existing.key.split('-')[1], 10) -
+        parseInt(existing.key.split('-')[0], 10)
       ) {
         sentenceToEnv.set(id, { key, sentenceIds: env.sentenceIds, text: env.text });
       }

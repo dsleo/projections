@@ -51,6 +51,21 @@ export type Pass2Options = {
     abstract?: string;
 };
 
+export type Pass2SectionId =
+    | 'problem_and_motivation'
+    | 'landscape'
+    | 'contributions'
+    | 'technical_core'
+    | 'consequences';
+
+export type Pass2StreamingOptions = Pass2Options & {
+    onPartial?: (payload: {
+        section: Pass2SectionId;
+        sections: CanonicalSections;
+        sections_concatenated_text: string;
+    }) => void;
+};
+
 function sentencesWithLabel(
     sentences: Sentence[],
     labels: SentenceLabelMap,
@@ -355,6 +370,201 @@ export async function runPass2(
         technical_core,
         consequences,
     };
+
+    return {
+        sections,
+        sections_concatenated_text: renderSectionsConcatenated(sections),
+    };
+}
+
+export async function runPass2Streaming(
+    sentences: Sentence[],
+    labels: SentenceLabelMap,
+    opts: Pass2StreamingOptions = {}
+): Promise<{ sections: CanonicalSections; sections_concatenated_text: string }> {
+    const limit = pLimit(opts.concurrency ?? 5);
+
+    opts.logger?.info('pass2:start', {
+        sentences: sentences.length,
+        labeled: Object.keys(labels).length,
+        streaming: true,
+    });
+
+    const problemSentences = sentencesWithLabel(sentences, labels, 'Problem');
+    const landscapeSentences = sentencesWithLabel(sentences, labels, 'Landscape');
+    const contribSentences = sentencesWithLabel(sentences, labels, 'Contribution');
+    const techSentences = sentencesWithLabel(sentences, labels, 'TechnicalCore');
+    const conseqSentences = sentencesWithLabel(sentences, labels, 'Consequences');
+
+    const problemIds = new Set(problemSentences.map((s) => s.id));
+    const landscapeIds = new Set(landscapeSentences.map((s) => s.id));
+    const contribIds = new Set(contribSentences.map((s) => s.id));
+    const techIds = new Set(techSentences.map((s) => s.id));
+    const conseqIds = new Set(conseqSentences.map((s) => s.id));
+
+    const filterIds = (ids: number[], allowed: Set<number>) => ids.filter((id) => allowed.has(id));
+
+    const sanitizeCanonicalItems = (
+        items: CanonicalSections['problem_and_motivation']['central_problems'],
+        allowed: Set<number>
+    ) => items.map((item) => ({ ...item, sentence_ids: filterIds(item.sentence_ids, allowed) }));
+
+    const sanitizeProblem = (section: CanonicalSections['problem_and_motivation']) => ({
+        central_problems: sanitizeCanonicalItems(section.central_problems, problemIds),
+        origins: sanitizeCanonicalItems(section.origins, problemIds),
+        nontriviality: sanitizeCanonicalItems(section.nontriviality, problemIds),
+    });
+
+    const sanitizeLandscape = (section: CanonicalSections['landscape']) => ({
+        known_results: sanitizeCanonicalItems(section.known_results, landscapeIds),
+        limitations: sanitizeCanonicalItems(section.limitations, landscapeIds),
+        competing_approaches: sanitizeCanonicalItems(section.competing_approaches, landscapeIds),
+    });
+
+    const sanitizeTechnicalCore = (section: CanonicalSections['technical_core']) => ({
+        key_ideas: sanitizeCanonicalItems(section.key_ideas, techIds),
+        technical_obstacles: sanitizeCanonicalItems(section.technical_obstacles, techIds),
+        reusable_constructions: sanitizeCanonicalItems(section.reusable_constructions, techIds),
+    });
+
+    const sanitizeConsequences = (section: CanonicalSections['consequences']) => ({
+        open_questions: sanitizeCanonicalItems(section.open_questions, conseqIds),
+        speculative_extensions: sanitizeCanonicalItems(section.speculative_extensions, conseqIds),
+    });
+
+    const sanitizeContributions = (section: CanonicalSections['contributions']) => ({
+        contributions: section.contributions.map((item) => ({
+            ...item,
+            sentence_ids: filterIds(item.sentence_ids, contribIds),
+            prior_state: {
+                ...item.prior_state,
+                sentence_ids: filterIds(item.prior_state.sentence_ids, contribIds),
+            },
+            novelty: {
+                ...item.novelty,
+                sentence_ids: filterIds(item.novelty.sentence_ids, contribIds),
+            },
+            nontriviality: {
+                ...item.nontriviality,
+                sentence_ids: filterIds(item.nontriviality.sentence_ids, contribIds),
+            },
+        })),
+    });
+
+    const sections: CanonicalSections = {
+        problem_and_motivation: emptyProblem(),
+        landscape: emptyLandscape(),
+        contributions: emptyContributions(),
+        technical_core: emptyTechnicalCore(),
+        consequences: emptyConsequences(),
+    };
+
+    const emit = (section: Pass2SectionId) => {
+        const sections_concatenated_text = renderSectionsConcatenated(sections);
+        opts.onPartial?.({ section, sections, sections_concatenated_text });
+    };
+
+    const problemTask = limit(async () => {
+        const raw = problemSentences.length
+            ? await callJson({
+                system: PASS2_PROBLEM_SYSTEM,
+                user: pass2UserPrompt({
+                    sentencesWithIds: formatSentencesForPrompt(problemSentences),
+                    title: opts.document_title,
+                    abstract: opts.abstract,
+                }),
+                schema: ProblemAndMotivationSchema,
+                temperature: 0,
+                maxRetries: 2,
+                logger: opts.logger,
+                name: 'pass2:problem_and_motivation',
+            })
+            : emptyProblem();
+        sections.problem_and_motivation = sanitizeProblem(raw);
+        emit('problem_and_motivation');
+    });
+
+    const landscapeTask = limit(async () => {
+        const raw = landscapeSentences.length
+            ? await callJson({
+                system: PASS2_LANDSCAPE_SYSTEM,
+                user: pass2UserPrompt({
+                    sentencesWithIds: formatSentencesForPrompt(landscapeSentences),
+                    title: opts.document_title,
+                    abstract: opts.abstract,
+                }),
+                schema: LandscapeSchema,
+                temperature: 0,
+                maxRetries: 2,
+                logger: opts.logger,
+                name: 'pass2:landscape',
+            })
+            : emptyLandscape();
+        sections.landscape = sanitizeLandscape(raw);
+        emit('landscape');
+    });
+
+    const contribTask = limit(async () => {
+        const raw = contribSentences.length
+            ? await callJson({
+                system: PASS2_CONTRIB_SYSTEM,
+                user: pass2UserPrompt({
+                    sentencesWithIds: formatSentencesForPrompt(contribSentences),
+                    title: opts.document_title,
+                    abstract: opts.abstract,
+                }),
+                schema: ContributionsSchema,
+                temperature: 0,
+                maxRetries: 2,
+                logger: opts.logger,
+                name: 'pass2:contributions',
+            })
+            : emptyContributions();
+        sections.contributions = sanitizeContributions(raw);
+        emit('contributions');
+    });
+
+    const techTask = limit(async () => {
+        const raw = techSentences.length
+            ? await callJson({
+                system: PASS2_TECH_SYSTEM,
+                user: pass2UserPrompt({
+                    sentencesWithIds: formatSentencesForPrompt(techSentences),
+                    title: opts.document_title,
+                    abstract: opts.abstract,
+                }),
+                schema: TechnicalCoreSchema,
+                temperature: 0,
+                maxRetries: 2,
+                logger: opts.logger,
+                name: 'pass2:technical_core',
+            })
+            : emptyTechnicalCore();
+        sections.technical_core = sanitizeTechnicalCore(raw);
+        emit('technical_core');
+    });
+
+    const conseqTask = limit(async () => {
+        const raw = conseqSentences.length
+            ? await callJson({
+                system: PASS2_CONSEQ_SYSTEM,
+                user: pass2UserPrompt({
+                    sentencesWithIds: formatSentencesForPrompt(conseqSentences),
+                    title: opts.document_title,
+                    abstract: opts.abstract,
+                }),
+                schema: ConsequencesSchema,
+                temperature: 0,
+                maxRetries: 2,
+                logger: opts.logger,
+                name: 'pass2:consequences',
+            })
+            : emptyConsequences();
+        sections.consequences = sanitizeConsequences(raw);
+        emit('consequences');
+    });
+
+    await Promise.all([problemTask, landscapeTask, contribTask, techTask, conseqTask]);
 
     return {
         sections,

@@ -194,8 +194,35 @@ export function useAnalyzeStream({ file, useEnvPropagation }: Params) {
           setStatus({ kind: 'analyzing', message: `Pass 1 done. Building canonical sections…` });
         }
 
+        if (event === 'pass2_start') {
+          const message = (dataObj?.message as string | undefined) ?? 'Building canonical sections…';
+          setStatus({ kind: 'analyzing', message });
+        }
+
+        if (event === 'pass2_section') {
+          const sections = dataObj?.sections as AnalysisResult['sections'] | undefined;
+          const sections_concatenated_text =
+            (dataObj?.sections_concatenated_text as string | undefined) ?? '';
+          if (sections) {
+            setResult((prev) => {
+              if (!prev) return prev;
+              return { ...prev, sections, sections_concatenated_text };
+            });
+          }
+        }
+
+        if (event === 'pass2_done') {
+          const message = (dataObj?.message as string | undefined) ?? 'Canonical sections ready.';
+          setStatus({ kind: 'analyzing', message });
+        }
+
         if (event === 'pass3_start') {
           const message = (dataObj?.message as string | undefined) ?? 'Building audience views…';
+          setStatus({ kind: 'analyzing', message });
+        }
+
+        if (event === 'pass3_done') {
+          const message = (dataObj?.message as string | undefined) ?? 'Audience views ready.';
           setStatus({ kind: 'analyzing', message });
         }
 

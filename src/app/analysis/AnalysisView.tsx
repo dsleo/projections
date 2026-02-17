@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Search, Upload } from 'lucide-react';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
@@ -35,6 +36,7 @@ type AnalysisMode = 'core' | 'audience';
 
 export function AnalysisView({ mode }: { mode: AnalysisMode }) {
   const isAudiencePage = mode === 'audience';
+  const [showCorePdf, setShowCorePdf] = useState(false);
   const {
     file,
     status,
@@ -301,7 +303,7 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
                   aria-label="Focus highlighted sentences in PDF"
                   title="Focus highlighted sentences in PDF"
                 >
-                  🔎
+                  <Search className="h-4 w-4" aria-hidden />
                 </button>
               )}
               {!isAudiencePage &&
@@ -378,6 +380,119 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
       </div>
     );
   };
+
+  function EditableTextBlock({
+    value,
+    onChange,
+  }: {
+    value: string;
+    onChange: (next: string) => void;
+  }) {
+    const [editing, setEditing] = useState(false);
+    const [draft, setDraft] = useState(value);
+
+    useEffect(() => {
+      if (editing) return;
+      setDraft(value);
+    }, [value, editing]);
+
+    if (!editing) {
+      return (
+        <div
+          className="whitespace-pre-wrap"
+          onDoubleClick={() => {
+            setDraft(value);
+            setEditing(true);
+          }}
+          title="Double click to edit (temporary)"
+        >
+          {value}
+        </div>
+      );
+    }
+
+    return (
+      <textarea
+        className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1 text-base text-zinc-900"
+        value={draft}
+        rows={Math.max(2, Math.min(10, Math.ceil(draft.length / 90)))}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => {
+          onChange(draft);
+          setEditing(false);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            setDraft(value);
+            setEditing(false);
+          }
+          if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+            e.currentTarget.blur();
+          }
+        }}
+        autoFocus
+      />
+    );
+  }
+
+  const [supportingAbstractOverride, setSupportingAbstractOverride] = useState<string | null>(null);
+  const [supportingSegmentOverrides, setSupportingSegmentOverrides] = useState<Record<number, string>>({});
+
+  useEffect(() => {
+    // Supporting text segments change with audience tab / new results.
+    // Clear temporary edits to avoid applying overrides to the wrong segment indices.
+    setSupportingAbstractOverride(null);
+    setSupportingSegmentOverrides({});
+  }, [audienceTab, result?.audience_views]);
+
+  const supportingTextView = useMemo(() => {
+    if (!result || !isAudiencePage) return null;
+    const { abstract, segments } = audienceSupporting;
+    const abstractValue = supportingAbstractOverride ?? abstract;
+    return (
+      <div className="text-base leading-7">
+        <div className="text-xs text-zinc-500">
+          Debug view. Double click any block to edit (temporary).
+        </div>
+        <div className="mt-3 rounded-md border bg-white p-4">
+          <div className="font-semibold text-zinc-700">Abstract</div>
+          <div className="mt-2">
+            <EditableTextBlock
+              value={abstractValue}
+              onChange={(next) => setSupportingAbstractOverride(next)}
+            />
+          </div>
+        </div>
+
+        <div className="mt-3 rounded-md border bg-white p-4">
+          <div className="font-semibold text-zinc-700">Supporting segments</div>
+          {segments.length === 0 ? (
+            <div className="mt-2 text-sm text-zinc-500">No supporting sentences found.</div>
+          ) : (
+            <div className="mt-3 flex flex-col gap-3">
+              {segments.map((segment, idx) => {
+                const override = supportingSegmentOverrides[idx];
+                const value = override ?? segment.text;
+                return (
+                  <div key={`supporting-edit-${segment.startId}-${idx}`} className="rounded-md border border-zinc-100 bg-zinc-50 p-3">
+                    <div className="text-xs text-zinc-500">Sentences {segment.startId}–{segment.endId}</div>
+                    <div className="mt-2">
+                      <EditableTextBlock
+                        value={value}
+                        onChange={(next) =>
+                          setSupportingSegmentOverrides((prev) => ({ ...prev, [idx]: next }))
+                        }
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }, [result, isAudiencePage, audienceSupporting, supportingAbstractOverride, supportingSegmentOverrides]);
 
   const expandedAudienceHighlightIds = useMemo(() => {
     if (!result || pdfTab === 'original') return [];
@@ -489,6 +604,7 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
 
   const pass1Status = buildStatusLine('pass1', status, Boolean(result));
   const pass2Status = buildStatusLine('pass2', status, Boolean(result?.sections));
+  const pass3Status = buildStatusLine('pass3', status, Boolean(result?.audience_views));
 
 
   const downloadBlob = (content: string, filename: string, type: string) => {
@@ -550,12 +666,12 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="inline-flex rounded-full border bg-white p-0.5 text-[11px] text-zinc-600">
+            <div className="inline-flex rounded-full border bg-white p-1 text-sm text-zinc-600">
               <Link
                 className={
                   isAudiencePage
-                    ? 'rounded-full px-2 py-0.5 hover:bg-zinc-50'
-                    : 'rounded-full bg-zinc-900 px-2 py-0.5 text-white'
+                    ? 'rounded-full px-3 py-1.5 hover:bg-zinc-50'
+                    : 'rounded-full bg-zinc-900 px-3 py-1.5 text-white'
                 }
                 href="/analysis"
                 aria-label="Core analysis"
@@ -567,32 +683,53 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
                 <Link
                   className={
                     isAudiencePage
-                      ? 'rounded-full bg-zinc-900 px-2 py-0.5 text-white'
-                      : 'rounded-full px-2 py-0.5 hover:bg-zinc-50'
+                      ? 'rounded-full bg-zinc-900 px-3 py-1.5 text-white'
+                      : 'rounded-full px-3 py-1.5 hover:bg-zinc-50'
                   }
                   href="/analysis/audience"
                   aria-label="Audience view"
                   title="Audience view"
                 >
-                  Audience
+                  <span className="inline-flex items-center gap-2">
+                    Audience
+                    <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] text-emerald-700">
+                      Ready
+                    </span>
+                  </span>
                 </Link>
               ) : (
                 <span
-                  className="rounded-full px-2 py-0.5 text-zinc-300"
+                  className="rounded-full px-3 py-1.5 text-zinc-300"
                   aria-label="Audience view unavailable"
                   title="Audience view unavailable"
                 >
-                  Audience
+                  <span className="inline-flex items-center gap-2">
+                    Audience
+                    {pass3Status && (
+                      <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[11px] text-zinc-500">
+                        Building…
+                      </span>
+                    )}
+                  </span>
                 </span>
               )}
             </div>
+
+            {(status.kind === 'analyzing' || status.kind === 'error') && status.message ? (
+              <div className="hidden md:block text-xs text-zinc-500 max-w-[320px] truncate" title={status.message}>
+                {status.message}
+              </div>
+            ) : null}
             <Link
               className="rounded-full border px-2.5 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50"
               href="/"
               aria-label="Upload new file"
               title="Upload new file"
             >
-              ⬆︎
+              <span className="inline-flex items-center gap-2">
+                <Upload className="h-4 w-4" aria-hidden />
+                <span className="hidden sm:inline">New upload</span>
+              </span>
             </Link>
           </div>
         </div>
@@ -612,6 +749,7 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
               renderGroundedList={renderGroundedList}
               renderReadingPathText={renderReadingPathText}
               renderAudienceFullText={renderAudienceFullText}
+              showSupportingText={false}
               editable
               onUpdateAudienceViews={updateAudienceViews}
             />
@@ -635,10 +773,18 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
             variant="full"
             collapsible
             defaultOpen
+            supportingTitle="Supporting"
+            supportingContent={supportingTextView}
           />
         </main>
       ) : (
-        <main className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-6 py-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <main
+          className={
+            showCorePdf
+              ? 'mx-auto grid max-w-6xl grid-cols-1 gap-6 px-6 py-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]'
+              : 'mx-auto flex max-w-6xl flex-col gap-6 px-6 py-6'
+          }
+        >
           <section className="flex flex-col gap-4">
             <TextPanel
               result={result}
@@ -659,6 +805,9 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
               }}
               onToggleUnlabeled={() => setShowUnlabeledOnly((prev) => !prev)}
               onReRunPass1={onAnalyze}
+              showViewerButton
+              isViewerOpen={showCorePdf}
+              onToggleViewer={() => setShowCorePdf((v) => !v)}
               isSentenceProcessing={isSentenceProcessing}
               focusSentences={focusSentences}
               setLabelFilter={setLabelFilter}
@@ -690,23 +839,27 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
             />
           </section>
 
-          <PdfViewerCard
-            canCompile={
-              pdfTab === 'original'
-                ? !!file || !!result?.original_latex
-                : expandedAudienceHighlightIds.length > 0
-            }
-            status={pdfStatus}
-            pdfUrl={pdfUrl}
-            onCompile={() => {
-              void compilePdf({ force: true });
-            }}
-            selectedTab={pdfTab}
-            onTabChange={handlePdfTabChange}
-            showToggle={isAudiencePage}
-            focusSentenceIndex={focusSentenceIndex}
-            totalSentences={sentenceOrder.length || undefined}
-          />
+          {showCorePdf && (
+            <div className="lg:sticky lg:top-6 lg:self-start">
+              <PdfViewerCard
+                canCompile={
+                  pdfTab === 'original'
+                    ? !!file || !!result?.original_latex
+                    : expandedAudienceHighlightIds.length > 0
+                }
+                status={pdfStatus}
+                pdfUrl={pdfUrl}
+                onCompile={() => {
+                  void compilePdf({ force: true });
+                }}
+                selectedTab={pdfTab}
+                onTabChange={handlePdfTabChange}
+                showToggle={isAudiencePage}
+                focusSentenceIndex={focusSentenceIndex}
+                totalSentences={sentenceOrder.length || undefined}
+              />
+            </div>
+          )}
         </main>
       )}
 

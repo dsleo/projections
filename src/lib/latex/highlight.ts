@@ -3,6 +3,14 @@ import type { Sentence } from '@/lib/pipeline/client';
 const WORD_CMD = '\\dfhighlightword';
 const MATH_CMD = '\\dfhighlightmath';
 
+export const HIGHLIGHT_MACRO_BLOCK = [
+  '% Discourse pipeline highlights',
+  '\\usepackage{xcolor}',
+  `\\newcommand{${WORD_CMD}}[1]{\\begingroup\\setlength\\fboxsep{0.4pt}\\colorbox{yellow}{\\strut #1}\\endgroup}`,
+  `\\newcommand{${MATH_CMD}}[1]{\\begingroup\\setlength\\fboxsep{0.4pt}\\colorbox{yellow}{\\strut #1}\\endgroup}`,
+  '',
+].join('\n');
+
 const PAR_BREAK_RE = /\\par|\n\s*\n/;
 const DISPLAY_MATH_RE = /\$\$|\\\[|\\\]|\\begin\{(equation|align|gather|multline|eqnarray)\*?\}/;
 const INLINE_MATH_RE = /\$|\\\(|\\\)|\\\[|\\\]/;
@@ -27,13 +35,7 @@ const SKIP_COMMANDS = new Set([
 function injectMacros(latex: string) {
   const docClass = latex.indexOf('\\documentclass');
   const beginDoc = latex.indexOf('\\begin{document}');
-  const macroBlock = [
-    '% Discourse pipeline highlights',
-    '\\usepackage{xcolor}',
-    `\\newcommand{${WORD_CMD}}[1]{\\begingroup\\setlength\\fboxsep{0.4pt}\\colorbox{yellow}{\\strut #1}\\endgroup}`,
-    `\\newcommand{${MATH_CMD}}[1]{\\begingroup\\setlength\\fboxsep{0.4pt}\\colorbox{yellow}{\\strut #1}\\endgroup}`,
-    '',
-  ].join('\n');
+  const macroBlock = HIGHLIGHT_MACRO_BLOCK;
   if (docClass !== -1) {
     const lineEnd = latex.indexOf('\n', docClass);
     const insertAt = lineEnd === -1 ? latex.length : lineEnd + 1;

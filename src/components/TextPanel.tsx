@@ -1,9 +1,11 @@
 'use client';
 
 import type React from 'react';
+import { PanelRight, RefreshCw } from 'lucide-react';
 
 import type { AnalysisResult, DiscourseLabel, Sentence } from '@/lib/pipeline/client';
 import { classNames } from '@/lib/ui/classNames';
+import { IconButton } from '@/components/IconButton';
 import { LabelPill } from '@/components/LabelPill';
 import { LabelFilterBar } from '@/components/LabelFilterBar';
 
@@ -23,6 +25,9 @@ type Props = {
   onClearFilters: () => void;
   onToggleUnlabeled: () => void;
   onReRunPass1: () => void;
+  showViewerButton?: boolean;
+  isViewerOpen?: boolean;
+  onToggleViewer?: () => void;
   isSentenceProcessing: (position: number) => boolean;
   focusSentences: (ids: number[]) => void;
   setLabelFilter: (labels: DiscourseLabel[]) => void;
@@ -45,6 +50,9 @@ export function TextPanel({
   onClearFilters,
   onToggleUnlabeled,
   onReRunPass1,
+  showViewerButton = false,
+  isViewerOpen = false,
+  onToggleViewer,
   isSentenceProcessing,
   focusSentences,
   setLabelFilter,
@@ -56,20 +64,40 @@ export function TextPanel({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <span className="inline-flex items-center gap-2">
             <span>{documentTitle}</span>
-            <button
-              className="rounded-full border px-2 py-0.5 text-[11px] font-normal text-zinc-500 hover:bg-zinc-100 disabled:opacity-50"
-              type="button"
+            <span
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                onReRunPass1();
               }}
-              disabled={!result || processingWindows.length > 0}
-              aria-label="Re-run Pass 1"
-              title="Re-run Pass 1"
+              className="inline-flex"
             >
-              ⟳
-            </button>
+              <IconButton
+                icon={RefreshCw}
+                label="Re-run Pass 1"
+                onClick={onReRunPass1}
+                disabled={!result || processingWindows.length > 0}
+                size="sm"
+              />
+            </span>
+
+            {showViewerButton && (
+              <span
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                className="inline-flex"
+              >
+                <IconButton
+                  icon={PanelRight}
+                  label={isViewerOpen ? 'Hide document viewer' : 'Show document viewer'}
+                  onClick={onToggleViewer}
+                  disabled={!onToggleViewer}
+                  size="sm"
+                  className={isViewerOpen ? 'text-zinc-900 border-zinc-300' : undefined}
+                />
+              </span>
+            )}
           </span>
           {headerStatus && (
             <span className="text-xs font-normal text-zinc-500">{headerStatus}</span>
