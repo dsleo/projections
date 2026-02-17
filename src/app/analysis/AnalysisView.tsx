@@ -29,6 +29,7 @@ import {
   extractSectionHeadings,
   renderReadingPathText as renderReadingPathTextRaw,
 } from '@/lib/ui/sectionHints';
+import { buildAudienceExport } from '@/lib/ui/audienceExport';
 
 type AnalysisMode = 'core' | 'audience';
 
@@ -135,44 +136,6 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
     }
   }
 
-  async function rerunPass3Only() {
-    if (!result) return;
-    setStatus({ kind: 'analyzing', message: 'Re-running Pass 3…' });
-    try {
-      const res = await fetch('/api/analyze/pass3', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          original_latex: result.original_latex,
-          sentences: result.sentences,
-          labels: result.labels,
-          sections: result.sections,
-          document_title: result.document_title,
-          abstract: (result as { abstract?: string }).abstract,
-        }),
-      });
-      if (!res.ok) {
-        const j = await res.json().catch(() => null);
-        throw new Error(j?.error ?? `Request failed with status ${res.status}`);
-      }
-      const data = (await res.json()) as Partial<AnalysisResult>;
-      setResult((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          audience_views: data.audience_views ?? prev.audience_views,
-          sentence_citations: data.sentence_citations ?? prev.sentence_citations,
-          citations: data.citations ?? prev.citations,
-          abstract: data.abstract ?? prev.abstract,
-        };
-      });
-      setStatus({ kind: 'done' });
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Unknown error';
-      setStatus({ kind: 'error', message: msg });
-    }
-  }
-
   const documentTitle = useMemo(() => {
     if (result?.document_title?.trim()) return result.document_title.trim();
     if (result?.filename?.trim()) return result.filename.trim();
@@ -211,6 +174,10 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
   const renderReadingPathText = (text: string) => {
     if (!canonicalSectionTitles) return <MathText text={text} />;
     return <MathText text={renderReadingPathTextRaw(text, canonicalSectionTitles)} />;
+  };
+  const renderReadingPathTextPlain = (text: string) => {
+    if (!canonicalSectionTitles) return text;
+    return renderReadingPathTextRaw(text, canonicalSectionTitles);
   };
 
   const isSentenceProcessing = (position: number) =>
@@ -318,35 +285,37 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
   const renderGroundedList = (
     items: Array<{ text: string; sentence_ids?: number[] }>
   ) => (
-    <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
+    <ul className="mt-2 list-disc pl-4 text-base text-zinc-900">
       {items.map((item, idx) => (
         <li key={`grounded-${idx}`} className="mb-2">
-          <MathText text={item.text} />
-          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-            {isAudiencePage && item.sentence_ids && item.sentence_ids.length > 0 && (
-              <button
-                className="rounded-full border px-2 py-0.5 text-[10px] hover:bg-white"
-                type="button"
-                onClick={() => focusSentences(item.sentence_ids ?? [])}
-                aria-label="Focus highlighted sentences in PDF"
-                title="Focus highlighted sentences in PDF"
-              >
-                🔎
-              </button>
-            )}
-            {renderCitationActionForKeys(
-              item.sentence_ids
-                ? getCitationsForSentenceIds(item.sentence_ids).map((e) => e.key)
-                : []
-            )}
+          <div className="flex items-start gap-2">
+            <div className="min-w-0 flex-1">
+              <MathText text={item.text} />
+            </div>
+            <div className="flex items-center gap-2 text-base text-zinc-500 shrink-0">
+              {isAudiencePage && item.sentence_ids && item.sentence_ids.length > 0 && (
+                <button
+                  className="rounded-full border px-2 py-0.5 text-sm hover:bg-white"
+                  type="button"
+                  onClick={() => focusSentences(item.sentence_ids ?? [])}
+                  aria-label="Focus highlighted sentences in PDF"
+                  title="Focus highlighted sentences in PDF"
+                >
+                  🔎
+                </button>
+              )}
+              {!isAudiencePage &&
+                renderCitationActionForKeys(
+                  item.sentence_ids
+                    ? getCitationsForSentenceIds(item.sentence_ids).map((e) => e.key)
+                    : []
+                )}
+            </div>
           </div>
         </li>
       ))}
     </ul>
   );
-
-  const collectSentenceIds = (items: Array<{ sentence_ids?: number[] }>) =>
-    Array.from(new Set(items.flatMap((item) => item.sentence_ids ?? [])));
 
   const audienceSupporting = useMemo(() => {
     if (!result?.audience_views) {
@@ -376,7 +345,7 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
     if (!result) return null;
     const { abstract, segments } = audienceSupporting;
     return (
-      <div className="mt-3 rounded-md border bg-zinc-50 p-3 text-sm leading-6 whitespace-pre-wrap">
+      <div className="mt-3 rounded-md border bg-zinc-50 p-4 text-base leading-7 whitespace-pre-wrap">
         {abstract ? (
           <>
             <span className="font-semibold">Abstract</span>
@@ -520,12 +489,40 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
 
   const pass1Status = buildStatusLine('pass1', status, Boolean(result));
   const pass2Status = buildStatusLine('pass2', status, Boolean(result?.sections));
-  const pass3Status = buildStatusLine('pass3', status, Boolean(result?.audience_views));
 
 
-  const handleCopyAudienceViews = () => {
-    if (!result?.audience_views) return;
-    navigator.clipboard.writeText(JSON.stringify(result.audience_views, null, 2));
+  const downloadBlob = (content: string, filename: string, type: string) => {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const buildAudienceExportPayload = () => {
+    if (!result?.audience_views) return null;
+    return buildAudienceExport({
+      result,
+      documentTitle,
+      audienceTab,
+      renderReadingPathText: renderReadingPathTextPlain,
+    });
+  };
+
+  const handleDownloadAudienceText = () => {
+    const payload = buildAudienceExportPayload();
+    if (!payload) return;
+    downloadBlob(payload.text, `${payload.filenameBase}.txt`, 'text/plain;charset=utf-8');
+  };
+
+  const handleDownloadAudienceHtml = () => {
+    const payload = buildAudienceExportPayload();
+    if (!payload) return;
+    downloadBlob(payload.html, `${payload.filenameBase}.html`, 'text/html;charset=utf-8');
   };
 
   const focusSentences = (ids: number[]) => {
@@ -601,101 +598,117 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
         </div>
       </header>
 
-      <main className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-6 py-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <section className="flex flex-col gap-4">
-          {!isAudiencePage && (
-            <>
-              <TextPanel
-                result={result}
-                documentTitle={documentTitle}
-                renderedOriginalText={renderedOriginalText}
-                labelCounts={labelCounts}
-                unlabeledCount={unlabeledCount}
-                labelFilter={labelFilter}
-                showUnlabeledOnly={showUnlabeledOnly}
-                processingWindows={processingWindows}
-                headerStatus={pass1Status}
-                highlightedIds={highlightedIds}
-                textDetailsRef={textDetailsRef}
-                onToggleLabelFilter={toggleLabelFilter}
-                onClearFilters={() => {
-                  setLabelFilter([]);
-                  setShowUnlabeledOnly(false);
-                }}
-                onToggleUnlabeled={() => setShowUnlabeledOnly((prev) => !prev)}
-                onReRunPass1={onAnalyze}
-                isSentenceProcessing={isSentenceProcessing}
-                focusSentences={focusSentences}
-                setLabelFilter={setLabelFilter}
-                setShowUnlabeledOnly={setShowUnlabeledOnly}
-              />
-
-              <CanonicalSectionsCard
-                result={result}
-                detailsRef={canonicalDetailsRef}
-                activeTab={activeTab}
-                setActiveTab={setActiveTab}
-                statusKind={status.kind}
-                onRerunPass2={rerunPass2Only}
-                onCopyCanonical={() => {
-                  if (!result?.sections) return;
-                  navigator.clipboard.writeText(JSON.stringify(result.sections, null, 2));
-                }}
-                renderEmpty={renderEmpty}
-                renderGroundedList={renderGroundedList}
-                renderCitationAction={renderCitationAction}
-                focusSentences={focusSentences}
-                formatIdRanges={formatIdRanges}
-                formatCitationLabel={formatCitationLabel}
-                LabelPill={LabelPill}
-                focusedCitationKeys={focusedCitationKeys}
-                setFocusedCitationKeys={setFocusedCitationKeys}
-                headerStatus={pass2Status}
-                showSentenceActions={false}
-              />
-            </>
-          )}
-
-          {isAudiencePage && (
+      {isAudiencePage ? (
+        <main className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-6">
+          <section className="flex flex-col gap-4">
             <AudienceViewsCard
               result={result}
               audienceTab={audienceTab}
               setAudienceTab={handleAudienceTabChange}
               statusKind={status.kind}
-              onRerunPass3={rerunPass3Only}
-              onCopyAudienceViews={handleCopyAudienceViews}
+              onDownloadAudienceText={handleDownloadAudienceText}
+              onDownloadAudienceHtml={handleDownloadAudienceHtml}
               focusSentences={focusSentences}
               renderGroundedList={renderGroundedList}
-              renderCitationActionForKeys={renderCitationActionForKeys}
-              getCitationsForSentenceIds={getCitationsForSentenceIds}
-              collectSentenceIds={collectSentenceIds}
               renderReadingPathText={renderReadingPathText}
               renderAudienceFullText={renderAudienceFullText}
-              headerStatus={pass3Status}
               editable
               onUpdateAudienceViews={updateAudienceViews}
             />
-          )}
-        </section>
+          </section>
+          <PdfViewerCard
+            canCompile={
+              pdfTab === 'original'
+                ? !!file || !!result?.original_latex
+                : expandedAudienceHighlightIds.length > 0
+            }
+            status={pdfStatus}
+            pdfUrl={pdfUrl}
+            onCompile={() => {
+              void compilePdf({ force: true });
+            }}
+            selectedTab={pdfTab}
+            onTabChange={handlePdfTabChange}
+            showToggle
+            focusSentenceIndex={focusSentenceIndex}
+            totalSentences={sentenceOrder.length || undefined}
+            variant="full"
+            collapsible
+            defaultOpen
+          />
+        </main>
+      ) : (
+        <main className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-6 py-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <section className="flex flex-col gap-4">
+            <TextPanel
+              result={result}
+              documentTitle={documentTitle}
+              renderedOriginalText={renderedOriginalText}
+              labelCounts={labelCounts}
+              unlabeledCount={unlabeledCount}
+              labelFilter={labelFilter}
+              showUnlabeledOnly={showUnlabeledOnly}
+              processingWindows={processingWindows}
+              headerStatus={pass1Status}
+              highlightedIds={highlightedIds}
+              textDetailsRef={textDetailsRef}
+              onToggleLabelFilter={toggleLabelFilter}
+              onClearFilters={() => {
+                setLabelFilter([]);
+                setShowUnlabeledOnly(false);
+              }}
+              onToggleUnlabeled={() => setShowUnlabeledOnly((prev) => !prev)}
+              onReRunPass1={onAnalyze}
+              isSentenceProcessing={isSentenceProcessing}
+              focusSentences={focusSentences}
+              setLabelFilter={setLabelFilter}
+              setShowUnlabeledOnly={setShowUnlabeledOnly}
+            />
 
-        <PdfViewerCard
-          canCompile={
-            pdfTab === 'original'
-              ? !!file || !!result?.original_latex
-              : expandedAudienceHighlightIds.length > 0
-          }
-          status={pdfStatus}
-          pdfUrl={pdfUrl}
-          onCompile={() => {
-            void compilePdf({ force: true });
-          }}
-          selectedTab={pdfTab}
-          onTabChange={handlePdfTabChange}
-          showToggle={isAudiencePage}
-          focusSentenceIndex={focusSentenceIndex}
-          totalSentences={sentenceOrder.length || undefined}
-        />
-      </main>
+            <CanonicalSectionsCard
+              result={result}
+              detailsRef={canonicalDetailsRef}
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              statusKind={status.kind}
+              onRerunPass2={rerunPass2Only}
+              onCopyCanonical={() => {
+                if (!result?.sections) return;
+                navigator.clipboard.writeText(JSON.stringify(result.sections, null, 2));
+              }}
+              renderEmpty={renderEmpty}
+              renderGroundedList={renderGroundedList}
+              renderCitationAction={renderCitationAction}
+              focusSentences={focusSentences}
+              formatIdRanges={formatIdRanges}
+              formatCitationLabel={formatCitationLabel}
+              LabelPill={LabelPill}
+              focusedCitationKeys={focusedCitationKeys}
+              setFocusedCitationKeys={setFocusedCitationKeys}
+              headerStatus={pass2Status}
+              showSentenceActions={false}
+            />
+          </section>
+
+          <PdfViewerCard
+            canCompile={
+              pdfTab === 'original'
+                ? !!file || !!result?.original_latex
+                : expandedAudienceHighlightIds.length > 0
+            }
+            status={pdfStatus}
+            pdfUrl={pdfUrl}
+            onCompile={() => {
+              void compilePdf({ force: true });
+            }}
+            selectedTab={pdfTab}
+            onTabChange={handlePdfTabChange}
+            showToggle={isAudiencePage}
+            focusSentenceIndex={focusSentenceIndex}
+            totalSentences={sentenceOrder.length || undefined}
+          />
+        </main>
+      )}
 
       <footer className="mx-auto max-w-6xl px-6 pb-10 text-xs text-zinc-500" />
     </div>

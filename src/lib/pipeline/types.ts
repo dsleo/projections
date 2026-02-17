@@ -110,18 +110,17 @@ export type Pass3AudienceB = {
 
 export type Pass3AudienceC = {
     key_ideas: GroundedCitationItem[];
-    suggested_first_pass: string[];
-    conceptual_map: string[];
-    ignore_initially: string[];
-    permission_to_skip: string;
     problem_statement: GroundedCitationItem;
+    reading_path: {
+        read: string[];
+        skim: string[];
+        skip: string[];
+    };
 };
 
 export type Pass3AudienceD = {
     problem_statement: GroundedCitationItem;
     one_page_summary: string;
-    fragile_arguments: GroundedCitationItem[];
-    robust_arguments: GroundedCitationItem[];
     notes_to_self: string[];
 };
 

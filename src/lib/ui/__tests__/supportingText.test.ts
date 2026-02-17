@@ -70,16 +70,11 @@ describe('buildAudienceSupportingText', () => {
       grad_student: {
         problem_statement: { text: 'x', sentence_ids: [] },
         key_ideas: [],
-        conceptual_map: [],
-        suggested_first_pass: [],
-        ignore_initially: [],
-        permission_to_skip: '',
+        reading_path: { read: [], skim: [], skip: [] },
       },
       author_self: {
         problem_statement: { text: 'x', sentence_ids: [] },
         one_page_summary: '',
-        fragile_arguments: [],
-        robust_arguments: [],
         notes_to_self: [],
       },
     };
@@ -117,16 +112,11 @@ describe('buildAudienceSupportingText', () => {
       grad_student: {
         problem_statement: { text: 'x', sentence_ids: [] },
         key_ideas: [],
-        conceptual_map: [],
-        suggested_first_pass: [],
-        ignore_initially: [],
-        permission_to_skip: '',
+        reading_path: { read: [], skim: [], skip: [] },
       },
       author_self: {
         problem_statement: { text: 'x', sentence_ids: [] },
         one_page_summary: '',
-        fragile_arguments: [],
-        robust_arguments: [],
         notes_to_self: [],
       },
     };

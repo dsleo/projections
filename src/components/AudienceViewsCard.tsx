@@ -11,14 +11,10 @@ type Props = {
   audienceTab: 'A' | 'B' | 'C' | 'D';
   setAudienceTab: (tab: 'A' | 'B' | 'C' | 'D') => void;
   statusKind: 'idle' | 'uploading' | 'analyzing' | 'done' | 'error';
-  headerStatus?: React.ReactNode;
-  onRerunPass3: () => void;
-  onCopyAudienceViews: () => void;
+  onDownloadAudienceText: () => void;
+  onDownloadAudienceHtml: () => void;
   focusSentences: (ids: number[]) => void;
   renderGroundedList: (items: Array<{ text: string; sentence_ids?: number[] }>) => React.ReactElement;
-  renderCitationActionForKeys: (keys: string[]) => React.ReactElement | null;
-  getCitationsForSentenceIds: (ids: number[]) => Array<{ key: string }>;
-  collectSentenceIds: (items: Array<{ sentence_ids?: number[] }>) => number[];
   renderReadingPathText: (text: string) => React.ReactElement;
   renderAudienceFullText: () => React.ReactElement | null;
   editable?: boolean;
@@ -32,21 +28,23 @@ export function AudienceViewsCard({
   audienceTab,
   setAudienceTab,
   statusKind,
-  headerStatus,
-  onRerunPass3,
-  onCopyAudienceViews,
+  onDownloadAudienceText,
+  onDownloadAudienceHtml,
   focusSentences,
   renderGroundedList,
-  renderCitationActionForKeys,
-  getCitationsForSentenceIds,
-  collectSentenceIds,
   renderReadingPathText,
   renderAudienceFullText,
   editable = false,
   onUpdateAudienceViews,
 }: Props) {
   const audienceViews = result?.audience_views;
+  const exportDisabled = !audienceViews || statusKind === 'analyzing' || statusKind === 'uploading';
   const canEdit = Boolean(editable && onUpdateAudienceViews);
+  const gradReadingPath = audienceViews?.grad_student?.reading_path ?? {
+    read: [],
+    skim: [],
+    skip: [],
+  };
   const applyUpdate = (updater: (views: NonNullable<AnalysisResult['audience_views']>) => void) => {
     if (!canEdit || !onUpdateAudienceViews) return;
     onUpdateAudienceViews(updater);
@@ -79,7 +77,7 @@ export function AudienceViewsCard({
     if (editing) {
       return (
         <textarea
-          className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1 text-sm text-zinc-900"
+          className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1 text-base text-zinc-900"
           value={draft}
           rows={Math.max(2, Math.min(6, Math.ceil(draft.length / 80)))}
           onChange={(e) => setDraft(e.target.value)}
@@ -117,36 +115,35 @@ export function AudienceViewsCard({
         items: Array<{ text: string; sentence_ids?: number[] }>,
         onUpdateItem: (views: NonNullable<AnalysisResult['audience_views']>, idx: number, value: string) => void
       ) => (
-        <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
+        <ul className="mt-2 list-disc pl-4 text-base text-zinc-900">
           {items.map((item, idx) => (
             <li key={`aud-edit-${idx}`} className="mb-2">
-              <EditableText
-                value={item.text}
-                onSave={(next) => applyUpdate((views) => onUpdateItem(views, idx, next))}
-              />
-              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                {item.sentence_ids && item.sentence_ids.length > 0 && (
-                  <button
-                    className="rounded-full border px-2 py-0.5 text-[10px] hover:bg-white"
-                    type="button"
-                    onClick={() => focusSentences(item.sentence_ids ?? [])}
-                    aria-label="Focus highlighted sentences in PDF"
-                    title="Focus highlighted sentences in PDF"
-                  >
-                    🔎
-                  </button>
-                )}
-                {renderCitationActionForKeys(
-                  item.sentence_ids
-                    ? getCitationsForSentenceIds(item.sentence_ids).map((e) => e.key)
-                    : []
-                )}
+              <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <EditableText
+                    value={item.text}
+                    onSave={(next) => applyUpdate((views) => onUpdateItem(views, idx, next))}
+                  />
+                </div>
+                <div className="flex items-center gap-2 text-base text-zinc-500 shrink-0">
+                  {item.sentence_ids && item.sentence_ids.length > 0 && (
+                    <button
+                      className="rounded-full border px-2 py-0.5 text-sm hover:bg-white"
+                      type="button"
+                      onClick={() => focusSentences(item.sentence_ids ?? [])}
+                      aria-label="Focus highlighted sentences in PDF"
+                      title="Focus highlighted sentences in PDF"
+                    >
+                      🔎
+                    </button>
+                  )}
+                </div>
               </div>
             </li>
           ))}
         </ul>
       ),
-    [applyUpdate, focusSentences, getCitationsForSentenceIds, renderCitationActionForKeys]
+    [applyUpdate, focusSentences]
   );
 
   const renderEditableStringList = useMemo(
@@ -156,7 +153,7 @@ export function AudienceViewsCard({
         onUpdateItem: (views: NonNullable<AnalysisResult['audience_views']>, idx: number, value: string) => void,
         renderDisplay?: (value: string) => React.ReactElement
       ) => (
-        <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
+        <ul className="mt-2 list-disc pl-4 text-base text-zinc-900">
           {items.map((item, idx) => (
             <li key={`aud-str-${idx}`} className="mb-2">
               <EditableText
@@ -184,7 +181,7 @@ export function AudienceViewsCard({
     canEdit ? (
       renderEditableStringList(items, onUpdateItem, renderDisplay)
     ) : (
-      <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
+      <ul className="mt-2 list-disc pl-4 text-base text-zinc-900">
         {items.map((item, idx) => (
           <li key={`aud-str-${idx}`} className="mb-2">
             {renderDisplay ? renderDisplay(item) : <MathText text={item} />}
@@ -193,50 +190,47 @@ export function AudienceViewsCard({
       </ul>
     );
 
+  const renderContributionSummary = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return <MathText text={value} />;
+    const tokens = trimmed.split(
+      /\b(Main results|Technical core|Optimality|Methods|Results|Conclusion)\s*:/gi
+    );
+    if (tokens.length < 2) {
+      return <MathText text={value} />;
+    }
+    const sections: Array<{ title: string; body: string }> = [];
+    for (let i = 1; i < tokens.length; i += 2) {
+      const title = tokens[i].trim();
+      const body = (tokens[i + 1] ?? '').trim();
+      if (!title || !body) continue;
+      sections.push({ title, body });
+    }
+    if (sections.length === 0) return <MathText text={value} />;
+    const capitalizeFirst = (input: string) => {
+      if (!input) return input;
+      return input[0].toUpperCase() + input.slice(1);
+    };
+    return (
+      <div className="flex flex-col gap-3">
+        {sections.map((section, idx) => (
+          <div key={`${section.title}-${idx}`}>
+            <div className="text-base font-semibold text-zinc-600">{section.title}</div>
+            <div className="mt-1 text-base text-zinc-900">
+              <MathText text={capitalizeFirst(section.body)} />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
-    <details className="rounded-lg border bg-white" open>
-      <summary className="flex cursor-pointer items-center border-b px-4 py-3 text-sm font-semibold">
-        <div className="flex flex-1 flex-wrap items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-2">
-            <span>Audience views</span>
-            <button
-              className="rounded-full border px-2 py-0.5 text-[11px] font-normal text-zinc-500 hover:bg-zinc-100 disabled:opacity-50"
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onRerunPass3();
-              }}
-              disabled={!result || statusKind === 'analyzing' || statusKind === 'uploading'}
-              aria-label="Re-run Pass 3"
-              title="Re-run Pass 3"
-            >
-              ⟳
-            </button>
-            <button
-              className="rounded-full border px-2 py-0.5 text-[11px] text-zinc-500 hover:bg-zinc-100"
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (!audienceViews) return;
-                onCopyAudienceViews();
-              }}
-              aria-label="Copy audience view JSON"
-              title="Copy audience view JSON"
-            >
-              ⧉
-            </button>
-          </span>
-          {headerStatus && (
-            <span className="text-xs font-normal text-zinc-500">{headerStatus}</span>
-          )}
-        </div>
-      </summary>
-      <div className="grid grid-cols-1 gap-4 p-4">
-        {!audienceViews && <div className="text-sm text-zinc-500">No data.</div>}
-        {audienceViews && (
-          <>
+    <div className="grid grid-cols-1 gap-4 text-base text-zinc-900">
+      {!audienceViews && <div className="text-base text-zinc-500">No data.</div>}
+      {audienceViews && (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap gap-2">
               {[
                 { id: 'A', label: 'Domain Expert' },
@@ -248,8 +242,8 @@ export function AudienceViewsCard({
                   key={tab.id}
                   className={
                     audienceTab === tab.id
-                      ? 'rounded-full border border-zinc-900 bg-zinc-900 px-3 py-1 text-xs text-white'
-                      : 'rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs text-zinc-600 hover:bg-zinc-50'
+                      ? 'rounded-full border border-zinc-900 bg-zinc-900 px-3 py-1 text-base text-white'
+                      : 'rounded-full border border-zinc-200 bg-white px-3 py-1 text-base text-zinc-600 hover:bg-zinc-50'
                   }
                   onClick={() => setAudienceTab(tab.id as typeof audienceTab)}
                   type="button"
@@ -258,50 +252,84 @@ export function AudienceViewsCard({
                 </button>
               ))}
             </div>
+            <div className="flex items-center gap-2">
+              <details className="relative">
+                <summary
+                  className={`list-none rounded-full border px-2 py-1 text-base font-normal text-zinc-500 hover:bg-zinc-100 [&::-webkit-details-marker]:hidden ${
+                    exportDisabled ? 'opacity-50' : ''
+                  }`}
+                  aria-label="Download audience view"
+                  title="Download audience view"
+                  onClick={(e) => {
+                    if (exportDisabled) {
+                      e.preventDefault();
+                    }
+                  }}
+                >
+                  ⤓
+                </summary>
+                <div className="absolute right-0 z-10 mt-2 w-40 rounded-md border bg-white p-1 text-base shadow">
+                  <button
+                    className="block w-full rounded px-2 py-2 text-left text-zinc-700 hover:bg-zinc-50 disabled:text-zinc-300"
+                    type="button"
+                    onClick={onDownloadAudienceText}
+                    disabled={exportDisabled}
+                  >
+                    Download TXT
+                  </button>
+                  <button
+                    className="block w-full rounded px-2 py-2 text-left text-zinc-700 hover:bg-zinc-50 disabled:text-zinc-300"
+                    type="button"
+                    onClick={onDownloadAudienceHtml}
+                    disabled={exportDisabled}
+                  >
+                    Download HTML
+                  </button>
+                </div>
+              </details>
+            </div>
+          </div>
 
-            <div className="rounded-md border bg-white p-3 max-h-[42vh] overflow-auto">
+            <div className="rounded-md border bg-white p-4 text-base">
               {audienceTab === 'A' && (
                 <>
                   <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                    <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                    <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
                       Problem statement
                     </div>
-                    <div className="mt-2 text-sm text-zinc-900">
-                      <EditableText
-                        value={audienceViews.domain_expert.problem_statement?.text ?? ''}
-                        onSave={(next) =>
-                          applyUpdate((views) => {
-                            views.domain_expert.problem_statement.text = next;
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                      {audienceViews.domain_expert.problem_statement?.sentence_ids?.length ? (
-                        <button
-                          className="rounded-full border px-2 py-0.5 text-[10px] hover:bg-white"
-                          type="button"
-                          onClick={() =>
-                            focusSentences(
-                              audienceViews.domain_expert.problem_statement!.sentence_ids
-                            )
+                    <div className="mt-2 flex items-start gap-2">
+                      <div className="min-w-0 flex-1 text-base text-zinc-900">
+                        <EditableText
+                          value={audienceViews.domain_expert.problem_statement?.text ?? ''}
+                          onSave={(next) =>
+                            applyUpdate((views) => {
+                              views.domain_expert.problem_statement.text = next;
+                            })
                           }
-                          aria-label="Focus highlighted sentences in PDF"
-                          title="Focus highlighted sentences in PDF"
-                        >
-                          🔎
-                        </button>
-                      ) : null}
-                      {renderCitationActionForKeys(
-                        getCitationsForSentenceIds(
-                          audienceViews.domain_expert.problem_statement?.sentence_ids ?? []
-                        ).map((e) => e.key)
-                      )}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2 text-base text-zinc-500 shrink-0">
+                        {audienceViews.domain_expert.problem_statement?.sentence_ids?.length ? (
+                          <button
+                            className="rounded-full border px-2 py-0.5 text-sm hover:bg-white"
+                            type="button"
+                            onClick={() =>
+                              focusSentences(
+                                audienceViews.domain_expert.problem_statement!.sentence_ids
+                              )
+                            }
+                            aria-label="Focus highlighted sentences in PDF"
+                            title="Focus highlighted sentences in PDF"
+                          >
+                            🔎
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
 
                   <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                    <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                    <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
                       Delta summary
                     </div>
                     {renderGroundedListMaybe(audienceViews.domain_expert.delta_summary, (views, idx, next) => {
@@ -309,30 +337,47 @@ export function AudienceViewsCard({
                     })}
                   </div>
 
-                  <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                    <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                      Technical highlights
+                  {(audienceViews.domain_expert.technical_highlights.nonstandard_ideas.length > 0 ||
+                    audienceViews.domain_expert.technical_highlights.clever_reductions.length > 0) && (
+                    <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+                      <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
+                        Technical highlights
+                      </div>
+                      {audienceViews.domain_expert.technical_highlights.nonstandard_ideas.length >
+                        0 && (
+                        <>
+                          <div className="mt-2 text-base font-semibold text-zinc-500">
+                            Nonstandard ideas
+                          </div>
+                          {renderGroundedListMaybe(
+                            audienceViews.domain_expert.technical_highlights.nonstandard_ideas,
+                            (views, idx, next) => {
+                              views.domain_expert.technical_highlights.nonstandard_ideas[idx].text =
+                                next;
+                            }
+                          )}
+                        </>
+                      )}
+                      {audienceViews.domain_expert.technical_highlights.clever_reductions.length >
+                        0 && (
+                        <>
+                          <div className="mt-3 text-base font-semibold text-zinc-500">
+                            Clever reductions
+                          </div>
+                          {renderGroundedListMaybe(
+                            audienceViews.domain_expert.technical_highlights.clever_reductions,
+                            (views, idx, next) => {
+                              views.domain_expert.technical_highlights.clever_reductions[idx].text =
+                                next;
+                            }
+                          )}
+                        </>
+                      )}
                     </div>
-                    <div className="mt-2 text-xs font-semibold text-zinc-500">Nonstandard ideas</div>
-                    {renderGroundedListMaybe(
-                      audienceViews.domain_expert.technical_highlights.nonstandard_ideas,
-                      (views, idx, next) => {
-                        views.domain_expert.technical_highlights.nonstandard_ideas[idx].text = next;
-                      }
-                    )}
-                    <div className="mt-3 text-xs font-semibold text-zinc-500">
-                      Clever reductions
-                    </div>
-                    {renderGroundedListMaybe(
-                      audienceViews.domain_expert.technical_highlights.clever_reductions,
-                      (views, idx, next) => {
-                        views.domain_expert.technical_highlights.clever_reductions[idx].text = next;
-                      }
-                    )}
-                  </div>
+                  )}
 
                   <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                    <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                    <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
                       Reusable components
                     </div>
                     {renderGroundedListMaybe(audienceViews.domain_expert.reusable_components, (views, idx, next) => {
@@ -345,45 +390,42 @@ export function AudienceViewsCard({
               {audienceTab === 'B' && (
                 <>
                   <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                    <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                      Problem statement (plain math)
+                    <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
+                      Problem statement
                     </div>
-                    <div className="mt-2 text-sm text-zinc-900">
-                      <EditableText
-                        value={audienceViews.adjacent_researcher.problem_statement.text}
-                        onSave={(next) =>
-                          applyUpdate((views) => {
-                            views.adjacent_researcher.problem_statement.text = next;
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                      {audienceViews.adjacent_researcher.problem_statement?.sentence_ids?.length ? (
-                        <button
-                          className="rounded-full border px-2 py-0.5 text-[10px] hover:bg-white"
-                          type="button"
-                          onClick={() =>
-                            focusSentences(
-                              audienceViews.adjacent_researcher.problem_statement.sentence_ids
-                            )
+                    <div className="mt-2 flex items-start gap-2">
+                      <div className="min-w-0 flex-1 text-base text-zinc-900">
+                        <EditableText
+                          value={audienceViews.adjacent_researcher.problem_statement.text}
+                          onSave={(next) =>
+                            applyUpdate((views) => {
+                              views.adjacent_researcher.problem_statement.text = next;
+                            })
                           }
-                          aria-label="Focus highlighted sentences in PDF"
-                          title="Focus highlighted sentences in PDF"
-                        >
-                          🔎
-                        </button>
-                      ) : null}
-                      {renderCitationActionForKeys(
-                        getCitationsForSentenceIds(
-                          audienceViews.adjacent_researcher.problem_statement.sentence_ids ?? []
-                        ).map((e) => e.key)
-                      )}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2 text-base text-zinc-500 shrink-0">
+                        {audienceViews.adjacent_researcher.problem_statement?.sentence_ids?.length ? (
+                          <button
+                            className="rounded-full border px-2 py-0.5 text-sm hover:bg-white"
+                            type="button"
+                            onClick={() =>
+                              focusSentences(
+                                audienceViews.adjacent_researcher.problem_statement.sentence_ids
+                              )
+                            }
+                            aria-label="Focus highlighted sentences in PDF"
+                            title="Focus highlighted sentences in PDF"
+                          >
+                            🔎
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
 
                   <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                    <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                    <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
                       Why this matters
                     </div>
                     {renderGroundedListMaybe(
@@ -395,7 +437,7 @@ export function AudienceViewsCard({
                   </div>
 
                   <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                    <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                    <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
                       Prerequisite map
                     </div>
                     {renderStringListMaybe(
@@ -408,10 +450,10 @@ export function AudienceViewsCard({
                   </div>
 
                   <div className="rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                    <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                    <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
                       Reading path
                     </div>
-                    <div className="mt-2 text-xs font-semibold text-zinc-500">Read</div>
+                    <div className="mt-2 text-base font-semibold text-zinc-500">Read</div>
                     {renderStringListMaybe(
                       audienceViews.adjacent_researcher.reading_path.read,
                       (views, idx, next) => {
@@ -419,7 +461,7 @@ export function AudienceViewsCard({
                       },
                       renderReadingPathText
                     )}
-                    <div className="mt-2 text-xs font-semibold text-zinc-500">Skim</div>
+                    <div className="mt-2 text-base font-semibold text-zinc-500">Skim</div>
                     {renderStringListMaybe(
                       audienceViews.adjacent_researcher.reading_path.skim,
                       (views, idx, next) => {
@@ -427,7 +469,7 @@ export function AudienceViewsCard({
                       },
                       renderReadingPathText
                     )}
-                    <div className="mt-2 text-xs font-semibold text-zinc-500">Skip</div>
+                    <div className="mt-2 text-base font-semibold text-zinc-500">Skip</div>
                     {renderStringListMaybe(
                       audienceViews.adjacent_researcher.reading_path.skip,
                       (views, idx, next) => {
@@ -442,110 +484,86 @@ export function AudienceViewsCard({
               {audienceTab === 'C' && (
                 <>
                   <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                    <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                    <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
                       Problem statement
                     </div>
-                    <div className="mt-2 text-sm text-zinc-900">
-                      <EditableText
-                        value={audienceViews.grad_student.problem_statement?.text ?? ''}
-                        onSave={(next) =>
-                          applyUpdate((views) => {
-                            views.grad_student.problem_statement.text = next;
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                      {audienceViews.grad_student.problem_statement?.sentence_ids?.length ? (
-                        <button
-                          className="rounded-full border px-2 py-0.5 text-[10px] hover:bg-white"
-                          type="button"
-                          onClick={() =>
-                            focusSentences(
-                              audienceViews.grad_student.problem_statement!.sentence_ids
-                            )
+                    <div className="mt-2 flex items-start gap-2">
+                      <div className="min-w-0 flex-1 text-base text-zinc-900">
+                        <EditableText
+                          value={audienceViews.grad_student.problem_statement?.text ?? ''}
+                          onSave={(next) =>
+                            applyUpdate((views) => {
+                              views.grad_student.problem_statement.text = next;
+                            })
                           }
-                          aria-label="Focus highlighted sentences in PDF"
-                          title="Focus highlighted sentences in PDF"
-                        >
-                          🔎
-                        </button>
-                      ) : null}
-                      {renderCitationActionForKeys(
-                        getCitationsForSentenceIds(
-                          audienceViews.grad_student.problem_statement?.sentence_ids ?? []
-                        ).map((e) => e.key)
-                      )}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2 text-base text-zinc-500 shrink-0">
+                        {audienceViews.grad_student.problem_statement?.sentence_ids?.length ? (
+                          <button
+                            className="rounded-full border px-2 py-0.5 text-sm hover:bg-white"
+                            type="button"
+                            onClick={() =>
+                              focusSentences(
+                                audienceViews.grad_student.problem_statement!.sentence_ids
+                              )
+                            }
+                            aria-label="Focus highlighted sentences in PDF"
+                            title="Focus highlighted sentences in PDF"
+                          >
+                            🔎
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
 
                   <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                    <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                      Conceptual map
+                    <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
+                      Reading path
                     </div>
+                    <div className="mt-2 text-base font-semibold text-zinc-500">Read</div>
                     {renderStringListMaybe(
-                      audienceViews.grad_student.conceptual_map,
+                      gradReadingPath.read,
                       (views, idx, next) => {
-                        views.grad_student.conceptual_map[idx] = next;
+                        if (!views.grad_student.reading_path) {
+                          views.grad_student.reading_path = { read: [], skim: [], skip: [] };
+                        }
+                        views.grad_student.reading_path.read[idx] = next;
+                      },
+                      renderReadingPathText
+                    )}
+                    <div className="mt-2 text-base font-semibold text-zinc-500">Skim</div>
+                    {renderStringListMaybe(
+                      gradReadingPath.skim,
+                      (views, idx, next) => {
+                        if (!views.grad_student.reading_path) {
+                          views.grad_student.reading_path = { read: [], skim: [], skip: [] };
+                        }
+                        views.grad_student.reading_path.skim[idx] = next;
+                      },
+                      renderReadingPathText
+                    )}
+                    <div className="mt-2 text-base font-semibold text-zinc-500">Skip</div>
+                    {renderStringListMaybe(
+                      gradReadingPath.skip,
+                      (views, idx, next) => {
+                        if (!views.grad_student.reading_path) {
+                          views.grad_student.reading_path = { read: [], skim: [], skip: [] };
+                        }
+                        views.grad_student.reading_path.skip[idx] = next;
                       },
                       renderReadingPathText
                     )}
                   </div>
 
                   <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                    <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                      Suggested first pass
-                    </div>
-                    {renderStringListMaybe(
-                      audienceViews.grad_student.suggested_first_pass,
-                      (views, idx, next) => {
-                        views.grad_student.suggested_first_pass[idx] = next;
-                      },
-                      renderReadingPathText
-                    )}
-                  </div>
-
-                  <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                    <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                    <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
                       Key ideas before technicalities
                     </div>
                     {renderGroundedListMaybe(audienceViews.grad_student.key_ideas, (views, idx, next) => {
                       views.grad_student.key_ideas[idx].text = next;
                     })}
-                    {renderCitationActionForKeys(
-                      getCitationsForSentenceIds(
-                        collectSentenceIds(audienceViews.grad_student.key_ideas)
-                      ).map((e) => e.key)
-                    )}
-                  </div>
-
-                  <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                    <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                      What to ignore initially
-                    </div>
-                    {renderStringListMaybe(
-                      audienceViews.grad_student.ignore_initially,
-                      (views, idx, next) => {
-                        views.grad_student.ignore_initially[idx] = next;
-                      },
-                      renderReadingPathText
-                    )}
-                  </div>
-
-                  <div className="rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                    <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                      Permission to skip
-                    </div>
-                    <div className="mt-2 text-sm text-zinc-900">
-                      <EditableText
-                        value={audienceViews.grad_student.permission_to_skip}
-                        onSave={(next) =>
-                          applyUpdate((views) => {
-                            views.grad_student.permission_to_skip = next;
-                          })
-                        }
-                      />
-                    </div>
                   </div>
                 </>
               )}
@@ -553,50 +571,48 @@ export function AudienceViewsCard({
               {audienceTab === 'D' && (
                 <>
                   <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                    <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                    <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
                       Problem statement
                     </div>
-                    <div className="mt-2 text-sm text-zinc-900">
-                      <EditableText
-                        value={audienceViews.author_self.problem_statement?.text ?? ''}
-                        onSave={(next) =>
-                          applyUpdate((views) => {
-                            views.author_self.problem_statement.text = next;
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                      {audienceViews.author_self.problem_statement?.sentence_ids?.length ? (
-                        <button
-                          className="rounded-full border px-2 py-0.5 text-[10px] hover:bg-white"
-                          type="button"
-                          onClick={() =>
-                            focusSentences(
-                              audienceViews.author_self.problem_statement!.sentence_ids
-                            )
+                    <div className="mt-2 flex items-start gap-2">
+                      <div className="min-w-0 flex-1 text-base text-zinc-900">
+                        <EditableText
+                          value={audienceViews.author_self.problem_statement?.text ?? ''}
+                          onSave={(next) =>
+                            applyUpdate((views) => {
+                              views.author_self.problem_statement.text = next;
+                            })
                           }
-                          aria-label="Focus highlighted sentences in PDF"
-                          title="Focus highlighted sentences in PDF"
-                        >
-                          🔎
-                        </button>
-                      ) : null}
-                      {renderCitationActionForKeys(
-                        getCitationsForSentenceIds(
-                          audienceViews.author_self.problem_statement?.sentence_ids ?? []
-                        ).map((e) => e.key)
-                      )}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2 text-base text-zinc-500 shrink-0">
+                        {audienceViews.author_self.problem_statement?.sentence_ids?.length ? (
+                          <button
+                            className="rounded-full border px-2 py-0.5 text-sm hover:bg-white"
+                            type="button"
+                            onClick={() =>
+                              focusSentences(
+                                audienceViews.author_self.problem_statement!.sentence_ids
+                              )
+                            }
+                            aria-label="Focus highlighted sentences in PDF"
+                            title="Focus highlighted sentences in PDF"
+                          >
+                            🔎
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
 
                   <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                    <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                      One-page contribution summary
+                    <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
+                      Contribution Summary
                     </div>
-                    <div className="mt-2 text-sm text-zinc-900">
+                    <div className="mt-2 text-base text-zinc-900">
                       <EditableText
                         value={audienceViews.author_self.one_page_summary}
+                        renderDisplay={renderContributionSummary}
                         onSave={(next) =>
                           applyUpdate((views) => {
                             views.author_self.one_page_summary = next;
@@ -606,57 +622,33 @@ export function AudienceViewsCard({
                     </div>
                   </div>
 
-                  <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                    <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                      Fragile arguments
-                    </div>
-                    {renderGroundedListMaybe(audienceViews.author_self.fragile_arguments, (views, idx, next) => {
-                      views.author_self.fragile_arguments[idx].text = next;
-                    })}
-                    {renderCitationActionForKeys(
-                      getCitationsForSentenceIds(
-                        collectSentenceIds(audienceViews.author_self.fragile_arguments)
-                      ).map((e) => e.key)
-                    )}
-                  </div>
-
-                  <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                    <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                      Robust arguments
-                    </div>
-                    {renderGroundedListMaybe(audienceViews.author_self.robust_arguments, (views, idx, next) => {
-                      views.author_self.robust_arguments[idx].text = next;
-                    })}
-                    {renderCitationActionForKeys(
-                      getCitationsForSentenceIds(
-                        collectSentenceIds(audienceViews.author_self.robust_arguments)
-                      ).map((e) => e.key)
-                    )}
-                  </div>
-
                   <div className="rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                    <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                    <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
                       Notes to self
                     </div>
-                    {renderStringListMaybe(
-                      audienceViews.author_self.notes_to_self,
-                      (views, idx, next) => {
-                        views.author_self.notes_to_self[idx] = next;
-                      }
-                    )}
+                    <div className="mt-2 text-base text-zinc-900">
+                      <EditableText
+                        value={audienceViews.author_self.notes_to_self?.[0] ?? ''}
+                        onSave={(next) =>
+                          applyUpdate((views) => {
+                            const trimmed = next.trim();
+                            views.author_self.notes_to_self = trimmed ? [trimmed] : [];
+                          })
+                        }
+                      />
+                    </div>
                   </div>
                 </>
               )}
             </div>
-            <details className="rounded-md border bg-white">
-              <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-zinc-600">
-                Supporting text
-              </summary>
-              {renderAudienceFullText()}
-            </details>
-          </>
-        )}
-      </div>
-    </details>
+          <details className="rounded-md border bg-white">
+            <summary className="cursor-pointer px-3 py-2 text-base font-semibold text-zinc-600">
+              Supporting text
+            </summary>
+            {renderAudienceFullText()}
+          </details>
+        </>
+      )}
+    </div>
   );
 }

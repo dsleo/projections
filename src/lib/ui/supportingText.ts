@@ -80,8 +80,6 @@ function collectAudienceSentenceIds(
     add(v.grad_student.key_ideas);
   } else if (tab === 'D') {
     addOne(v.author_self.problem_statement);
-    add(v.author_self.fragile_arguments);
-    add(v.author_self.robust_arguments);
   }
   return Array.from(ids).sort((a, b) => a - b);
 }

@@ -94,17 +94,16 @@ export const Pass3AudienceBSchema = z.object({
 
 export const Pass3AudienceCSchema = z.object({
     key_ideas: z.array(GroundedCitationItemSchema),
-    suggested_first_pass: z.array(z.string()),
-    conceptual_map: z.array(z.string()),
-    ignore_initially: z.array(z.string()),
-    permission_to_skip: z.string(),
     problem_statement: GroundedCitationItemSchema,
+    reading_path: z.object({
+        read: z.array(z.string()),
+        skim: z.array(z.string()),
+        skip: z.array(z.string()),
+    }),
 });
 
 export const Pass3AudienceDSchema = z.object({
     problem_statement: GroundedCitationItemSchema,
     one_page_summary: z.string(),
-    fragile_arguments: z.array(GroundedCitationItemSchema),
-    robust_arguments: z.array(GroundedCitationItemSchema),
-    notes_to_self: z.array(z.string()),
+    notes_to_self: z.array(z.string()).optional().default([]),
 });

@@ -18,6 +18,9 @@ type Props = {
   showToggle?: boolean;
   focusSentenceIndex?: number | null;
   totalSentences?: number;
+  variant?: 'default' | 'full';
+  collapsible?: boolean;
+  defaultOpen?: boolean;
 };
 
 type PdfDocument = {
@@ -106,10 +109,14 @@ export function PdfViewerCard({
   showToggle = true,
   focusSentenceIndex,
   totalSentences,
+  variant = 'default',
+  collapsible = false,
+  defaultOpen = true,
 }: Props) {
   const [doc, setDoc] = useState<PdfDocument | null>(null);
   const [pageCount, setPageCount] = useState(0);
   const pageRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const [isOpen, setIsOpen] = useState(defaultOpen);
   const downloadName =
     selectedTab === 'original' ? 'paper-original.pdf' : `paper-supporting-${selectedTab}.pdf`;
   const showOriginal = selectedTab === 'original';
@@ -150,20 +157,36 @@ export function PdfViewerCard({
   useEffect(() => {
     if (focusSentenceIndex == null) return;
     if (!pageCount || !totalSentences) return;
+    if (collapsible && !isOpen) return;
     const ratio = (focusSentenceIndex + 1) / totalSentences;
     const targetPage = Math.min(pageCount, Math.max(1, Math.round(ratio * pageCount)));
     const target = pageRefs.current[targetPage - 1];
     if (!target) return;
     target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, [focusSentenceIndex, pageCount, totalSentences, pdfUrl]);
+  }, [focusSentenceIndex, pageCount, totalSentences, pdfUrl, collapsible, isOpen]);
+  const containerClass =
+    variant === 'full'
+      ? 'rounded-lg border bg-white p-5 flex flex-col min-h-[60vh] w-full text-base'
+      : 'rounded-lg border bg-white p-4 flex flex-col min-h-[60vh] w-full lg:w-[560px]';
   return (
-    <section className="rounded-lg border bg-white p-4 flex flex-col min-h-[60vh] w-full lg:w-[560px]">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2 text-sm font-semibold">
+    <section className={containerClass}>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2 font-semibold">
         <span>PDF preview</span>
         <div className="flex items-center gap-2">
+          {collapsible && (
+            <button
+              className="rounded-full border px-2 py-1 font-normal text-zinc-500 hover:bg-zinc-100"
+              type="button"
+              onClick={() => setIsOpen((prev) => !prev)}
+              aria-label={isOpen ? 'Hide PDF' : 'Show PDF'}
+              title={isOpen ? 'Hide PDF' : 'Show PDF'}
+            >
+              {isOpen ? 'Hide' : 'Show'}
+            </button>
+          )}
           {showToggle && (
             <button
-              className="rounded-full border px-2 py-0.5 text-[11px] font-normal text-zinc-500 hover:bg-zinc-100"
+              className="rounded-full border px-2 py-1 font-normal text-zinc-500 hover:bg-zinc-100"
               type="button"
               onClick={() => onTabChange(showOriginal ? 'audience' : 'original')}
               aria-label={toggleLabel}
@@ -173,7 +196,7 @@ export function PdfViewerCard({
             </button>
           )}
           <button
-            className="rounded-full border px-2 py-0.5 text-[11px] font-normal text-zinc-500 hover:bg-zinc-100 disabled:opacity-50"
+            className="rounded-full border px-2 py-1 font-normal text-zinc-500 hover:bg-zinc-100 disabled:opacity-50"
             type="button"
             onClick={onCompile}
             disabled={!canCompile || status.kind === 'compiling'}
@@ -184,7 +207,7 @@ export function PdfViewerCard({
           </button>
           {pdfUrl ? (
             <a
-              className="rounded-full border px-2 py-0.5 text-[11px] font-normal text-zinc-500 hover:bg-zinc-100"
+              className="rounded-full border px-2 py-1 font-normal text-zinc-500 hover:bg-zinc-100"
               href={pdfUrl}
               download={downloadName}
               aria-label="Download PDF"
@@ -194,7 +217,7 @@ export function PdfViewerCard({
             </a>
           ) : (
             <button
-              className="rounded-full border px-2 py-0.5 text-[11px] font-normal text-zinc-300"
+              className="rounded-full border px-2 py-1 font-normal text-zinc-300"
               type="button"
               disabled
               aria-label="Download PDF"
@@ -205,33 +228,35 @@ export function PdfViewerCard({
           )}
         </div>
       </div>
-      <div className="mt-2 text-xs text-zinc-500">
+      <div className="mt-2 text-base text-zinc-500">
         {status.kind === 'idle' && 'No PDF rendered yet.'}
         {status.kind === 'compiling' && 'Compiling with TeX engine…'}
         {status.kind === 'error' && <span className="text-red-700">Error: {status.message}</span>}
       </div>
-      <div className="mt-3 flex-1 rounded-md border bg-zinc-50 overflow-auto max-h-[75vh]">
-        {!pdfUrl && (
-          <div className="flex h-full items-center justify-center text-sm text-zinc-400">
-            No PDF rendered yet.
-          </div>
-        )}
-        {pdfUrl && doc && (
-          <div className="p-3">
-            {Array.from({ length: pageCount }, (_, idx) => idx + 1).map((pageNumber) => (
-              <PdfPage
-                key={`pdf-page-${pageNumber}`}
-                doc={doc}
-                pageNumber={pageNumber}
-                scale={1.2}
-                containerRef={(el) => {
-                  pageRefs.current[pageNumber - 1] = el;
-                }}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      {(!collapsible || isOpen) && (
+        <div className="mt-3 flex-1 rounded-md border bg-zinc-50 overflow-auto max-h-[75vh]">
+          {!pdfUrl && (
+            <div className="flex h-full items-center justify-center text-base text-zinc-400">
+              No PDF rendered yet.
+            </div>
+          )}
+          {pdfUrl && doc && (
+            <div className="p-3">
+              {Array.from({ length: pageCount }, (_, idx) => idx + 1).map((pageNumber) => (
+                <PdfPage
+                  key={`pdf-page-${pageNumber}`}
+                  doc={doc}
+                  pageNumber={pageNumber}
+                  scale={1.2}
+                  containerRef={(el) => {
+                    pageRefs.current[pageNumber - 1] = el;
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </section>
   );
 }

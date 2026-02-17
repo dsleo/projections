@@ -89,7 +89,7 @@ Rules:
 - If the provided sentences do not contain explicit material supporting a field, return an empty list for that field.
 - Do not generate inferred or implicit content. Empty output is valid.
 - Avoid extracting more than 3–5 top-level items per field unless clearly justified by distinct content.
-- Preserve any mathematical expressions using LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]).
+- All mathematical expressions must be wrapped in $...$ (inline) or $$...$$ (display). Do not use \\(...\\) or \\[...\\).
 - Do not invent content.
 - Be precise.
 - Output STRICT JSON with this shape:
@@ -112,7 +112,7 @@ Rules:
 - If the provided sentences do not contain explicit material supporting a field, return an empty list for that field.
 - Do not generate inferred or implicit content. Empty output is valid.
 - Avoid extracting more than 3–5 top-level items per field unless clearly justified by distinct content.
-- Preserve any mathematical expressions using LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]).
+- All mathematical expressions must be wrapped in $...$ (inline) or $$...$$ (display). Do not use \\(...\\) or \\[...\\).
 - Do not invent content.
 - Be precise.
 - Output STRICT JSON with this shape:
@@ -137,7 +137,7 @@ Rules:
 - If the provided sentences do not contain explicit material supporting a field, return an empty list for that field.
 - Do not generate inferred or implicit content. Empty output is valid.
 - Avoid extracting more than 3–5 top-level items per field unless clearly justified by distinct content.
-- Preserve any mathematical expressions using LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]).
+- All mathematical expressions must be wrapped in $...$ (inline) or $$...$$ (display). Do not use \\(...\\) or \\[...\\).
 - Do not invent content.
 - Be precise.
 - Output STRICT JSON with this shape:
@@ -158,7 +158,7 @@ Rules:
 - If the provided sentences do not contain explicit material supporting a field, return an empty list for that field.
 - Do not generate inferred or implicit content. Empty output is valid.
 - Avoid extracting more than 3–5 top-level items per field unless clearly justified by distinct content.
-- Preserve any mathematical expressions using LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]).
+- All mathematical expressions must be wrapped in $...$ (inline) or $$...$$ (display). Do not use \\(...\\) or \\[...\\).
 - Do not invent content.
 - Be precise.
 - Output STRICT JSON with this shape:
@@ -216,7 +216,7 @@ Rules:
 - Do not invent content.
 - sentence_ids must come from the canonical sections; include all supporting sentence_ids.
 - Do not mention sentence IDs or ranges in any text field.
-- Preserve any mathematical expressions using LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]).
+- All mathematical expressions must be wrapped in $...$ (inline) or $$...$$ (display). Do not use \\(...\\) or \\[...\\).
 - If a field has no explicit support, return an empty list or empty text.
 - Keep items concise and high-signal.
 - Suppress motivation fluff and background definitions in your content selection.
@@ -244,7 +244,7 @@ Rules:
 - Do not invent content.
 - sentence_ids must come from the canonical sections; include all supporting sentence_ids.
 - Do not mention sentence IDs or ranges in any text field.
-- Preserve any mathematical expressions using LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]).
+- All mathematical expressions must be wrapped in $...$ (inline) or $$...$$ (display). Do not use \\(...\\) or \\[...\\).
 - If a field has no explicit support, return an empty list or empty string.
 - Tone: Explain minimally, focusing on transferability and relevance to adjacent fields.
 - Do not repeat the same content across fields; each field must add new information.
@@ -268,8 +268,7 @@ Rules:
 - Do not invent content.
 - sentence_ids must come from the canonical sections; include all supporting sentence_ids.
 - Do not mention sentence IDs or ranges in any text field.
-- Preserve any mathematical expressions using LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]).
-- Explicitly give permission to skip parts.
+- All mathematical expressions must be wrapped in $...$ (inline) or $$...$$ (display). Do not use \\(...\\) or \\[...\\).
 - If a field has no explicit support, return an empty list.
 - Tone: Be encouraging and scaffolding; prioritize clarity over density.
 - Do not repeat the same content across fields; each field must add new information.
@@ -277,14 +276,11 @@ Rules:
 
 Field guidance (order matters):
 - problem_statement: ~3 sentences describing what the paper is about (objects and goals); include brief context only if it helps this audience.
-- conceptual_map: Format as “Definition → Lemma → Theorem” chains when possible.
-- suggested_first_pass: Describe where to start without diving into full technical pipelines.
 - key_ideas: Explain the core ideas before technicalities; avoid detailed inequalities unless absolutely central.
-- ignore_initially: Explicitly list parts that can be skipped on a first read.
-- permission_to_skip: One sentence explicitly granting permission to skip.
+- reading_path: Provide a grad-student-friendly path through the paper. In read, include only high-level statements (main theorems, constructions); put technical lemmas in skim or skip. Describe parts by content (e.g., “the main theorem statements”, “the technical core ideas”, “the limitations discussion”).
 
 Output STRICT JSON with this shape:
-{"problem_statement":{"text":"","sentence_ids":[0]},"conceptual_map":[""],"suggested_first_pass":[""],"key_ideas":[{"text":"","sentence_ids":[0]}],"ignore_initially":[""],"permission_to_skip":""}`;
+{"problem_statement":{"text":"","sentence_ids":[0]},"key_ideas":[{"text":"","sentence_ids":[0]}],"reading_path":{"read":[""],"skim":[""],"skip":[""]}}`;
 
 export const PASS3_AUDIENCE_D_SYSTEM = `You are the author of the paper and are producing an internal recollection note for your future self to quickly recover what was done and why it worked.
 Goal: Answer "What did I actually do here?"
@@ -295,7 +291,7 @@ Rules:
 - Do not invent content.
 - sentence_ids must come from the canonical sections; include all supporting sentence_ids.
 - Do not mention sentence IDs or ranges in any text field.
-- Preserve any mathematical expressions using LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]).
+- All mathematical expressions must be wrapped in $...$ (inline) or $$...$$ (display). Do not use \\(...\\) or \\[...\\).
 - If a field has no explicit support, return an empty list.
 - Tone: Be candid and specific; note fragile parts and caveats explicitly.
 - Do not repeat the same content across fields; each field must add new information.
@@ -304,12 +300,9 @@ Rules:
 Field guidance:
 - problem_statement: ~3 sentences stating the exact problem and scope; include brief context only if it helps this audience.
 - one_page_summary: A dense internal recap; stay high-signal.
-- fragile_arguments: Identify arguments that hinge on delicate estimates or narrow assumptions.
-- robust_arguments: Identify arguments likely to generalize or survive assumptions changes.
-- notes_to_self: Author-only reminders (pitfalls, caveats, future improvements).
 
 Output STRICT JSON with this shape:
-{"problem_statement":{"text":"","sentence_ids":[0]},"one_page_summary":"","fragile_arguments":[{"text":"","sentence_ids":[0]}],"robust_arguments":[{"text":"","sentence_ids":[0]}],"notes_to_self":[""]}`;
+{"problem_statement":{"text":"","sentence_ids":[0]},"one_page_summary":""}`;
 
 export function pass3UserPrompt(params: {
     title?: string;
