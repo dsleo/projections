@@ -15,11 +15,6 @@ Upload a LaTeX (`.tex`) paper and FourFold will generate:
 - **Reviewers / readers** who want a fast, structured understanding of a paper.
 - **Contributors** who want to iterate on a grounded “discourse → sections → audience views” pipeline.
 
-### Typical use cases
-
-- Producing a clean “adjacent-field” explanation for collaborators.
-- Checking whether the paper’s *contributions* and *technical core* are actually supported by the text.
-
 ---
 
 ## Quickstart
