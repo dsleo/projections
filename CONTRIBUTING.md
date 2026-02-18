@@ -1,7 +1,5 @@
 # Contributing
 
-Thanks for your interest in contributing.
-
 ## Development setup
 
 ```bash
@@ -35,8 +33,3 @@ This repo can compile LaTeX to PDF locally using `tectonic`.
 NEXT_PUBLIC_ENABLE_TEX=1
 ```
 
-## Pull requests
-
-- Keep PRs focused.
-- Add/adjust tests where it makes sense.
-- Prefer deterministic, well-typed changes.
