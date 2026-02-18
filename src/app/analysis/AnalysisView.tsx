@@ -6,7 +6,12 @@ import { Search } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 
-import type { AnalysisResult, DiscourseLabel, Sentence } from '@/lib/pipeline/client';
+import type {
+  AnalysisResult,
+  CanonicalSections,
+  DiscourseLabel,
+  Sentence,
+} from '@/lib/pipeline/client';
 import { expandSentenceIdsByEnvironment } from '@/lib/pipeline/env_propagation';
 import { buildAudienceSupportingText } from '@/lib/ui/supportingText';
 import { formatIdRanges } from '@/lib/ui/idRanges';
@@ -40,6 +45,7 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
   const isAudiencePage = mode === 'audience';
   const texEnabled = isTexEnabled();
   const [showCorePdf, setShowCorePdf] = useState(false);
+  const [canonicalDirty, setCanonicalDirty] = useState(false);
   const {
     file,
     status,
@@ -105,6 +111,7 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
   }, [pdfMode]);
   async function rerunPass2Only() {
     if (!result) return;
+    setCanonicalDirty(false);
     setStatus({ kind: 'analyzing', phase: 'pass2', message: 'Re-running Pass 2…' });
     try {
       const res = await fetch('/api/analyze/pass2', {
@@ -133,6 +140,59 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
           abstract: data.abstract ?? prev.abstract,
         };
       });
+      setStatus({ kind: 'done' });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Unknown error';
+      setStatus({ kind: 'error', message: msg });
+    }
+  }
+
+  const updateCanonicalSections = useCallback(
+    (next: CanonicalSections) => {
+      setResult((prev) => {
+        if (!prev) return prev;
+        return { ...prev, sections: next };
+      });
+      setCanonicalDirty(true);
+    },
+    [setResult]
+  );
+
+  async function rerunPass3FromCanonical() {
+    if (!result) return;
+    setStatus({ kind: 'analyzing', phase: 'pass3', message: 'Regenerating audiences…' });
+    try {
+      const res = await fetch('/api/analyze/pass3', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          original_latex: result.original_latex,
+          sentences: result.sentences,
+          labels: result.labels,
+          sections: result.sections,
+          document_title: result.document_title,
+          abstract: result.abstract,
+        }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => null);
+        throw new Error(j?.error ?? `Request failed with status ${res.status}`);
+      }
+      const data = (await res.json()) as Pick<
+        AnalysisResult,
+        'audience_views' | 'citations' | 'sentence_citations' | 'abstract'
+      >;
+      setResult((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          audience_views: data.audience_views ?? prev.audience_views,
+          citations: data.citations ?? prev.citations,
+          sentence_citations: data.sentence_citations ?? prev.sentence_citations,
+          abstract: data.abstract ?? prev.abstract,
+        };
+      });
+      setCanonicalDirty(false);
       setStatus({ kind: 'done' });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Unknown error';
@@ -639,7 +699,10 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
 
   const pass1Status = buildStatusLine('pass1', status, Boolean(result));
   const pass2Status = buildStatusLine('pass2', status, Boolean(result?.sections));
-  // Note: pass3 status is shown only inside the relevant cards to avoid noisy global header updates.
+  const pass3Status = buildStatusLine('pass3', status, Boolean(result?.audience_views));
+  // Note: pass3 status is shown only inside relevant cards to avoid noisy global header updates.
+  const canonicalHeaderStatus =
+    status.kind === 'analyzing' && status.phase === 'pass3' ? pass3Status : pass2Status;
 
 
   const downloadBlob = (content: string, filename: string, type: string) => {
@@ -692,16 +755,6 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-4">
           <div className="flex items-center gap-4">
             <AppLogo />
-            <div>
-              <h1 className="text-lg font-semibold">
-                {isAudiencePage ? 'Audience view' : 'Analysis workspace'}
-              </h1>
-              <p className="text-sm text-zinc-500">
-                {isAudiencePage
-                  ? 'Review audience summaries with highlighted PDFs.'
-                  : 'Review sentence labels and canonical sections with the original PDF.'}
-              </p>
-            </div>
           </div>
           <div className="flex items-center gap-3">
             <div className="inline-flex rounded-full border bg-white p-1 text-sm text-zinc-600">
@@ -752,6 +805,9 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
       {isAudiencePage ? (
         <main className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-6">
           <section className="flex flex-col gap-4">
+            <p className="text-sm text-zinc-600">
+              Switch between audiences to see different summaries.
+            </p>
             <AudienceViewsCard
               result={result}
               audienceTab={audienceTab}
@@ -802,6 +858,16 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
           }
         >
           <section className="flex flex-col gap-4">
+            <div className="text-sm text-zinc-600">
+              <span className="font-semibold">This is your editing desk:</span> verify the
+              structure FourFold extracts from your paper so the audience versions stay faithful
+              to your text.
+              <div className="mt-1 text-xs text-zinc-500">
+                Edit the canonical sections below, then click{' '}
+                <span className="font-medium text-zinc-700">Regenerate audiences</span> to update
+                the summaries.
+              </div>
+            </div>
             <TextPanel
               result={result}
               documentTitle={documentTitle}
@@ -830,6 +896,10 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
               setActiveTab={setActiveTab}
               status={status}
               onRerunPass2={rerunPass2Only}
+              onRerunPass3={rerunPass3FromCanonical}
+              dirty={canonicalDirty}
+              editable
+              onUpdateSections={updateCanonicalSections}
               onCopyCanonical={() => {
                 if (!result?.sections) return;
                 navigator.clipboard.writeText(JSON.stringify(result.sections, null, 2));
@@ -842,7 +912,7 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
               LabelPill={LabelPill}
               focusedCitationKeys={focusedCitationKeys}
               setFocusedCitationKeys={setFocusedCitationKeys}
-              headerStatus={pass2Status}
+              headerStatus={canonicalHeaderStatus}
               showSentenceActions={false}
             />
           </section>

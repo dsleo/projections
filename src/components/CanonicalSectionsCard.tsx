@@ -1,9 +1,9 @@
 'use client';
 
-import type React from 'react';
+import React from 'react';
 import { Copy, RefreshCw, Search } from 'lucide-react';
 
-import type { AnalysisResult, DiscourseLabel } from '@/lib/pipeline/client';
+import type { AnalysisResult, CanonicalSections, DiscourseLabel } from '@/lib/pipeline/client';
 import { MathText } from '@/components/MathText';
 import { IconButton } from '@/components/IconButton';
 import type { AnalyzeStatus } from '@/lib/ui/useAnalyzeStream';
@@ -16,6 +16,10 @@ type Props = {
   status: AnalyzeStatus;
   headerStatus?: React.ReactNode;
   onRerunPass2: () => void;
+  onRerunPass3?: () => void;
+  editable?: boolean;
+  dirty?: boolean;
+  onUpdateSections?: (next: CanonicalSections) => void;
   onCopyCanonical: () => void;
   renderEmpty: (label: string) => React.ReactElement;
   renderCitationAction: (ids: number[]) => React.ReactElement | null;
@@ -36,6 +40,10 @@ export function CanonicalSectionsCard({
   status,
   headerStatus,
   onRerunPass2,
+  onRerunPass3,
+  editable = false,
+  dirty = false,
+  onUpdateSections,
   onCopyCanonical,
   renderEmpty,
   renderCitationAction,
@@ -70,6 +78,72 @@ export function CanonicalSectionsCard({
   const consequenceOpen = consequences?.open_questions ?? [];
   const consequenceSpec = consequences?.speculative_extensions ?? [];
 
+  function EditableText({
+    value,
+    onChange,
+    placeholder,
+  }: {
+    value: string;
+    onChange: (next: string) => void;
+    placeholder?: string;
+  }) {
+    const [editing, setEditing] = React.useState(false);
+    const [draft, setDraft] = React.useState(value);
+
+    React.useEffect(() => {
+      if (editing) return;
+      setDraft(value);
+    }, [value, editing]);
+
+    if (!editable) return <MathText text={value} />;
+
+    if (!editing) {
+      return (
+        <div
+          className="whitespace-pre-wrap"
+          onDoubleClick={() => {
+            setDraft(value);
+            setEditing(true);
+          }}
+          title="Double click to edit (temporary)"
+        >
+          {value ? <MathText text={value} /> : <span className="text-zinc-400">{placeholder ?? '—'}</span>}
+        </div>
+      );
+    }
+
+    return (
+      <textarea
+        className="mt-1 w-full rounded-md border border-zinc-200 bg-white px-2 py-1 text-sm text-zinc-900"
+        value={draft}
+        rows={Math.max(2, Math.min(8, Math.ceil(draft.length / 90)))}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => {
+          onChange(draft);
+          setEditing(false);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            setDraft(value);
+            setEditing(false);
+          }
+          if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+            e.currentTarget.blur();
+          }
+        }}
+        autoFocus
+      />
+    );
+  }
+
+  const applyUpdate = (updater: (next: CanonicalSections) => void) => {
+    if (!result?.sections) return;
+    if (!onUpdateSections) return;
+    const next = JSON.parse(JSON.stringify(result.sections)) as CanonicalSections;
+    updater(next);
+    onUpdateSections(next);
+  };
+
   return (
     <details ref={detailsRef} className="rounded-lg border bg-white" open>
       <summary className="flex cursor-pointer items-center border-b px-4 py-3 text-sm font-semibold">
@@ -88,6 +162,18 @@ export function CanonicalSectionsCard({
                 label="Re-run Pass 2"
                 onClick={onRerunPass2}
                 disabled={!result || status.kind === 'analyzing' || status.kind === 'uploading'}
+                size="sm"
+              />
+              <IconButton
+                icon={RefreshCw}
+                label="Regenerate audiences"
+                onClick={() => onRerunPass3?.()}
+                disabled={
+                  !result?.sections ||
+                  !onRerunPass3 ||
+                  status.kind === 'analyzing' ||
+                  status.kind === 'uploading'
+                }
                 size="sm"
               />
               <IconButton
@@ -112,6 +198,11 @@ export function CanonicalSectionsCard({
         {!result && <div className="text-sm text-zinc-500">No data.</div>}
         {result && (
           <>
+            {dirty && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                You’ve edited the canonical sections. Click <span className="font-semibold">Regenerate audiences</span> to update the summaries.
+              </div>
+            )}
             <div className="flex flex-wrap gap-2">
               {[
                 { id: 'problem', label: 'Problem & Motivation' },
@@ -151,7 +242,15 @@ export function CanonicalSectionsCard({
                       <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
                         {problem.central_problems.map((item, idx) => (
                           <li key={`pm-cp-${idx}`} className="mb-2">
-                            <MathText text={item.description} />
+                            <EditableText
+                              value={item.description}
+                              onChange={(next) =>
+                                applyUpdate((sections) => {
+                                  sections.problem_and_motivation.central_problems[idx].description =
+                                    next;
+                                })
+                              }
+                            />
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                               <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                               <button
@@ -178,7 +277,14 @@ export function CanonicalSectionsCard({
                       <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
                         {problem.origins.map((item, idx) => (
                           <li key={`pm-or-${idx}`} className="mb-2">
-                            <MathText text={item.description} />
+                            <EditableText
+                              value={item.description}
+                              onChange={(next) =>
+                                applyUpdate((sections) => {
+                                  sections.problem_and_motivation.origins[idx].description = next;
+                                })
+                              }
+                            />
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                               <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                               <button
@@ -205,7 +311,15 @@ export function CanonicalSectionsCard({
                       <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
                         {problem.nontriviality.map((item, idx) => (
                           <li key={`pm-nt-${idx}`} className="mb-2">
-                            <MathText text={item.description} />
+                            <EditableText
+                              value={item.description}
+                              onChange={(next) =>
+                                applyUpdate((sections) => {
+                                  sections.problem_and_motivation.nontriviality[idx].description =
+                                    next;
+                                })
+                              }
+                            />
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                               <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                               <button
@@ -241,7 +355,14 @@ export function CanonicalSectionsCard({
                       <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
                         {landscapeKnown.map((item, idx) => (
                           <li key={`ls-kr-${idx}`} className="mb-2">
-                            <MathText text={item.description} />
+                            <EditableText
+                              value={item.description}
+                              onChange={(next) =>
+                                applyUpdate((sections) => {
+                                  sections.landscape.known_results[idx].description = next;
+                                })
+                              }
+                            />
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                               <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                               <button
@@ -268,7 +389,14 @@ export function CanonicalSectionsCard({
                       <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
                         {landscapeLimitations.map((item, idx) => (
                           <li key={`ls-lim-${idx}`} className="mb-2">
-                            <MathText text={item.description} />
+                            <EditableText
+                              value={item.description}
+                              onChange={(next) =>
+                                applyUpdate((sections) => {
+                                  sections.landscape.limitations[idx].description = next;
+                                })
+                              }
+                            />
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                               <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                               <button
@@ -295,7 +423,14 @@ export function CanonicalSectionsCard({
                       <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
                         {landscapeCompeting.map((item, idx) => (
                           <li key={`ls-rel-${idx}`} className="mb-2">
-                            <MathText text={item.description} />
+                            <EditableText
+                              value={item.description}
+                              onChange={(next) =>
+                                applyUpdate((sections) => {
+                                  sections.landscape.competing_approaches[idx].description = next;
+                                })
+                              }
+                            />
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                               <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                               <button
@@ -325,7 +460,62 @@ export function CanonicalSectionsCard({
                       <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
                         {contributions.contributions.map((item, idx) => (
                           <li key={`contrib-${idx}`} className="mb-3">
-                            <MathText text={item.statement} />
+                            <EditableText
+                              value={item.statement}
+                              onChange={(next) =>
+                                applyUpdate((sections) => {
+                                  sections.contributions.contributions[idx].statement = next;
+                                })
+                              }
+                            />
+                            {editable && (
+                              <div className="mt-2 flex flex-col gap-2">
+                                <div>
+                                  <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                                    Prior state
+                                  </div>
+                                  <EditableText
+                                    value={item.prior_state.text}
+                                    onChange={(next) =>
+                                      applyUpdate((sections) => {
+                                        sections.contributions.contributions[idx].prior_state.text =
+                                          next;
+                                      })
+                                    }
+                                    placeholder="(optional)"
+                                  />
+                                </div>
+                                <div>
+                                  <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                                    Novelty
+                                  </div>
+                                  <EditableText
+                                    value={item.novelty.text}
+                                    onChange={(next) =>
+                                      applyUpdate((sections) => {
+                                        sections.contributions.contributions[idx].novelty.text = next;
+                                      })
+                                    }
+                                    placeholder="(optional)"
+                                  />
+                                </div>
+                                <div>
+                                  <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                                    Nontriviality
+                                  </div>
+                                  <EditableText
+                                    value={item.nontriviality.text}
+                                    onChange={(next) =>
+                                      applyUpdate((sections) => {
+                                        sections.contributions.contributions[idx].nontriviality.text =
+                                          next;
+                                      })
+                                    }
+                                    placeholder="(optional)"
+                                  />
+                                </div>
+                              </div>
+                            )}
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                               <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                               <button
@@ -361,7 +551,14 @@ export function CanonicalSectionsCard({
                       <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
                         {technicalKeyIdeas.map((item, idx) => (
                           <li key={`tc-cm-${idx}`} className="mb-2">
-                            <MathText text={item.description} />
+                            <EditableText
+                              value={item.description}
+                              onChange={(next) =>
+                                applyUpdate((sections) => {
+                                  sections.technical_core.key_ideas[idx].description = next;
+                                })
+                              }
+                            />
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                               <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                               <button
@@ -388,7 +585,14 @@ export function CanonicalSectionsCard({
                       <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
                         {technicalObstacles.map((item, idx) => (
                           <li key={`tc-ks-${idx}`} className="mb-2">
-                            <MathText text={item.description} />
+                            <EditableText
+                              value={item.description}
+                              onChange={(next) =>
+                                applyUpdate((sections) => {
+                                  sections.technical_core.technical_obstacles[idx].description = next;
+                                })
+                              }
+                            />
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                               <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                               <button
@@ -415,7 +619,14 @@ export function CanonicalSectionsCard({
                       <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
                         {technicalReusable.map((item, idx) => (
                           <li key={`tc-rc-${idx}`} className="mb-2">
-                            <MathText text={item.description} />
+                            <EditableText
+                              value={item.description}
+                              onChange={(next) =>
+                                applyUpdate((sections) => {
+                                  sections.technical_core.reusable_constructions[idx].description = next;
+                                })
+                              }
+                            />
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                               <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                               <button
@@ -450,7 +661,14 @@ export function CanonicalSectionsCard({
                       <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
                         {consequenceOpen.map((item, idx) => (
                           <li key={`cons-oq-${idx}`} className="mb-2">
-                            <MathText text={item.description} />
+                            <EditableText
+                              value={item.description}
+                              onChange={(next) =>
+                                applyUpdate((sections) => {
+                                  sections.consequences.open_questions[idx].description = next;
+                                })
+                              }
+                            />
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                               <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                               <button
@@ -477,7 +695,14 @@ export function CanonicalSectionsCard({
                       <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
                         {consequenceSpec.map((item, idx) => (
                           <li key={`cons-se-${idx}`} className="mb-2">
-                            <MathText text={item.description} />
+                            <EditableText
+                              value={item.description}
+                              onChange={(next) =>
+                                applyUpdate((sections) => {
+                                  sections.consequences.speculative_extensions[idx].description = next;
+                                })
+                              }
+                            />
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                               <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
                               <button
