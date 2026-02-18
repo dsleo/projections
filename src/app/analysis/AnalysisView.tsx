@@ -862,11 +862,6 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
               <span className="font-semibold">This is your editing desk:</span> verify the
               structure FourFold extracts from your paper so the audience versions stay faithful
               to your text.
-              <div className="mt-1 text-xs text-zinc-500">
-                Edit the canonical sections below, then click{' '}
-                <span className="font-medium text-zinc-700">Regenerate audiences</span> to update
-                the summaries.
-              </div>
             </div>
             <TextPanel
               result={result}
