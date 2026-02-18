@@ -25,19 +25,11 @@ npm i
 cp .env.example .env.local
 ```
 
-Set `OPENAI_API_KEY`.
-
-Default model is `gpt-5-mini` (override with `OPENAI_MODEL`).
-
-If you don’t set `OPENAI_API_KEY`, the app will still run, but `/api/analyze` will return 500.
+Set `OPENAI_API_KEY`. Default model is `gpt-5-mini` (override with `OPENAI_MODEL`).
 
 ### Vercel / production deployment (no TeX)
 
-Vercel does not provide a TeX engine binary (like `tectonic`) in the runtime.
-For that reason, **TeX → PDF compilation is disabled by default in production**.
-
-- Locally: you can keep PDF compilation (install `tectonic`).
-- On Vercel: the “Document viewer” defaults to the **Supporting** view and PDF compilation is unavailable.
+Vercel does not provide a TeX engine binary (like `tectonic`) in the runtime. For that reason, **TeX → PDF compilation is disabled by default in production**. Locally: you can keep PDF compilation (install `tectonic`).
 
 To force-enable TeX compilation (only on runtimes that support native binaries), set:
 
@@ -53,10 +45,9 @@ npm run dev
 
 Open http://localhost:3000
 
-### PDF preview (Tectonic)
+### PDF preview with Tectonic
 
-The side-by-side PDF preview uses the Tectonic TeX engine to compile the uploaded `.tex` file.
-You need the `tectonic` binary available in your PATH.
+The side-by-side PDF preview uses the Tectonic TeX engine to compile the uploaded `.tex` file. You need the `tectonic` binary available in your PATH.
 
 Recommended installs:
 
@@ -95,13 +86,6 @@ tectonic --help
 > (Tectonic-specific flags). If you want to use a different TeX engine, update
 > `src/app/api/latex/compile/route.ts` accordingly.
 
-### Notes
-
-- Minimal LaTeX preprocessing only: comment stripping, macro-definition removal, and bibliography removal.
-- Sentence IDs are global and strictly increasing.
-- Pass 1 aggregation is **union** across windows (no majority vote).
-- Outputs are validated with Zod schemas; invalid JSON is retried.
-- Environment-aware label propagation is implemented but currently hidden in the UI; we can review and re-enable it when needed.
 
 ### Highlighting status (PDF)
 
