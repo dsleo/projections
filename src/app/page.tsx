@@ -5,7 +5,6 @@ import { useEffect } from 'react';
 
 import { UploadCard } from '@/components/UploadCard';
 import { useAnalysis } from '@/components/AnalysisContext';
-import { AppLogo } from '@/components/AppLogo';
 
 export default function Home() {
   const router = useRouter();
@@ -29,11 +28,13 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-900">
-      <header className="absolute left-6 top-6">
-        <AppLogo />
-      </header>
       <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center px-6 py-12">
-        <div className="sr-only">FourFold</div>
+        <div
+          className="text-5xl font-semibold"
+          style={{ fontFamily: "Georgia, 'Times New Roman', Times, serif", fontStyle: 'italic' }}
+        >
+          FourFold
+        </div>
         <p className="mt-3 max-w-xl text-center text-base text-zinc-600">
           Turn your paper into 4 audience-specific summaries.
         </p>
