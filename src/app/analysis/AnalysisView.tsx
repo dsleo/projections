@@ -609,19 +609,6 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
     return 'pass1';
   }, [status]);
 
-  const headerPhaseLabel = useMemo(() => {
-    if (status.kind === 'idle') return null;
-    if (status.kind === 'uploading') return 'Uploading';
-    if (status.kind === 'done') return null;
-    if (status.kind === 'error') return 'Error';
-    if (status.kind === 'analyzing') {
-      if (status.phase === 'pass1') return 'Semantic Sequence Classification';
-      if (status.phase === 'pass2') return 'Canonical sectioning';
-      return 'Audience synthesis';
-    }
-    return null;
-  }, [status]);
-
   const buildStatusLine = (
     phase: 'pass1' | 'pass2' | 'pass3',
     currentStatus: AnalyzeStatus,
@@ -652,7 +639,7 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
 
   const pass1Status = buildStatusLine('pass1', status, Boolean(result));
   const pass2Status = buildStatusLine('pass2', status, Boolean(result?.sections));
-  // Note: pass3Status intentionally not used in header UI to keep it high-level.
+  // Note: pass3 status is shown only inside the relevant cards to avoid noisy global header updates.
 
 
   const downloadBlob = (content: string, filename: string, type: string) => {
@@ -758,12 +745,6 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
                 </span>
               )}
             </div>
-
-            {headerPhaseLabel ? (
-              <div className="hidden md:block text-xs text-zinc-500 max-w-[320px] truncate" title={headerPhaseLabel}>
-                {headerPhaseLabel}
-              </div>
-            ) : null}
           </div>
         </div>
       </header>
