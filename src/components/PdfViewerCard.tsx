@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Download, RefreshCw, Sparkles, Undo2 } from 'lucide-react';
+import { Download, FileText, RefreshCw, Sparkles, Undo2 } from 'lucide-react';
 
 import { IconButton } from '@/components/IconButton';
 import { classNames } from '@/lib/ui/classNames';
@@ -20,6 +20,7 @@ type Props = {
   onCompile: () => void;
   selectedTab: string;
   onTabChange: (id: string) => void;
+  onDownloadSupportingTex?: () => void;
   supportingTitle?: string;
   supportingContent?: ReactNode;
   defaultView?: 'pdf' | 'supporting';
@@ -27,8 +28,7 @@ type Props = {
   focusSentenceIndex?: number | null;
   totalSentences?: number;
   variant?: 'default' | 'full';
-  collapsible?: boolean;
-  defaultOpen?: boolean;
+  showCompile?: boolean;
 };
 
 type PdfDocument = {
@@ -61,16 +61,6 @@ function PdfPage({
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [dims, setDims] = useState<{ width: number; height: number } | null>(null);
-  const [viewportRef, setViewportRef] = useState<{
-    width: number;
-    height: number;
-    convertToViewportRectangle: (rect: [number, number, number, number]) => [
-      number,
-      number,
-      number,
-      number,
-    ];
-  } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -78,7 +68,6 @@ function PdfPage({
       if (cancelled) return;
       const viewport = page.getViewport({ scale });
       setDims({ width: viewport.width, height: viewport.height });
-      setViewportRef(viewport);
       const canvas = canvasRef.current;
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
@@ -114,6 +103,7 @@ export function PdfViewerCard({
   onCompile,
   selectedTab,
   onTabChange,
+  onDownloadSupportingTex,
   supportingTitle = 'Supporting text',
   supportingContent,
   defaultView = 'pdf',
@@ -121,13 +111,12 @@ export function PdfViewerCard({
   focusSentenceIndex,
   totalSentences,
   variant = 'default',
-  collapsible = false,
-  defaultOpen = true,
+  showCompile = true,
 }: Props) {
   const [doc, setDoc] = useState<PdfDocument | null>(null);
   const [pageCount, setPageCount] = useState(0);
   const pageRefs = useRef<Array<HTMLDivElement | null>>([]);
-  const [isOpen, setIsOpen] = useState(defaultOpen);
+  const downloadDetailsRef = useRef<HTMLDetailsElement | null>(null);
   const downloadName =
     selectedTab === 'original' ? 'paper-original.pdf' : `paper-supporting-${selectedTab}.pdf`;
   const showOriginal = selectedTab === 'original';
@@ -135,6 +124,19 @@ export function PdfViewerCard({
   const ToggleIcon = showOriginal ? Sparkles : Undo2;
   const [activeView, setActiveView] = useState<'pdf' | 'supporting'>(defaultView);
   const showSupporting = Boolean(supportingContent);
+
+  useEffect(() => {
+    const onPointerDown = (e: PointerEvent) => {
+      const el = downloadDetailsRef.current;
+      if (!el || !el.open) return;
+      const target = e.target as Node | null;
+      if (!target) return;
+      if (el.contains(target)) return;
+      el.open = false;
+    };
+    window.addEventListener('pointerdown', onPointerDown);
+    return () => window.removeEventListener('pointerdown', onPointerDown);
+  }, []);
 
   useEffect(() => {
     if (!showSupporting && activeView !== 'pdf') {
@@ -176,13 +178,12 @@ export function PdfViewerCard({
   useEffect(() => {
     if (focusSentenceIndex == null) return;
     if (!pageCount || !totalSentences) return;
-    if (collapsible && !isOpen) return;
     const ratio = (focusSentenceIndex + 1) / totalSentences;
     const targetPage = Math.min(pageCount, Math.max(1, Math.round(ratio * pageCount)));
     const target = pageRefs.current[targetPage - 1];
     if (!target) return;
     target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, [focusSentenceIndex, pageCount, totalSentences, pdfUrl, collapsible, isOpen]);
+  }, [focusSentenceIndex, pageCount, totalSentences, pdfUrl]);
   const containerClass =
     variant === 'full'
       ? 'rounded-lg border bg-white p-5 flex flex-col min-h-[60vh] w-full text-base'
@@ -222,17 +223,6 @@ export function PdfViewerCard({
           )}
         </div>
         <div className="flex items-center gap-2">
-          {collapsible && (
-            <button
-              className="rounded-full border px-2 py-1 font-normal text-zinc-500 hover:bg-zinc-100"
-              type="button"
-              onClick={() => setIsOpen((prev) => !prev)}
-              aria-label={isOpen ? 'Hide PDF' : 'Show PDF'}
-              title={isOpen ? 'Hide PDF' : 'Show PDF'}
-            >
-              {isOpen ? 'Hide' : 'Show'}
-            </button>
-          )}
           {showToggle && (
             <IconButton
               icon={ToggleIcon}
@@ -240,22 +230,66 @@ export function PdfViewerCard({
               onClick={() => onTabChange(showOriginal ? 'audience' : 'original')}
             />
           )}
-          <IconButton
-            icon={RefreshCw}
-            label="Compile PDF"
-            onClick={onCompile}
-            disabled={!canCompile || status.kind === 'compiling'}
-          />
-          {pdfUrl ? (
+
+          {showCompile && (
             <IconButton
-              icon={Download}
-              label="Download PDF"
-              href={pdfUrl}
-              download={downloadName}
+              icon={RefreshCw}
+              label="Compile PDF"
+              onClick={onCompile}
+              disabled={!canCompile || status.kind === 'compiling'}
             />
-          ) : (
-            <IconButton icon={Download} label="Download PDF" disabled />
           )}
+
+          <details className="relative" ref={downloadDetailsRef}>
+            <summary
+              className="list-none inline-flex items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white h-9 w-9 [&::-webkit-details-marker]:hidden"
+              aria-label="Download"
+              title="Download"
+            >
+              <Download className="h-4 w-4" aria-hidden />
+            </summary>
+            <div className="absolute right-0 z-10 mt-2 w-56 rounded-md border bg-white p-1 text-sm shadow">
+              <button
+                className="block w-full rounded px-2 py-2 text-left text-zinc-700 hover:bg-zinc-50 disabled:text-zinc-300"
+                type="button"
+                onClick={() => {
+                  if (downloadDetailsRef.current) downloadDetailsRef.current.open = false;
+                  onDownloadSupportingTex?.();
+                }}
+                disabled={!onDownloadSupportingTex}
+              >
+                <span className="inline-flex items-center gap-2">
+                  <FileText className="h-4 w-4" aria-hidden />
+                  Download supporting .tex
+                </span>
+              </button>
+
+              <a
+                className={
+                  pdfUrl
+                    ? 'block w-full rounded px-2 py-2 text-left text-zinc-700 hover:bg-zinc-50'
+                    : 'block w-full rounded px-2 py-2 text-left text-zinc-300 cursor-not-allowed'
+                }
+                href={pdfUrl ?? undefined}
+                download={pdfUrl ? downloadName : undefined}
+                aria-disabled={!pdfUrl}
+                onClick={(e) => {
+                  if (!pdfUrl) e.preventDefault();
+                  if (downloadDetailsRef.current) downloadDetailsRef.current.open = false;
+                }}
+              >
+                <span className="inline-flex items-center gap-2">
+                  <Download className="h-4 w-4" aria-hidden />
+                  Download PDF
+                </span>
+                {!pdfUrl && (
+                  <div className="mt-1 text-[11px] text-zinc-400">
+                    Available locally when TeX compilation is enabled.
+                  </div>
+                )}
+              </a>
+            </div>
+          </details>
         </div>
       </div>
       {activeView === 'pdf' && (
@@ -267,30 +301,28 @@ export function PdfViewerCard({
               <span className="text-red-700">Error: {status.message}</span>
             )}
           </div>
-          {(!collapsible || isOpen) && (
-            <div className="mt-3 flex-1 rounded-md border bg-zinc-50 overflow-auto max-h-[75vh]">
-              {!pdfUrl && (
-                <div className="flex h-full items-center justify-center text-base text-zinc-400">
-                  No PDF rendered yet.
-                </div>
-              )}
-              {pdfUrl && doc && (
-                <div className="p-3 flex flex-col items-center">
-                  {Array.from({ length: pageCount }, (_, idx) => idx + 1).map((pageNumber) => (
-                    <PdfPage
-                      key={`pdf-page-${pageNumber}`}
-                      doc={doc}
-                      pageNumber={pageNumber}
-                      scale={1.2}
-                      containerRef={(el) => {
-                        pageRefs.current[pageNumber - 1] = el;
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+          <div className="mt-3 flex-1 rounded-md border bg-zinc-50 overflow-auto max-h-[75vh]">
+            {!pdfUrl && (
+              <div className="flex h-full items-center justify-center text-base text-zinc-400">
+                No PDF rendered yet.
+              </div>
+            )}
+            {pdfUrl && doc && (
+              <div className="p-3 flex flex-col items-center">
+                {Array.from({ length: pageCount }, (_, idx) => idx + 1).map((pageNumber) => (
+                  <PdfPage
+                    key={`pdf-page-${pageNumber}`}
+                    doc={doc}
+                    pageNumber={pageNumber}
+                    scale={1.2}
+                    containerRef={(el) => {
+                      pageRefs.current[pageNumber - 1] = el;
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </>
       )}
 

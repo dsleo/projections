@@ -14,24 +14,18 @@ type Props = {
   documentTitle: string;
   renderedOriginalText: Array<{ text: string; sentence: Sentence | null }> | null;
   labelCounts: Record<DiscourseLabel, number>;
-  unlabeledCount: number;
   labelFilter: DiscourseLabel[];
-  showUnlabeledOnly: boolean;
   processingWindows: Array<{ start: number; end: number }>;
   headerStatus?: React.ReactNode;
   highlightedIds: number[];
   textDetailsRef: React.RefObject<HTMLDetailsElement | null>;
   onToggleLabelFilter: (label: DiscourseLabel) => void;
   onClearFilters: () => void;
-  onToggleUnlabeled: () => void;
   onReRunPass1: () => void;
   showViewerButton?: boolean;
   isViewerOpen?: boolean;
   onToggleViewer?: () => void;
   isSentenceProcessing: (position: number) => boolean;
-  focusSentences: (ids: number[]) => void;
-  setLabelFilter: (labels: DiscourseLabel[]) => void;
-  setShowUnlabeledOnly: (value: boolean) => void;
 };
 
 export function TextPanel({
@@ -39,24 +33,18 @@ export function TextPanel({
   documentTitle,
   renderedOriginalText,
   labelCounts,
-  unlabeledCount,
   labelFilter,
-  showUnlabeledOnly,
   processingWindows,
   headerStatus,
   highlightedIds,
   textDetailsRef,
   onToggleLabelFilter,
   onClearFilters,
-  onToggleUnlabeled,
   onReRunPass1,
   showViewerButton = false,
   isViewerOpen = false,
   onToggleViewer,
   isSentenceProcessing,
-  focusSentences,
-  setLabelFilter,
-  setShowUnlabeledOnly,
 }: Props) {
   return (
     <details ref={textDetailsRef} className="rounded-lg border bg-white" open>
@@ -107,13 +95,9 @@ export function TextPanel({
       <LabelFilterBar
         resultExists={Boolean(result)}
         labelCounts={labelCounts}
-        unlabeledCount={unlabeledCount}
         labelFilter={labelFilter}
-        showUnlabeledOnly={showUnlabeledOnly}
-        onToggleUnlabeled={onToggleUnlabeled}
         onToggleLabelFilter={onToggleLabelFilter}
         onClearFilters={onClearFilters}
-        setLabelFilter={setLabelFilter}
       />
       <div className="max-h-[70vh] overflow-auto">
         {!result && <div className="p-4 text-sm text-zinc-500">Upload a .tex file to begin.</div>}
@@ -125,17 +109,16 @@ export function TextPanel({
               let lastRenderedSentenceId: number | null = null;
               renderedOriginalText.forEach((seg, idx) => {
                 if (!seg.sentence) {
-                  if (labelFilter.length > 0 || showUnlabeledOnly) return;
+                  if (labelFilter.length > 0) return;
                   rendered.push(<span key={`plain-${idx}`}>{seg.text}</span>);
                   return;
                 }
                 const labels = result.labels[String(seg.sentence.id)] ?? [];
-                if (showUnlabeledOnly && labels.length > 0) return;
                 if (labelFilter.length > 0 && !labels.some((l) => labelFilter.includes(l))) {
                   return;
                 }
                 const shouldShowGap =
-                  (labelFilter.length > 0 || showUnlabeledOnly) &&
+                  labelFilter.length > 0 &&
                   lastRenderedSentenceId !== null &&
                   seg.sentence.id !== lastRenderedSentenceId + 1;
                 const isProcessing = isSentenceProcessing(seg.sentence.position);
@@ -160,7 +143,7 @@ export function TextPanel({
                       )}
                     >
                       {seg.text}
-                      {labels.length > 0 && labelFilter.length === 0 && !showUnlabeledOnly && (
+                      {labels.length > 0 && labelFilter.length === 0 && (
                         <span className="ml-1 inline-flex gap-1 align-middle">
                           {labels.map((l) => (
                             <LabelPill key={l} label={l} />

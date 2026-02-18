@@ -4,6 +4,7 @@ import { promisify } from 'node:util';
 import type { Sentence } from '@/lib/pipeline/client';
 import { getCompilation } from '@/lib/latex/compileStore';
 import { HIGHLIGHT_MACRO_BLOCK } from '@/lib/latex/highlight';
+import { isTexEnabled } from '@/lib/features';
 
 export const runtime = 'nodejs';
 
@@ -122,6 +123,18 @@ async function runSyncTeX(pdfPath: string, page: number, x: number, y: number) {
 }
 
 export async function POST(req: Request) {
+  if (!isTexEnabled()) {
+    return new Response(
+      JSON.stringify({
+        error:
+          'TeX compilation is disabled in this deployment (enable NEXT_PUBLIC_ENABLE_TEX to override).',
+      }),
+      {
+        status: 501,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+  }
   try {
     const payload = (await req.json()) as {
       token?: string;

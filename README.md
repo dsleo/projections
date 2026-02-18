@@ -31,6 +31,20 @@ Default model is `gpt-5-mini` (override with `OPENAI_MODEL`).
 
 If you don’t set `OPENAI_API_KEY`, the app will still run, but `/api/analyze` will return 500.
 
+### Vercel / production deployment (no TeX)
+
+Vercel does not provide a TeX engine binary (like `tectonic`) in the runtime.
+For that reason, **TeX → PDF compilation is disabled by default in production**.
+
+- Locally: you can keep PDF compilation (install `tectonic`).
+- On Vercel: the “Document viewer” defaults to the **Supporting** view and PDF compilation is unavailable.
+
+To force-enable TeX compilation (only on runtimes that support native binaries), set:
+
+```bash
+NEXT_PUBLIC_ENABLE_TEX=1
+```
+
 3) Run
 
 ```bash

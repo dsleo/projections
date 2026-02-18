@@ -158,7 +158,9 @@ Rules:
 - If the provided sentences do not contain explicit material supporting a field, return an empty list for that field.
 - Do not generate inferred or implicit content. Empty output is valid.
 - Avoid extracting more than 3–5 top-level items per field unless clearly justified by distinct content.
-- All mathematical expressions must be wrapped in $...$ (inline) or $$...$$ (display). Do not use \\(...\\) or \\[...\\).
+- All mathematical expressions MUST be wrapped in $...$ (inline) or $$...$$ (display). Do not use \\(...\\) or \\[...\\).
+- If you write ANY LaTeX math command (e.g. \\alpha, \\mathbb{R}, subscripts like _i, superscripts like ^2), it MUST be inside $...$ or $$...$$.
+- Never output raw TeX commands in plain text (outside math mode). If you need them, wrap them in $...$.
 - Do not invent content.
 - Be precise.
 - Output STRICT JSON with this shape:

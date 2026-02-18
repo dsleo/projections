@@ -6,18 +6,18 @@ import { Copy, RefreshCw, Search } from 'lucide-react';
 import type { AnalysisResult, DiscourseLabel } from '@/lib/pipeline/client';
 import { MathText } from '@/components/MathText';
 import { IconButton } from '@/components/IconButton';
+import type { AnalyzeStatus } from '@/lib/ui/useAnalyzeStream';
 
 type Props = {
   result: AnalysisResult | null;
   detailsRef: React.RefObject<HTMLDetailsElement | null>;
   activeTab: 'problem' | 'landscape' | 'contrib' | 'tech' | 'cons' | 'cites';
   setActiveTab: (tab: 'problem' | 'landscape' | 'contrib' | 'tech' | 'cons' | 'cites') => void;
-  statusKind: 'idle' | 'uploading' | 'analyzing' | 'done' | 'error';
+  status: AnalyzeStatus;
   headerStatus?: React.ReactNode;
   onRerunPass2: () => void;
   onCopyCanonical: () => void;
   renderEmpty: (label: string) => React.ReactElement;
-  renderGroundedList: (items: Array<{ text: string; sentence_ids?: number[] }>) => React.ReactElement;
   renderCitationAction: (ids: number[]) => React.ReactElement | null;
   focusSentences: (ids: number[]) => void;
   formatIdRanges: (ids: number[]) => string;
@@ -33,12 +33,11 @@ export function CanonicalSectionsCard({
   detailsRef,
   activeTab,
   setActiveTab,
-  statusKind,
+  status,
   headerStatus,
   onRerunPass2,
   onCopyCanonical,
   renderEmpty,
-  renderGroundedList,
   renderCitationAction,
   focusSentences,
   formatIdRanges,
@@ -48,6 +47,11 @@ export function CanonicalSectionsCard({
   setFocusedCitationKeys,
   showSentenceActions = true,
 }: Props) {
+  const showProcessingEmpty =
+    status.kind === 'uploading' ||
+    (status.kind === 'analyzing' && (status.phase === 'pass1' || status.phase === 'pass2'));
+  const emptyText = showProcessingEmpty ? 'Processing…' : 'No explicit items found.';
+
   const sentenceActionClass = showSentenceActions
     ? 'rounded-full border px-2 py-0.5 text-[10px] hover:bg-white'
     : 'hidden';
@@ -83,7 +87,7 @@ export function CanonicalSectionsCard({
                 icon={RefreshCw}
                 label="Re-run Pass 2"
                 onClick={onRerunPass2}
-                disabled={!result || statusKind === 'analyzing' || statusKind === 'uploading'}
+                disabled={!result || status.kind === 'analyzing' || status.kind === 'uploading'}
                 size="sm"
               />
               <IconButton
@@ -132,13 +136,13 @@ export function CanonicalSectionsCard({
               ))}
             </div>
 
-            <div className="rounded-md border bg-white p-3 max-h-[38vh] overflow-auto">
+            <div className="rounded-md border bg-white p-3 max-h-[55vh] overflow-auto">
               {activeTab === 'problem' && problem && (
                 <>
                   {problem.central_problems.length === 0 &&
                     problem.origins.length === 0 &&
                     problem.nontriviality.length === 0 &&
-                    renderEmpty('No explicit items found.')}
+                    renderEmpty(emptyText)}
                   {problem.central_problems.length > 0 && (
                     <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
                       <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
@@ -228,7 +232,7 @@ export function CanonicalSectionsCard({
                   {landscapeKnown.length === 0 &&
                     landscapeLimitations.length === 0 &&
                     landscapeCompeting.length === 0 &&
-                    renderEmpty('No explicit items found.')}
+                    renderEmpty(emptyText)}
                   {landscapeKnown.length > 0 && (
                     <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
                       <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
@@ -315,8 +319,7 @@ export function CanonicalSectionsCard({
 
               {activeTab === 'contrib' && contributions && (
                 <>
-                  {contributions.contributions.length === 0 &&
-                    renderEmpty('No explicit items found.')}
+                  {contributions.contributions.length === 0 && renderEmpty(emptyText)}
                   {contributions.contributions.length > 0 && (
                     <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
                       <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
@@ -349,7 +352,7 @@ export function CanonicalSectionsCard({
                   {technicalKeyIdeas.length === 0 &&
                     technicalObstacles.length === 0 &&
                     technicalReusable.length === 0 &&
-                    renderEmpty('No explicit items found.')}
+                    renderEmpty(emptyText)}
                   {technicalKeyIdeas.length > 0 && (
                     <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
                       <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
@@ -438,7 +441,7 @@ export function CanonicalSectionsCard({
                 <>
                   {consequenceOpen.length === 0 &&
                     consequenceSpec.length === 0 &&
-                    renderEmpty('No explicit items found.')}
+                    renderEmpty(emptyText)}
                   {consequenceOpen.length > 0 && (
                     <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
                       <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">

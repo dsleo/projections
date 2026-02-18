@@ -39,97 +39,13 @@ const PREAMBLE_COMMANDS = [
     '\\thispagestyle',
 ];
 
-function stripComments(tex: string): string {
-    // Remove unescaped % to end-of-line. Preserve \%.
-    return tex
-        .split(/\r?\n/)
-        .map((line) => {
-            let out = '';
-            for (let i = 0; i < line.length; i++) {
-                const ch = line[i];
-                if (ch === '%') {
-                    // count backslashes immediately before %
-                    let bs = 0;
-                    let j = i - 1;
-                    while (j >= 0 && line[j] === '\\') {
-                        bs++;
-                        j--;
-                    }
-                    // if even number of backslashes, % is not escaped
-                    if (bs % 2 === 0) break;
-                }
-                out += ch;
-            }
-            return out;
-        })
-        .join('\n');
-}
-
-function stripPreambleAndDocument(tex: string): string {
-    const beginDoc = tex.search(/\\begin\{document\}/);
-    if (beginDoc !== -1) {
-        tex = tex.slice(beginDoc).replace(/\\begin\{document\}/, '');
-    }
-    tex = tex.replace(/\\end\{document\}/g, '');
-    return tex;
-}
-
-function removeBibliography(tex: string): string {
-    // Remove thebibliography environment
-    tex = tex.replace(
-        /\\begin\{thebibliography\}([\s\S]*?)\\end\{thebibliography\}/g,
-        ''
-    );
-    // Remove \bibliography{...}, \printbibliography (command form)
-    tex = tex.replace(/\\bibliography\s*\{[^}]*\}/g, '');
-    tex = tex.replace(/\\printbibliography\b[^\n]*/g, '');
-    return tex;
-}
-
-function removeMacroDefinitions(tex: string): string {
-    // Conservative line-based removal: drop lines that start with macro commands.
-    // This intentionally does NOT rewrite other LaTeX structure.
-    const cmdRegex = new RegExp(
-        `^\\s*(?:${MACRO_COMMANDS.map((c) => c.replace('\\\\', '\\\\\\\\')).join(
-            '|'
-        )})\\b`
-    );
-
-    const lines = tex.split(/\r?\n/);
-    const kept: string[] = [];
-    for (const line of lines) {
-        if (cmdRegex.test(line)) continue;
-        kept.push(line);
-    }
-    return kept.join('\n');
-}
-
-function removePreambleCommands(tex: string): string {
-    const cmdRegex = new RegExp(
-        `^\\s*(?:${PREAMBLE_COMMANDS.map((c) => c.replace('\\\\', '\\\\\\\\')).join(
-            '|'
-        )})\\b`
-    );
-
-    const lines = tex.split(/\r?\n/);
-    const kept: string[] = [];
-    for (const line of lines) {
-        if (cmdRegex.test(line)) continue;
-        kept.push(line);
-    }
-    return kept.join('\n');
-}
-
 export type PreprocessResult = {
     text: string;
     /** map[i] is the original index for text[i] */
     map: number[];
 };
 
-export function mapSentencesToOriginal(
-    sentences: Sentence[],
-    map: number[]
-): Sentence[] {
+export function mapSentencesToOriginal(sentences: Sentence[], map: number[]): Sentence[] {
     return sentences.map((s) => {
         if (s.start == null || s.end == null) return s;
         const start = map[s.start];
@@ -264,16 +180,8 @@ export function preprocessLatexWithMap(tex: string): PreprocessResult {
             continue;
         }
 
-        ({ line, idxs } = removeSpansFromLine(
-            line,
-            idxs,
-            /\\bibliography\s*\{[^}]*\}/g
-        ));
-        ({ line, idxs } = removeSpansFromLine(
-            line,
-            idxs,
-            /\\printbibliography\b[^\n]*/g
-        ));
+        ({ line, idxs } = removeSpansFromLine(line, idxs, /\\bibliography\\s*\{[^}]*\}/g));
+        ({ line, idxs } = removeSpansFromLine(line, idxs, /\\printbibliography\\b[^\n]*/g));
 
         if (line.length > 0) {
             for (let i = 0; i < line.length; i++) {
@@ -315,12 +223,13 @@ export function extractDocumentTitle(latex: string): string | null {
 
 export function extractAbstract(latex: string): string | null {
     const envMatch = latex.match(/\\begin\{abstract\}([\s\S]*?)\\end\{abstract\}/);
-    const cmdMatch = latex.match(/\\abstract\s*\{([\s\S]*?)\}/);
+    const cmdMatch = latex.match(/\\abstract\\s*\{([\s\S]*?)\}/);
     const sectionMatch = latex.match(
         /\\section\*?\{\s*Abstract\s*\}([\s\S]*?)(?=\\section|\\subsection|\\paragraph|\\begin\{|\\end\{document\}|\Z)/
     );
     const raw = envMatch?.[1] ?? cmdMatch?.[1] ?? sectionMatch?.[1];
     if (!raw) return null;
+
     const mathMatches = new Map<string, string>();
     let mathIndex = 0;
     const protectedRaw = raw.replace(
@@ -332,6 +241,7 @@ export function extractAbstract(latex: string): string | null {
             return key;
         }
     );
+
     let abstract = protectedRaw
         .replace(/\\[a-zA-Z*]+(?:\[[^\]]*\])?/g, '')
         .replace(/[{}]/g, '')

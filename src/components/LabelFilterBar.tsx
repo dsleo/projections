@@ -7,25 +7,17 @@ import { classNames } from '@/lib/ui/classNames';
 type Props = {
   resultExists: boolean;
   labelCounts: Record<DiscourseLabel, number>;
-  unlabeledCount: number;
   labelFilter: DiscourseLabel[];
-  showUnlabeledOnly: boolean;
-  onToggleUnlabeled: () => void;
   onToggleLabelFilter: (label: DiscourseLabel) => void;
   onClearFilters: () => void;
-  setLabelFilter: (labels: DiscourseLabel[]) => void;
 };
 
 export function LabelFilterBar({
   resultExists,
   labelCounts,
-  unlabeledCount,
   labelFilter,
-  showUnlabeledOnly,
-  onToggleUnlabeled,
   onToggleLabelFilter,
   onClearFilters,
-  setLabelFilter,
 }: Props) {
   return (
     <div className="border-b px-4 py-2 text-xs text-zinc-600 flex flex-wrap items-center gap-2">
@@ -45,7 +37,7 @@ export function LabelFilterBar({
             {label} · {labelCounts[label]}
           </button>
         ))}
-      {(labelFilter.length > 0 || showUnlabeledOnly) && (
+      {labelFilter.length > 0 && (
         <button
           className="rounded-full border px-2 py-0.5 text-xs text-zinc-600 hover:bg-zinc-50"
           onClick={onClearFilters}

@@ -1,17 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import type { AnalysisResult } from '@/lib/pipeline/client';
 
 export type AnalyzeStatus =
   | { kind: 'idle' }
   | { kind: 'uploading' }
-  | { kind: 'analyzing'; message?: string }
+  | { kind: 'analyzing'; phase: 'pass1' | 'pass2' | 'pass3'; message?: string }
   | { kind: 'done' }
   | { kind: 'error'; message: string };
-
-const LS_KEY = 'discourse_pipeline_last_result_v1';
 
 type Params = {
   file: File | null;
@@ -25,31 +23,6 @@ export function useAnalyzeStream({ file, useEnvPropagation }: Params) {
     Array<{ start: number; end: number }>
   >([]);
 
-  useEffect(() => {
-    try {
-      const cached = localStorage.getItem(LS_KEY);
-      if (!cached) return;
-      const parsed = JSON.parse(cached) as AnalysisResult;
-      setResult({
-        ...parsed,
-        sentence_citations: parsed.sentence_citations ?? {},
-        citations: parsed.citations ?? {},
-      });
-      setStatus({ kind: 'done' });
-    } catch {
-      // ignore cache errors
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!result) return;
-    try {
-      localStorage.setItem(LS_KEY, JSON.stringify(result));
-    } catch {
-      // ignore storage quota errors
-    }
-  }, [result]);
-
   const onAnalyze = async () => {
     if (!file) return;
     setStatus({ kind: 'uploading' });
@@ -58,7 +31,7 @@ export function useAnalyzeStream({ file, useEnvPropagation }: Params) {
       const form = new FormData();
       form.append('file', file);
       form.append('use_env_propagation', useEnvPropagation ? '1' : '0');
-      setStatus({ kind: 'analyzing', message: 'Starting…' });
+      setStatus({ kind: 'analyzing', phase: 'pass1', message: 'Starting…' });
 
       const res = await fetch('/api/analyze/stream', {
         method: 'POST',
@@ -139,7 +112,7 @@ export function useAnalyzeStream({ file, useEnvPropagation }: Params) {
           audience_views = undefined;
           abstract = (dataObj?.abstract as string | undefined) ?? '';
           setProcessingWindows([]);
-          setStatus({ kind: 'analyzing', message: `Segmented ${sentences.length} sentences…` });
+          setStatus({ kind: 'analyzing', phase: 'pass1', message: `Segmented ${sentences.length} sentences…` });
           setResult({
             document_title,
             abstract,
@@ -186,17 +159,17 @@ export function useAnalyzeStream({ file, useEnvPropagation }: Params) {
             if (!prev) return prev;
             return { ...prev, labels };
           });
-          setStatus({ kind: 'analyzing', message: `Classifying… (${Object.keys(labels).length} labeled)` });
+          setStatus({ kind: 'analyzing', phase: 'pass1', message: `Classifying sentences… (${Object.keys(labels).length} labeled)` });
         }
 
         if (event === 'pass1_done') {
           setProcessingWindows([]);
-          setStatus({ kind: 'analyzing', message: `Pass 1 done. Building canonical sections…` });
+          setStatus({ kind: 'analyzing', phase: 'pass2', message: `Building canonical sections…` });
         }
 
         if (event === 'pass2_start') {
           const message = (dataObj?.message as string | undefined) ?? 'Building canonical sections…';
-          setStatus({ kind: 'analyzing', message });
+          setStatus({ kind: 'analyzing', phase: 'pass2', message });
         }
 
         if (event === 'pass2_section') {
@@ -213,17 +186,17 @@ export function useAnalyzeStream({ file, useEnvPropagation }: Params) {
 
         if (event === 'pass2_done') {
           const message = (dataObj?.message as string | undefined) ?? 'Canonical sections ready.';
-          setStatus({ kind: 'analyzing', message });
+          setStatus({ kind: 'analyzing', phase: 'pass2', message });
         }
 
         if (event === 'pass3_start') {
           const message = (dataObj?.message as string | undefined) ?? 'Building audience views…';
-          setStatus({ kind: 'analyzing', message });
+          setStatus({ kind: 'analyzing', phase: 'pass3', message });
         }
 
         if (event === 'pass3_done') {
           const message = (dataObj?.message as string | undefined) ?? 'Audience views ready.';
-          setStatus({ kind: 'analyzing', message });
+          setStatus({ kind: 'analyzing', phase: 'pass3', message });
         }
 
         if (event === 'sections') {

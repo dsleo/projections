@@ -1,7 +1,7 @@
 'use client';
 
 import type React from 'react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, Download, Search } from 'lucide-react';
 import type { AnalysisResult } from '@/lib/pipeline/client';
 import { MathText } from '@/components/MathText';
@@ -40,6 +40,20 @@ export function AudienceViewsCard({
   editable = false,
   onUpdateAudienceViews,
 }: Props) {
+  const exportDetailsRef = useRef<HTMLDetailsElement | null>(null);
+  useEffect(() => {
+    const onPointerDown = (e: PointerEvent) => {
+      const el = exportDetailsRef.current;
+      if (!el || !el.open) return;
+      const target = e.target as Node | null;
+      if (!target) return;
+      if (el.contains(target)) return;
+      el.open = false;
+    };
+    window.addEventListener('pointerdown', onPointerDown);
+    return () => window.removeEventListener('pointerdown', onPointerDown);
+  }, []);
+
   const audienceViews = result?.audience_views;
   const exportDisabled = !audienceViews || statusKind === 'analyzing' || statusKind === 'uploading';
   const canEdit = Boolean(editable && onUpdateAudienceViews);
@@ -116,7 +130,7 @@ export function AudienceViewsCard({
     items: Array<{ text: string; sentence_ids?: number[] }>,
     onUpdateItem: (views: NonNullable<AnalysisResult['audience_views']>, idx: number, value: string) => void
   ) => (
-    <ul className="mt-2 list-disc pl-4 text-base text-zinc-900">
+    <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
       {items.map((item, idx) => (
         <li key={`aud-edit-${idx}`} className="mb-2">
           <div className="flex items-start gap-2">
@@ -126,7 +140,7 @@ export function AudienceViewsCard({
                 onSave={(next) => applyUpdate((views) => onUpdateItem(views, idx, next))}
               />
             </div>
-            <div className="flex items-center gap-2 text-base text-zinc-500 shrink-0">
+            <div className="flex items-center gap-2 text-sm text-zinc-500 shrink-0">
               {item.sentence_ids && item.sentence_ids.length > 0 && (
                 <button
                   className="rounded-full border px-2 py-0.5 text-sm hover:bg-white"
@@ -150,7 +164,7 @@ export function AudienceViewsCard({
     onUpdateItem: (views: NonNullable<AnalysisResult['audience_views']>, idx: number, value: string) => void,
     renderDisplay?: (value: string) => React.ReactElement
   ) => (
-    <ul className="mt-2 list-disc pl-4 text-base text-zinc-900">
+    <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
       {items.map((item, idx) => (
         <li key={`aud-str-${idx}`} className="mb-2">
           <EditableText
@@ -176,7 +190,7 @@ export function AudienceViewsCard({
     canEdit ? (
       renderEditableStringList(items, onUpdateItem, renderDisplay)
     ) : (
-      <ul className="mt-2 list-disc pl-4 text-base text-zinc-900">
+      <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
         {items.map((item, idx) => (
           <li key={`aud-str-${idx}`} className="mb-2">
             {renderDisplay ? renderDisplay(item) : <MathText text={item} />}
@@ -221,8 +235,8 @@ export function AudienceViewsCard({
   };
 
   return (
-    <div className="grid grid-cols-1 gap-4 text-base text-zinc-900">
-      {!audienceViews && <div className="text-base text-zinc-500">No data.</div>}
+    <div className="grid grid-cols-1 gap-4 text-sm text-zinc-900">
+      {!audienceViews && <div className="text-sm text-zinc-500">No data.</div>}
       {audienceViews && (
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -237,8 +251,8 @@ export function AudienceViewsCard({
                   key={tab.id}
                   className={
                     audienceTab === tab.id
-                      ? 'rounded-full border border-zinc-900 bg-zinc-900 px-3 py-1 text-base text-white'
-                      : 'rounded-full border border-zinc-200 bg-white px-3 py-1 text-base text-zinc-600 hover:bg-zinc-50'
+                      ? 'rounded-full border border-zinc-900 bg-zinc-900 px-3 py-1 text-sm text-white'
+                      : 'rounded-full border border-zinc-200 bg-white px-3 py-1 text-sm text-zinc-600 hover:bg-zinc-50'
                   }
                   onClick={() => setAudienceTab(tab.id as typeof audienceTab)}
                   type="button"
@@ -248,9 +262,9 @@ export function AudienceViewsCard({
               ))}
             </div>
             <div className="flex items-center gap-2">
-              <details className="relative">
+              <details className="relative" ref={exportDetailsRef}>
                 <summary
-                  className={`list-none rounded-full border px-3 py-1 text-base font-normal text-zinc-600 hover:bg-zinc-100 [&::-webkit-details-marker]:hidden flex items-center gap-2 ${exportDisabled ? 'opacity-50' : ''
+                  className={`list-none rounded-full border px-3 py-1 text-sm font-normal text-zinc-600 hover:bg-zinc-100 [&::-webkit-details-marker]:hidden flex items-center gap-2 ${exportDisabled ? 'opacity-50' : ''
                     }`}
                   aria-label="Download audience view"
                   title="Download audience view"
@@ -268,7 +282,10 @@ export function AudienceViewsCard({
                   <button
                     className="block w-full rounded px-2 py-2 text-left text-zinc-700 hover:bg-zinc-50 disabled:text-zinc-300"
                     type="button"
-                    onClick={onDownloadAudienceText}
+                    onClick={() => {
+                      if (exportDetailsRef.current) exportDetailsRef.current.open = false;
+                      onDownloadAudienceText();
+                    }}
                     disabled={exportDisabled}
                   >
                     Download TXT
@@ -276,7 +293,10 @@ export function AudienceViewsCard({
                   <button
                     className="block w-full rounded px-2 py-2 text-left text-zinc-700 hover:bg-zinc-50 disabled:text-zinc-300"
                     type="button"
-                    onClick={onDownloadAudienceHtml}
+                    onClick={() => {
+                      if (exportDetailsRef.current) exportDetailsRef.current.open = false;
+                      onDownloadAudienceHtml();
+                    }}
                     disabled={exportDisabled}
                   >
                     Download HTML
@@ -286,15 +306,15 @@ export function AudienceViewsCard({
             </div>
           </div>
 
-          <div className="rounded-md border bg-white p-4 text-base">
+          <div className="rounded-md border bg-white p-4 text-sm">
             {audienceTab === 'A' && (
               <>
                 <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                  <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
+                  <div className="text-sm font-semibold uppercase tracking-wide text-zinc-600">
                     Problem statement
                   </div>
                   <div className="mt-2 flex items-start gap-2">
-                    <div className="min-w-0 flex-1 text-base text-zinc-900">
+                    <div className="min-w-0 flex-1 text-sm text-zinc-900">
                       <EditableText
                         value={audienceViews.domain_expert.problem_statement?.text ?? ''}
                         onSave={(next) =>
@@ -304,7 +324,7 @@ export function AudienceViewsCard({
                         }
                       />
                     </div>
-                    <div className="flex items-center gap-2 text-base text-zinc-500 shrink-0">
+                    <div className="flex items-center gap-2 text-sm text-zinc-500 shrink-0">
                       {audienceViews.domain_expert.problem_statement?.sentence_ids?.length ? (
                         <button
                           className="rounded-full border px-2 py-0.5 text-sm hover:bg-white"
@@ -325,7 +345,7 @@ export function AudienceViewsCard({
                 </div>
 
                 <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                  <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
+                  <div className="text-sm font-semibold uppercase tracking-wide text-zinc-600">
                     Delta summary
                   </div>
                   {renderGroundedListMaybe(audienceViews.domain_expert.delta_summary, (views, idx, next) => {
@@ -336,13 +356,13 @@ export function AudienceViewsCard({
                 {(audienceViews.domain_expert.technical_highlights.nonstandard_ideas.length > 0 ||
                   audienceViews.domain_expert.technical_highlights.clever_reductions.length > 0) && (
                     <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                      <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
+                      <div className="text-sm font-semibold uppercase tracking-wide text-zinc-600">
                         Technical highlights
                       </div>
                       {audienceViews.domain_expert.technical_highlights.nonstandard_ideas.length >
                         0 && (
                           <>
-                            <div className="mt-2 text-base font-semibold text-zinc-500">
+                            <div className="mt-2 text-sm font-semibold text-zinc-500">
                               Nonstandard ideas
                             </div>
                             {renderGroundedListMaybe(
@@ -357,7 +377,7 @@ export function AudienceViewsCard({
                       {audienceViews.domain_expert.technical_highlights.clever_reductions.length >
                         0 && (
                           <>
-                            <div className="mt-3 text-base font-semibold text-zinc-500">
+                            <div className="mt-3 text-sm font-semibold text-zinc-500">
                               Clever reductions
                             </div>
                             {renderGroundedListMaybe(
@@ -373,7 +393,7 @@ export function AudienceViewsCard({
                   )}
 
                 <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                  <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
+                  <div className="text-sm font-semibold uppercase tracking-wide text-zinc-600">
                     Reusable components
                   </div>
                   {renderGroundedListMaybe(audienceViews.domain_expert.reusable_components, (views, idx, next) => {
@@ -386,11 +406,11 @@ export function AudienceViewsCard({
             {audienceTab === 'B' && (
               <>
                 <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                  <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
+                  <div className="text-sm font-semibold uppercase tracking-wide text-zinc-600">
                     Problem statement
                   </div>
                   <div className="mt-2 flex items-start gap-2">
-                    <div className="min-w-0 flex-1 text-base text-zinc-900">
+                    <div className="min-w-0 flex-1 text-sm text-zinc-900">
                       <EditableText
                         value={audienceViews.adjacent_researcher.problem_statement.text}
                         onSave={(next) =>
@@ -400,7 +420,7 @@ export function AudienceViewsCard({
                         }
                       />
                     </div>
-                    <div className="flex items-center gap-2 text-base text-zinc-500 shrink-0">
+                    <div className="flex items-center gap-2 text-sm text-zinc-500 shrink-0">
                       {audienceViews.adjacent_researcher.problem_statement?.sentence_ids?.length ? (
                         <button
                           className="rounded-full border px-2 py-0.5 text-sm hover:bg-white"
@@ -421,7 +441,7 @@ export function AudienceViewsCard({
                 </div>
 
                 <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                  <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
+                  <div className="text-sm font-semibold uppercase tracking-wide text-zinc-600">
                     Why this matters
                   </div>
                   {renderGroundedListMaybe(
@@ -433,7 +453,7 @@ export function AudienceViewsCard({
                 </div>
 
                 <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                  <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
+                  <div className="text-sm font-semibold uppercase tracking-wide text-zinc-600">
                     Prerequisite map
                   </div>
                   {renderStringListMaybe(
@@ -446,10 +466,10 @@ export function AudienceViewsCard({
                 </div>
 
                 <div className="rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                  <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
+                  <div className="text-sm font-semibold uppercase tracking-wide text-zinc-600">
                     Reading path
                   </div>
-                  <div className="mt-2 text-base font-semibold text-zinc-500">Read</div>
+                  <div className="mt-2 text-sm font-semibold text-zinc-500">Read</div>
                   {renderStringListMaybe(
                     audienceViews.adjacent_researcher.reading_path.read,
                     (views, idx, next) => {
@@ -457,7 +477,7 @@ export function AudienceViewsCard({
                     },
                     renderReadingPathText
                   )}
-                  <div className="mt-2 text-base font-semibold text-zinc-500">Skim</div>
+                  <div className="mt-2 text-sm font-semibold text-zinc-500">Skim</div>
                   {renderStringListMaybe(
                     audienceViews.adjacent_researcher.reading_path.skim,
                     (views, idx, next) => {
@@ -465,7 +485,7 @@ export function AudienceViewsCard({
                     },
                     renderReadingPathText
                   )}
-                  <div className="mt-2 text-base font-semibold text-zinc-500">Skip</div>
+                  <div className="mt-2 text-sm font-semibold text-zinc-500">Skip</div>
                   {renderStringListMaybe(
                     audienceViews.adjacent_researcher.reading_path.skip,
                     (views, idx, next) => {
@@ -480,11 +500,11 @@ export function AudienceViewsCard({
             {audienceTab === 'C' && (
               <>
                 <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                  <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
+                  <div className="text-sm font-semibold uppercase tracking-wide text-zinc-600">
                     Problem statement
                   </div>
                   <div className="mt-2 flex items-start gap-2">
-                    <div className="min-w-0 flex-1 text-base text-zinc-900">
+                    <div className="min-w-0 flex-1 text-sm text-zinc-900">
                       <EditableText
                         value={audienceViews.grad_student.problem_statement?.text ?? ''}
                         onSave={(next) =>
@@ -494,7 +514,7 @@ export function AudienceViewsCard({
                         }
                       />
                     </div>
-                    <div className="flex items-center gap-2 text-base text-zinc-500 shrink-0">
+                    <div className="flex items-center gap-2 text-sm text-zinc-500 shrink-0">
                       {audienceViews.grad_student.problem_statement?.sentence_ids?.length ? (
                         <button
                           className="rounded-full border px-2 py-0.5 text-sm hover:bg-white"
@@ -515,10 +535,10 @@ export function AudienceViewsCard({
                 </div>
 
                 <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                  <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
+                  <div className="text-sm font-semibold uppercase tracking-wide text-zinc-600">
                     Reading path
                   </div>
-                  <div className="mt-2 text-base font-semibold text-zinc-500">Read</div>
+                  <div className="mt-2 text-sm font-semibold text-zinc-500">Read</div>
                   {renderStringListMaybe(
                     gradReadingPath.read,
                     (views, idx, next) => {
@@ -529,7 +549,7 @@ export function AudienceViewsCard({
                     },
                     renderReadingPathText
                   )}
-                  <div className="mt-2 text-base font-semibold text-zinc-500">Skim</div>
+                  <div className="mt-2 text-sm font-semibold text-zinc-500">Skim</div>
                   {renderStringListMaybe(
                     gradReadingPath.skim,
                     (views, idx, next) => {
@@ -540,7 +560,7 @@ export function AudienceViewsCard({
                     },
                     renderReadingPathText
                   )}
-                  <div className="mt-2 text-base font-semibold text-zinc-500">Skip</div>
+                  <div className="mt-2 text-sm font-semibold text-zinc-500">Skip</div>
                   {renderStringListMaybe(
                     gradReadingPath.skip,
                     (views, idx, next) => {
@@ -554,7 +574,7 @@ export function AudienceViewsCard({
                 </div>
 
                 <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                  <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
+                  <div className="text-sm font-semibold uppercase tracking-wide text-zinc-600">
                     Key ideas before technicalities
                   </div>
                   {renderGroundedListMaybe(audienceViews.grad_student.key_ideas, (views, idx, next) => {
@@ -567,11 +587,11 @@ export function AudienceViewsCard({
             {audienceTab === 'D' && (
               <>
                 <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                  <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
+                  <div className="text-sm font-semibold uppercase tracking-wide text-zinc-600">
                     Problem statement
                   </div>
                   <div className="mt-2 flex items-start gap-2">
-                    <div className="min-w-0 flex-1 text-base text-zinc-900">
+                    <div className="min-w-0 flex-1 text-sm text-zinc-900">
                       <EditableText
                         value={audienceViews.author_self.problem_statement?.text ?? ''}
                         onSave={(next) =>
@@ -581,7 +601,7 @@ export function AudienceViewsCard({
                         }
                       />
                     </div>
-                    <div className="flex items-center gap-2 text-base text-zinc-500 shrink-0">
+                    <div className="flex items-center gap-2 text-sm text-zinc-500 shrink-0">
                       {audienceViews.author_self.problem_statement?.sentence_ids?.length ? (
                         <button
                           className="rounded-full border px-2 py-0.5 text-sm hover:bg-white"
@@ -602,10 +622,10 @@ export function AudienceViewsCard({
                 </div>
 
                 <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                  <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
+                  <div className="text-sm font-semibold uppercase tracking-wide text-zinc-600">
                     Contribution Summary
                   </div>
-                  <div className="mt-2 text-base text-zinc-900">
+                  <div className="mt-2 text-sm text-zinc-900">
                     <EditableText
                       value={audienceViews.author_self.one_page_summary}
                       renderDisplay={renderContributionSummary}
@@ -619,12 +639,19 @@ export function AudienceViewsCard({
                 </div>
 
                 <div className="rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                  <div className="text-base font-semibold uppercase tracking-wide text-zinc-600">
+                  <div className="text-sm font-semibold uppercase tracking-wide text-zinc-600">
                     Notes to self
                   </div>
-                  <div className="mt-2 text-base text-zinc-900">
+                  <div className="mt-2 text-sm text-zinc-900">
                     <EditableText
                       value={audienceViews.author_self.notes_to_self?.[0] ?? ''}
+                      renderDisplay={(val) =>
+                        val.trim() ? (
+                          <MathText text={val} />
+                        ) : (
+                          <span className="text-zinc-400 italic">Double click to add a note…</span>
+                        )
+                      }
                       onSave={(next) =>
                         applyUpdate((views) => {
                           const trimmed = next.trim();

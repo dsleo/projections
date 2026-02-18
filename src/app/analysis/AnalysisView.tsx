@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Search, Upload } from 'lucide-react';
+import { Search } from 'lucide-react';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
@@ -24,6 +24,7 @@ import { CanonicalSectionsCard } from '@/components/CanonicalSectionsCard';
 import { TextPanel } from '@/components/TextPanel';
 import { PdfViewerCard } from '@/components/PdfViewerCard';
 import { useAnalysis } from '@/components/AnalysisContext';
+import { AppLogo } from '@/components/AppLogo';
 import {
   buildCanonicalSectionTitles,
   buildSentenceMap,
@@ -31,11 +32,13 @@ import {
   renderReadingPathText as renderReadingPathTextRaw,
 } from '@/lib/ui/sectionHints';
 import { buildAudienceExport } from '@/lib/ui/audienceExport';
+import { isTexEnabled } from '@/lib/features';
 
 type AnalysisMode = 'core' | 'audience';
 
 export function AnalysisView({ mode }: { mode: AnalysisMode }) {
   const isAudiencePage = mode === 'audience';
+  const texEnabled = isTexEnabled();
   const [showCorePdf, setShowCorePdf] = useState(false);
   const {
     file,
@@ -60,7 +63,6 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
   const [manualHighlightIds, setManualHighlightIds] = useState<number[] | null>(null);
   const [focusSentenceId, setFocusSentenceId] = useState<number | null>(null);
   const [labelFilter, setLabelFilter] = useState<DiscourseLabel[]>([]);
-  const [showUnlabeledOnly, setShowUnlabeledOnly] = useState(false);
   const hasSetAudienceModeRef = useRef(false);
   const updateAudienceViews = useCallback(
     (updater: (views: NonNullable<AnalysisResult['audience_views']>) => void) => {
@@ -103,7 +105,7 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
   }, [pdfMode]);
   async function rerunPass2Only() {
     if (!result) return;
-    setStatus({ kind: 'analyzing', message: 'Re-running Pass 2…' });
+    setStatus({ kind: 'analyzing', phase: 'pass2', message: 'Re-running Pass 2…' });
     try {
       const res = await fetch('/api/analyze/pass2', {
         method: 'POST',
@@ -184,16 +186,6 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
 
   const isSentenceProcessing = (position: number) =>
     processingWindows.some((w) => position >= w.start && position < w.end);
-
-  const unlabeledCount = useMemo(() => {
-    if (!result) return 0;
-    let count = 0;
-    for (const s of result.sentences) {
-      const labels = result.labels[String(s.id)] ?? [];
-      if (labels.length === 0) count += 1;
-    }
-    return count;
-  }, [result]);
 
   const renderedOriginalText = useMemo(() => {
     if (!result) return null;
@@ -287,14 +279,14 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
   const renderGroundedList = (
     items: Array<{ text: string; sentence_ids?: number[] }>
   ) => (
-    <ul className="mt-2 list-disc pl-4 text-base text-zinc-900">
+    <ul className="mt-2 list-disc pl-4 text-sm text-zinc-900">
       {items.map((item, idx) => (
         <li key={`grounded-${idx}`} className="mb-2">
           <div className="flex items-start gap-2">
             <div className="min-w-0 flex-1">
               <MathText text={item.text} />
             </div>
-            <div className="flex items-center gap-2 text-base text-zinc-500 shrink-0">
+            <div className="flex items-center gap-2 text-sm text-zinc-500 shrink-0">
               {isAudiencePage && item.sentence_ids && item.sentence_ids.length > 0 && (
                 <button
                   className="rounded-full border px-2 py-0.5 text-sm hover:bg-white"
@@ -347,7 +339,7 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
     if (!result) return null;
     const { abstract, segments } = audienceSupporting;
     return (
-      <div className="mt-3 rounded-md border bg-zinc-50 p-4 text-base leading-7 whitespace-pre-wrap">
+      <div className="mt-3 rounded-md border bg-zinc-50 p-4 text-sm leading-6 whitespace-pre-wrap">
         {abstract ? (
           <>
             <span className="font-semibold">Abstract</span>
@@ -450,7 +442,7 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
     const { abstract, segments } = audienceSupporting;
     const abstractValue = supportingAbstractOverride ?? abstract;
     return (
-      <div className="text-base leading-7">
+      <div className="text-sm leading-6">
         <div className="text-xs text-zinc-500">
           Debug view. Double click any block to edit (temporary).
         </div>
@@ -494,6 +486,52 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
     );
   }, [result, isAudiencePage, audienceSupporting, supportingAbstractOverride, supportingSegmentOverrides]);
 
+  const buildSupportingTexExport = () => {
+    if (!result) return null;
+    const { abstract, segments } = audienceSupporting;
+    const abstractValue = (supportingAbstractOverride ?? abstract ?? '').trim();
+    const segTexts = segments.map((seg, idx) => ({
+      range: `${seg.startId}–${seg.endId}`,
+      text: (supportingSegmentOverrides[idx] ?? seg.text ?? '').trim(),
+    }));
+
+    const lines: string[] = [];
+    lines.push(`% FourFold supporting export`);
+    lines.push(`% Audience tab: ${audienceTab}`);
+    lines.push(`% Document: ${documentTitle}`);
+    lines.push('');
+    if (abstractValue) {
+      lines.push('% Abstract');
+      lines.push(abstractValue);
+      lines.push('');
+    }
+    if (segTexts.length === 0) {
+      lines.push('% No supporting segments.');
+    } else {
+      segTexts.forEach((seg, idx) => {
+        lines.push(`% Segment ${idx + 1} (sentences ${seg.range})`);
+        if (seg.text) lines.push(seg.text);
+        lines.push('');
+      });
+    }
+    return `${lines.join('\n').trimEnd()}\n`;
+  };
+
+  const slugify = (value: string) =>
+    (value || 'untitled')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+/, '')
+      .replace(/-+$/, '')
+      .slice(0, 80) || 'untitled';
+
+  const handleDownloadSupportingTex = () => {
+    const tex = buildSupportingTexExport();
+    if (!tex) return;
+    downloadBlob(tex, `supporting-${audienceTab}-${slugify(documentTitle)}.tex`, 'text/x-tex;charset=utf-8');
+  };
+
   const expandedAudienceHighlightIds = useMemo(() => {
     if (!result || pdfTab === 'original') return [];
     const ids = pdfSupporting.sentenceIds ?? [];
@@ -528,18 +566,20 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
   useEffect(() => {
     if (pdfTab === 'original') return;
     if (!result || expandedAudienceHighlightIds.length === 0) return;
+    if (!texEnabled) return;
     if (highlightKey && lastPdfKeyRef.current === highlightKey) return;
     if (highlightKey) lastPdfKeyRef.current = highlightKey;
     void compilePdf();
-  }, [pdfTab, expandedAudienceHighlightIds, result, compilePdf, highlightKey]);
+  }, [pdfTab, expandedAudienceHighlightIds, result, compilePdf, highlightKey, texEnabled]);
 
   useEffect(() => {
     if (pdfTab !== 'original') return;
     if (!file && !result?.original_latex) return;
+    if (!texEnabled) return;
     if (originalKey && lastPdfKeyRef.current === originalKey) return;
     if (originalKey) lastPdfKeyRef.current = originalKey;
     void compilePdf();
-  }, [pdfTab, file, result, compilePdf, originalKey]);
+  }, [pdfTab, file, result, compilePdf, originalKey, texEnabled]);
 
   const handlePdfTabChange = (id: string) => {
     if (!isAudiencePage) return;
@@ -564,13 +604,21 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
 
   const statusPhase = useMemo<'pass1' | 'pass2' | 'pass3' | null>(() => {
     if (status.kind === 'done') return null;
-    const msg = status.kind === 'analyzing' || status.kind === 'error' ? status.message ?? '' : '';
-    if (status.kind === 'analyzing' || status.kind === 'error') {
-      if (/pass 3|audience/i.test(msg)) return 'pass3';
-      if (/pass 2|canonical sections|pass 1 done/i.test(msg)) return 'pass2';
-      return 'pass1';
-    }
+    if (status.kind === 'analyzing') return status.phase;
     if (status.kind === 'uploading' || status.kind === 'idle') return 'pass1';
+    return 'pass1';
+  }, [status]);
+
+  const headerPhaseLabel = useMemo(() => {
+    if (status.kind === 'idle') return null;
+    if (status.kind === 'uploading') return 'Uploading';
+    if (status.kind === 'done') return null;
+    if (status.kind === 'error') return 'Error';
+    if (status.kind === 'analyzing') {
+      if (status.phase === 'pass1') return 'Semantic Sequence Classification';
+      if (status.phase === 'pass2') return 'Canonical sectioning';
+      return 'Audience synthesis';
+    }
     return null;
   }, [status]);
 
@@ -604,7 +652,7 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
 
   const pass1Status = buildStatusLine('pass1', status, Boolean(result));
   const pass2Status = buildStatusLine('pass2', status, Boolean(result?.sections));
-  const pass3Status = buildStatusLine('pass3', status, Boolean(result?.audience_views));
+  // Note: pass3Status intentionally not used in header UI to keep it high-level.
 
 
   const downloadBlob = (content: string, filename: string, type: string) => {
@@ -655,15 +703,18 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
     <div className="min-h-screen bg-zinc-50 text-zinc-900">
       <header className="border-b bg-white">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-4">
-          <div>
-            <h1 className="text-lg font-semibold">
-              {isAudiencePage ? 'Audience view' : 'Analysis workspace'}
-            </h1>
-            <p className="text-sm text-zinc-500">
-              {isAudiencePage
-                ? 'Review audience summaries with highlighted PDFs.'
-                : 'Review sentence labels and canonical sections with the original PDF.'}
-            </p>
+          <div className="flex items-center gap-4">
+            <AppLogo />
+            <div>
+              <h1 className="text-lg font-semibold">
+                {isAudiencePage ? 'Audience view' : 'Analysis workspace'}
+              </h1>
+              <p className="text-sm text-zinc-500">
+                {isAudiencePage
+                  ? 'Review audience summaries with highlighted PDFs.'
+                  : 'Review sentence labels and canonical sections with the original PDF.'}
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <div className="inline-flex rounded-full border bg-white p-1 text-sm text-zinc-600">
@@ -703,34 +754,16 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
                   aria-label="Audience view unavailable"
                   title="Audience view unavailable"
                 >
-                  <span className="inline-flex items-center gap-2">
-                    Audience
-                    {pass3Status && (
-                      <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[11px] text-zinc-500">
-                        Building…
-                      </span>
-                    )}
-                  </span>
+                  Audience
                 </span>
               )}
             </div>
 
-            {(status.kind === 'analyzing' || status.kind === 'error') && status.message ? (
-              <div className="hidden md:block text-xs text-zinc-500 max-w-[320px] truncate" title={status.message}>
-                {status.message}
+            {headerPhaseLabel ? (
+              <div className="hidden md:block text-xs text-zinc-500 max-w-[320px] truncate" title={headerPhaseLabel}>
+                {headerPhaseLabel}
               </div>
             ) : null}
-            <Link
-              className="rounded-full border px-2.5 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50"
-              href="/"
-              aria-label="Upload new file"
-              title="Upload new file"
-            >
-              <span className="inline-flex items-center gap-2">
-                <Upload className="h-4 w-4" aria-hidden />
-                <span className="hidden sm:inline">New upload</span>
-              </span>
-            </Link>
           </div>
         </div>
       </header>
@@ -763,6 +796,7 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
             status={pdfStatus}
             pdfUrl={pdfUrl}
             onCompile={() => {
+              if (!texEnabled) return;
               void compilePdf({ force: true });
             }}
             selectedTab={pdfTab}
@@ -771,10 +805,11 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
             focusSentenceIndex={focusSentenceIndex}
             totalSentences={sentenceOrder.length || undefined}
             variant="full"
-            collapsible
-            defaultOpen
             supportingTitle="Supporting"
             supportingContent={supportingTextView}
+            defaultView={texEnabled ? 'pdf' : 'supporting'}
+            showCompile={texEnabled}
+            onDownloadSupportingTex={handleDownloadSupportingTex}
           />
         </main>
       ) : (
@@ -791,9 +826,7 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
               documentTitle={documentTitle}
               renderedOriginalText={renderedOriginalText}
               labelCounts={labelCounts}
-              unlabeledCount={unlabeledCount}
               labelFilter={labelFilter}
-              showUnlabeledOnly={showUnlabeledOnly}
               processingWindows={processingWindows}
               headerStatus={pass1Status}
               highlightedIds={highlightedIds}
@@ -801,17 +834,12 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
               onToggleLabelFilter={toggleLabelFilter}
               onClearFilters={() => {
                 setLabelFilter([]);
-                setShowUnlabeledOnly(false);
               }}
-              onToggleUnlabeled={() => setShowUnlabeledOnly((prev) => !prev)}
               onReRunPass1={onAnalyze}
               showViewerButton
               isViewerOpen={showCorePdf}
               onToggleViewer={() => setShowCorePdf((v) => !v)}
               isSentenceProcessing={isSentenceProcessing}
-              focusSentences={focusSentences}
-              setLabelFilter={setLabelFilter}
-              setShowUnlabeledOnly={setShowUnlabeledOnly}
             />
 
             <CanonicalSectionsCard
@@ -819,14 +847,13 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
               detailsRef={canonicalDetailsRef}
               activeTab={activeTab}
               setActiveTab={setActiveTab}
-              statusKind={status.kind}
+              status={status}
               onRerunPass2={rerunPass2Only}
               onCopyCanonical={() => {
                 if (!result?.sections) return;
                 navigator.clipboard.writeText(JSON.stringify(result.sections, null, 2));
               }}
               renderEmpty={renderEmpty}
-              renderGroundedList={renderGroundedList}
               renderCitationAction={renderCitationAction}
               focusSentences={focusSentences}
               formatIdRanges={formatIdRanges}
@@ -850,6 +877,7 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
                 status={pdfStatus}
                 pdfUrl={pdfUrl}
                 onCompile={() => {
+                  if (!texEnabled) return;
                   void compilePdf({ force: true });
                 }}
                 selectedTab={pdfTab}
@@ -857,6 +885,7 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
                 showToggle={isAudiencePage}
                 focusSentenceIndex={focusSentenceIndex}
                 totalSentences={sentenceOrder.length || undefined}
+                showCompile={texEnabled}
               />
             </div>
           )}

@@ -5,6 +5,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 
 import { saveCompilation } from '@/lib/latex/compileStore';
+import { isTexEnabled } from '@/lib/features';
 
 export const runtime = 'nodejs';
 
@@ -34,6 +35,18 @@ async function compileLatex(source: string) {
 }
 
 export async function POST(req: Request) {
+  if (!isTexEnabled()) {
+    return new Response(
+      JSON.stringify({
+        error:
+          'TeX compilation is disabled in this deployment (enable NEXT_PUBLIC_ENABLE_TEX to override).',
+      }),
+      {
+        status: 501,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+  }
   try {
     const payload = (await req.json()) as { latex?: string };
     const latex = payload.latex ?? '';

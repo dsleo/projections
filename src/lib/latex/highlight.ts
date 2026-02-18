@@ -12,7 +12,6 @@ export const HIGHLIGHT_MACRO_BLOCK = [
 ].join('\n');
 
 const PAR_BREAK_RE = /\\par|\n\s*\n/;
-const DISPLAY_MATH_RE = /\$\$|\\\[|\\\]|\\begin\{(equation|align|gather|multline|eqnarray)\*?\}/;
 const INLINE_MATH_RE = /\$|\\\(|\\\)|\\\[|\\\]/;
 const MATH_COMMAND_RE =
   /\\(Pr|ge|le|neq|approx|cup|cap|cdot|times|log|exp|sqrt|psi|varphi|eps|epsilon|alpha|beta|gamma|delta|theta|lambda|mu|nu|rho|sigma|tau|phi|chi|omega|mathbb|mathcal|mathbf|mathrm)\b/;
