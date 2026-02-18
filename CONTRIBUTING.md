@@ -3,7 +3,6 @@
 ## Development setup
 
 ```bash
-cd discourse-pipeline
 npm i
 cp .env.example .env.local
 ```

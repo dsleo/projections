@@ -1,41 +1,44 @@
-## LLM-Based Scientific Discourse Structuring Pipeline
+## FourFold, transform your scientific paper into audience-specific summaries
 
-Upload a `.tex` research paper and this app will:
+FourFold is a small web app for researchers that helps you *re-express the same paper for different readers*.
 
-- **Pass 1 (LLM-SSC):** deterministically segment into sentences, build sliding windows (20, stride 3), and run parallel multi-label discourse classification.
-- **Pass 2:** build 5 canonical sections (Problem/Motivation, Landscape, Contributions, Technical Core, Consequences), grounded with sentence IDs.
-- **Pass 3:** generate 4 audience views (Domain Expert, Adjacent-field Researcher, Grad Student, Author Self), grounded with sentence IDs.
-- **PDF preview:** compile and render the LaTeX source in-browser.
-- **Audience PDF highlighting:** generate a highlighted PDF by injecting safe LaTeX macros around the selected supporting sentences.
+Upload a LaTeX (`.tex`) paper and FourFold will generate:
 
-All LLM calls are **server-only**.
+- **4 audience views**: Domain Expert, Adjacent-field Researcher, Grad Student, and “Future Author Self”.
+- **A canonical structure** of the paper (5 sections: Problem/Motivation, Landscape, Contributions, Technical Core, Consequences).
+- **Grounding**: generated outputs reference the paper’s sentences via stable sentence IDs.
+- **Optional PDF preview + highlighting**: compile the LaTeX and produce a highlighted PDF for the selected supporting sentences (local by default).
 
-### Setup
+### Who is this for?
 
-1) Install deps
+- **Researchers** who want to quickly produce variants of the same story: for a lab mate, an advisor, or a broader research audience.
+- **Reviewers / readers** who want a fast, structured understanding of a paper.
+- **Contributors** who want to iterate on a grounded “discourse → sections → audience views” pipeline.
+
+### Typical use cases
+
+- Producing a clean “adjacent-field” explanation for collaborators.
+- Checking whether the paper’s *contributions* and *technical core* are actually supported by the text.
+
+---
+
+## Quickstart
+
+1) Install dependencies
 
 ```bash
-cd discourse-pipeline
 npm i
 ```
 
-2) Configure env
+2) Configure environment
 
 ```bash
 cp .env.example .env.local
 ```
 
-Set `OPENAI_API_KEY`. Default model is `gpt-5-mini` (override with `OPENAI_MODEL`).
+Set `OPENAI_API_KEY`.
 
-### Vercel / production deployment (no TeX)
-
-Vercel does not provide a TeX engine binary (like `tectonic`) in the runtime. For that reason, **TeX → PDF compilation is disabled by default in production**. Locally: you can keep PDF compilation (install `tectonic`).
-
-To force-enable TeX compilation (only on runtimes that support native binaries), set:
-
-```bash
-NEXT_PUBLIC_ENABLE_TEX=1
-```
+Default model is `gpt-5-mini` (override with `OPENAI_MODEL`).
 
 3) Run
 
@@ -44,6 +47,26 @@ npm run dev
 ```
 
 Open http://localhost:3000
+
+---
+
+## How it works - at a  high level
+
+The pipeline is intentionally simple and grounded:
+
+- **Pass 1**: deterministically segment the paper into sentences, build sliding windows, and run parallel multi-label discourse classification.
+- **Pass 2**: build 5 canonical sections (Problem/Motivation, Landscape, Contributions, Technical Core, Consequences), grounded with sentence IDs.
+- **Pass 3**: generate 4 audience views (Domain Expert, Adjacent-field Researcher, Grad Student, Author Self), grounded with sentence IDs.
+
+### Production deployment (no TeX)
+
+Vercel does not provide a TeX engine binary (like `tectonic`) in the runtime. For that reason, **TeX → PDF compilation is disabled by default in production**. Locally: you can keep PDF compilation (install `tectonic`).
+
+To force-enable TeX compilation (only on runtimes that support native binaries), set:
+
+```bash
+NEXT_PUBLIC_ENABLE_TEX=1
+```
 
 ### PDF preview with Tectonic
 
@@ -86,23 +109,8 @@ tectonic --help
 > (Tectonic-specific flags). If you want to use a different TeX engine, update
 > `src/app/api/latex/compile/route.ts` accordingly.
 
+### Highlighting notes
 
-### Highlighting status (PDF)
+Implementation details, tradeoffs, and known limitations live in:
 
-Current behavior (working):
-- Highlights are injected directly into the LaTeX using `\dfhighlightword{...}` / `\dfhighlightmath{...}` macros.
-- Audience PDF highlights use the same sentence/environment selection as the supporting-text panel.
-- Environment propagation is supported for theorem-like environments (theorem/lemma/proposition/corollary/claim/conjecture/definition/example).
-- Highlighting is **word-level** (not whitespace), which preserves line breaking and avoids overfull boxes.
-- Display-math blocks are not highlighted (to avoid breaking `$$...$$` or `\begin{equation}`).
-
-What we tried (and why it failed):
-- **SyncTeX overlays (client-side boxes):** alignment drift and inconsistent mapping for sentences; brittle with font/layout changes.
-- **`soul` / `\hl{}` full-span highlights:** frequent LaTeX errors with math-heavy text (`Reconstruction failed`) and unstable on complex macros.
-- **Highlighting whitespace inside `\colorbox{}`:** caused line-breaking failures and text spilling into the margin.
-- **Injecting highlights inside display math:** caused `Missing $ inserted` errors (now explicitly avoided).
-
-Open improvements:
-- Robust, line-level background highlighting that respects math and does not break line wrapping.
-- A safer math-aware highlighter for display-math blocks (e.g., `\colorbox` in `\mathchoice`, or a true TeX parser).
-- Optional post-processing or PDF-layer highlight approach if SyncTeX can be made reliable (might require a dedicated mapping library).
+- `docs/highlighting.md`
