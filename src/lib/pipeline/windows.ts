@@ -1,7 +1,22 @@
 import type { Sentence } from './types';
 
 export const WINDOW_SIZE = 20;
-export const STRIDE = 3;
+/**
+ * Number of sentences to carry over as context from the previous window.
+ *
+ * Example (WINDOW_SIZE=20, WINDOW_OVERLAP=1):
+ *   window1: 1..20
+ *   window2: 20..39 (overlap last 1 sentence)
+ */
+export const WINDOW_OVERLAP = 1;
+
+/**
+ * Step between windows.
+ *
+ * Note: historically this was set to 3 (very dense overlap). We now derive it
+ * from overlap to avoid excessive redundant LLM tokens.
+ */
+export const STRIDE = WINDOW_SIZE - WINDOW_OVERLAP;
 
 export type SentenceWindow = {
     /** 0-based sentence position index */

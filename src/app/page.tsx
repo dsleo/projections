@@ -20,9 +20,11 @@ export default function Home() {
   // before calling onAnalyze (which reads the latest `file` from context).
   useEffect(() => {
     if (!file) return;
+    router.push('/analysis');
+
+    // Avoid starting a second analysis if one is already in flight.
     if (status.kind === 'uploading' || status.kind === 'analyzing') return;
     void onAnalyze();
-    router.push('/analysis');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file]);
 

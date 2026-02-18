@@ -97,50 +97,65 @@ export async function POST(req: Request) {
                 // Phase 1: streaming pass1
                 const agg: Record<string, Set<DiscourseLabel>> = {};
                 const concurrency = 6;
-                let inFlight = 0;
                 let idx = 0;
+                const inFlight = new Set<Promise<void>>();
 
-                const pump = async (): Promise<void> => {
-                    while (inFlight < concurrency && idx < windows.length) {
-                        const w = windows[idx++];
-                        inFlight++;
-                        send('pass1_window_start', { start: w.start, end: w.end });
-                        (async () => {
-                            try {
-                                const res = await classifyWindow(w, logger);
-                                send('pass1_window', { start: w.start, end: w.end, res });
+                const startWindow = (w: (typeof windows)[number]) => {
+                    send('pass1_window_start', { start: w.start, end: w.end });
+                    const p = (async () => {
+                        try {
+                            const res = await classifyWindow(w, logger);
+                            send('pass1_window', { start: w.start, end: w.end, res });
 
-                                // Compute deltas
-                                const delta: SentenceLabelMap = {};
-                                for (const [sid, labels] of Object.entries(res)) {
-                                    const set = (agg[sid] ??= new Set());
-                                    const beforeSize = set.size;
-                                    for (const l of labels) set.add(l);
-                                    if (set.size !== beforeSize) {
-                                        delta[sid] = sortLabels(set);
-                                    }
+                            // Compute deltas
+                            const delta: SentenceLabelMap = {};
+                            for (const [sid, labels] of Object.entries(res)) {
+                                const set = (agg[sid] ??= new Set());
+                                const beforeSize = set.size;
+                                for (const l of labels) set.add(l);
+                                if (set.size !== beforeSize) {
+                                    delta[sid] = sortLabels(set);
                                 }
-                                if (Object.keys(delta).length > 0) {
-                                    send('labels_delta', { delta });
-                                }
-                            } catch (e) {
-                                send('log', {
-                                    level: 'error',
-                                    msg: 'pass1_window:error',
-                                    error: e instanceof Error ? e.message : String(e),
-                                });
-                            } finally {
-                                inFlight--;
                             }
-                        })();
-                    }
+                            if (Object.keys(delta).length > 0) {
+                                send('labels_delta', { delta });
+                            }
+                        } catch (e) {
+                            send('log', {
+                                level: 'error',
+                                msg: 'pass1_window:error',
+                                error: e instanceof Error ? e.message : String(e),
+                            });
+                        }
+                    })();
+
+                    // Ensure it removes itself when done (regardless of success/failure).
+                    const tracked = p.finally(() => {
+                        inFlight.delete(tracked);
+                    });
+                    inFlight.add(tracked);
                 };
 
-                // Main loop: keep pumping until done.
-                while (idx < windows.length || inFlight > 0) {
-                    await pump();
-                    // tiny delay to yield event loop / allow completions to reduce CPU spin
-                    await new Promise((r) => setTimeout(r, 25));
+                // Prime the pump.
+                while (inFlight.size < concurrency && idx < windows.length) {
+                    startWindow(windows[idx++]);
+                }
+
+                // Keep starting windows as soon as any slot frees up (no artificial delay).
+                while (idx < windows.length || inFlight.size > 0) {
+                    if (inFlight.size === 0) {
+                        // Should be rare, but keep it safe.
+                        while (inFlight.size < concurrency && idx < windows.length) {
+                            startWindow(windows[idx++]);
+                        }
+                        continue;
+                    }
+
+                    await Promise.race(inFlight);
+
+                    while (inFlight.size < concurrency && idx < windows.length) {
+                        startWindow(windows[idx++]);
+                    }
                 }
 
                 const labelsRaw: SentenceLabelMap = {};

@@ -704,6 +704,21 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
   const canonicalHeaderStatus =
     status.kind === 'analyzing' && status.phase === 'pass3' ? pass3Status : pass2Status;
 
+  // Show a clear transition message right after Pass 1 completes.
+  const textPanelHeaderStatus =
+    status.kind === 'analyzing' && status.phase === 'pass2'
+      ? 'Pass 1 complete — structuring into canonical sections…'
+      : pass1Status;
+
+  // Show canonical sections only once pass 1 is complete.
+  // (During streaming we may have a partial `result` early, so we gate on status.)
+  const canShowCanonicalSections = useMemo(() => {
+    if (!result?.sentences || result.sentences.length === 0) return false;
+    if (status.kind === 'analyzing') return status.phase !== 'pass1';
+    if (status.kind === 'done') return true;
+    return false;
+  }, [result?.sentences, status]);
+
 
   const downloadBlob = (content: string, filename: string, type: string) => {
     const blob = new Blob([content], { type });
@@ -870,7 +885,7 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
               labelCounts={labelCounts}
               labelFilter={labelFilter}
               processingWindows={processingWindows}
-              headerStatus={pass1Status}
+              headerStatus={textPanelHeaderStatus}
               highlightedIds={highlightedIds}
               textDetailsRef={textDetailsRef}
               onToggleLabelFilter={toggleLabelFilter}
@@ -884,32 +899,34 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
               isSentenceProcessing={isSentenceProcessing}
             />
 
-            <CanonicalSectionsCard
-              result={result}
-              detailsRef={canonicalDetailsRef}
-              activeTab={activeTab}
-              setActiveTab={setActiveTab}
-              status={status}
-              onRerunPass2={rerunPass2Only}
-              onRerunPass3={rerunPass3FromCanonical}
-              dirty={canonicalDirty}
-              editable
-              onUpdateSections={updateCanonicalSections}
-              onCopyCanonical={() => {
-                if (!result?.sections) return;
-                navigator.clipboard.writeText(JSON.stringify(result.sections, null, 2));
-              }}
-              renderEmpty={renderEmpty}
-              renderCitationAction={renderCitationAction}
-              focusSentences={focusSentences}
-              formatIdRanges={formatIdRanges}
-              formatCitationLabel={formatCitationLabel}
-              LabelPill={LabelPill}
-              focusedCitationKeys={focusedCitationKeys}
-              setFocusedCitationKeys={setFocusedCitationKeys}
-              headerStatus={canonicalHeaderStatus}
-              showSentenceActions={false}
-            />
+            {canShowCanonicalSections ? (
+              <CanonicalSectionsCard
+                result={result}
+                detailsRef={canonicalDetailsRef}
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+                status={status}
+                onRerunPass2={rerunPass2Only}
+                onRerunPass3={rerunPass3FromCanonical}
+                dirty={canonicalDirty}
+                editable
+                onUpdateSections={updateCanonicalSections}
+                onCopyCanonical={() => {
+                  if (!result?.sections) return;
+                  navigator.clipboard.writeText(JSON.stringify(result.sections, null, 2));
+                }}
+                renderEmpty={renderEmpty}
+                renderCitationAction={renderCitationAction}
+                focusSentences={focusSentences}
+                formatIdRanges={formatIdRanges}
+                formatCitationLabel={formatCitationLabel}
+                LabelPill={LabelPill}
+                focusedCitationKeys={focusedCitationKeys}
+                setFocusedCitationKeys={setFocusedCitationKeys}
+                headerStatus={canonicalHeaderStatus}
+                showSentenceActions={false}
+              />
+            ) : null}
           </section>
 
           {showCorePdf && (
