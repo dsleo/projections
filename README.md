@@ -2,7 +2,7 @@
 
 FourFold is a small web app for researchers that helps you *re-express the same paper for different readers*.
 
-Upload a LaTeX (`.tex`) paper and FourFold will generate:
+Upload a LaTeX  paper and FourFold will generate:
 
 - **4 audience views**: Domain Expert, Adjacent-field Researcher, Grad Student, and “Future Author Self”.
 - **A canonical structure** of the paper (5 sections: Problem/Motivation, Landscape, Contributions, Technical Core, Consequences).
