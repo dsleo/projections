@@ -13,8 +13,8 @@
 @theme inline {
   --color-background: var(--paper);
   --color-foreground: var(--ink);
-  --font-sans: var(--font-source-sans);
-  --font-serif: var(--font-source-serif);
+  --font-sans: var(--font-ibm-plex-sans);
+  --font-serif: var(--font-stix-two-text);
   --font-mono: var(--font-jetbrains-mono);
 }
 

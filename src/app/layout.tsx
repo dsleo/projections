@@ -1,17 +1,17 @@
 import type { Metadata } from 'next';
-import { Source_Sans_3, Source_Serif_4, JetBrains_Mono } from 'next/font/google';
+import { IBM_Plex_Sans, STIX_Two_Text, JetBrains_Mono } from 'next/font/google';
 import 'katex/dist/katex.min.css';
 import './globals.css';
 import { AnalysisProvider } from '@/components/AnalysisContext';
 
-const sourceSans = Source_Sans_3({
-  variable: '--font-source-sans',
+const plexSans = IBM_Plex_Sans({
+  variable: '--font-ibm-plex-sans',
   subsets: ['latin'],
   display: 'swap',
 });
 
-const sourceSerif = Source_Serif_4({
-  variable: '--font-source-serif',
+const stixSerif = STIX_Two_Text({
+  variable: '--font-stix-two-text',
   subsets: ['latin'],
   display: 'swap',
 });
@@ -35,7 +35,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${sourceSans.variable} ${sourceSerif.variable} ${jetbrainsMono.variable} antialiased`}
+        className={`${plexSans.variable} ${stixSerif.variable} ${jetbrainsMono.variable} antialiased`}
       >
         <AnalysisProvider>{children}</AnalysisProvider>
       </body>

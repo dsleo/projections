@@ -149,7 +149,7 @@ export function CanonicalSectionsCard({
       <summary className="flex cursor-pointer items-center border-b border-[color:var(--border)] px-4 py-3 text-sm font-semibold">
         <div className="flex flex-1 flex-wrap items-center justify-between gap-3">
           <span className="inline-flex items-center gap-2">
-            <span>Canonical sections</span>
+            <span>Structured outline</span>
             <span
               onClick={(e) => {
                 e.preventDefault();
@@ -193,7 +193,7 @@ export function CanonicalSectionsCard({
             )}
             <div className="flex flex-wrap gap-2">
               {[
-                { id: 'problem', label: 'Problem & Motivation' },
+                { id: 'problem', label: 'Problem Framing' },
                 { id: 'landscape', label: 'Landscape' },
                 { id: 'contrib', label: 'Contributions' },
                 { id: 'tech', label: 'Technical Core' },

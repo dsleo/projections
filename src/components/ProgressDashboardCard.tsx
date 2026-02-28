@@ -99,7 +99,7 @@ export function ProgressDashboardCard({
         ? 'Classifying sentences…'
         : status.phase === 'pass2'
           ? 'Structuring canonical sections…'
-          : 'Generating audience summaries…'
+          : 'Generating summaries…'
       : status.kind === 'uploading'
         ? 'Uploading your TeX source…'
         : 'Preparing your summaries…';
@@ -134,7 +134,7 @@ export function ProgressDashboardCard({
           )}
         </div>
         <div className="mt-2 text-sm text-[color:var(--muted)]">
-          {completed ? 'Summaries are ready.' : statusLine}
+          {completed ? 'Summaries ready.' : statusLine}
         </div>
 
         {!completed && (

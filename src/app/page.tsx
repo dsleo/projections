@@ -40,8 +40,8 @@ export default function Home() {
               FourFold
             </div>
             <p className="mt-3 max-w-2xl text-base text-[color:var(--muted)]">
-              Audience‑ready scientific summaries grounded in your paper. Build trust with traceable
-              evidence and reading paths tailored to different researchers.
+              Audience‑ready summaries, grounded in your paper. Build trust with traceable evidence
+              and reading paths for different researchers.
             </p>
 
             <div className="mt-8 w-full max-w-2xl">
@@ -59,7 +59,7 @@ export default function Home() {
                   href="/analysis/audience?show=1"
                   className="inline-flex items-center rounded-full border border-[color:var(--border)] bg-white px-4 py-2 text-sm text-[color:var(--ink)] hover:bg-[color:var(--accent-soft)]"
                 >
-                  Back to summaries
+                  Open summaries
                 </Link>
               </div>
             )}
@@ -68,20 +68,20 @@ export default function Home() {
               {[
                 {
                   title: 'Summaries for real audiences',
-                  body: 'Domain experts, adjacent researchers, grad students, and your future self.',
+                  body: 'Domain experts, adjacent researchers, grad students, and future you.',
                 },
                 {
                   title: 'Grounded in your text',
-                  body: 'Every statement links back to the source sentences that support it.',
+                  body: 'Every statement links to the exact supporting sentences.',
                 },
                 {
                   title: 'Reading paths included',
-                  body: 'Recommendations on what to read, skim, or skip to save time.',
+                  body: 'What to read, skim, or skip—so you save time.',
                 },
               ].map((item) => (
                 <div
                   key={item.title}
-                  className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--paper)] p-4"
+                  className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--paper)] p-4 text-center"
                 >
                   <div className="text-sm font-semibold uppercase tracking-wide text-[color:var(--muted)]">
                     {item.title}

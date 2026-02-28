@@ -920,7 +920,7 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
             className="rounded-2xl border border-[color:var(--border)] bg-white/80 px-4 py-4"
           >
             <summary className="cursor-pointer text-sm font-semibold text-[color:var(--muted)]">
-              Inspection view
+              Review mode
             </summary>
             <div className="mt-4">
               <div className="text-sm text-[color:var(--muted)]">

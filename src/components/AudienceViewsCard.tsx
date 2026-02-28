@@ -266,8 +266,8 @@ export function AudienceViewsCard({
                 <summary
                   className={`list-none rounded-full border border-[color:var(--border)] px-3 py-1 text-sm font-normal text-[color:var(--muted)] hover:bg-[color:var(--accent-soft)] [&::-webkit-details-marker]:hidden flex items-center gap-2 ${exportDisabled ? 'opacity-50' : ''
                     }`}
-                  aria-label="Export summaries"
-                  title="Export summaries"
+                  aria-label="Download summaries"
+                  title="Download summaries"
                   onClick={(e) => {
                     if (exportDisabled) {
                       e.preventDefault();
@@ -275,7 +275,7 @@ export function AudienceViewsCard({
                   }}
                 >
                   <Download className="h-4 w-4" aria-hidden />
-                  <span className="hidden sm:inline">Export</span>
+                  <span className="hidden sm:inline">Download</span>
                   <ChevronDown className="h-4 w-4" aria-hidden />
                 </summary>
                 <div className="absolute right-0 z-10 mt-2 w-40 rounded-md border border-[color:var(--border)] bg-white p-1 text-base shadow">

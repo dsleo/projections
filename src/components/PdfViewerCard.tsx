@@ -192,7 +192,7 @@ export function PdfViewerCard({
     <section className={containerClass}>
       <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2 font-semibold">
         <div className="flex flex-wrap items-center gap-3">
-          <span>Document</span>
+          <span>Paper</span>
           {showSupporting && (
             <div className="inline-flex rounded-full border bg-white p-1 text-sm text-zinc-600">
               <button
