@@ -47,8 +47,12 @@ export function TextPanel({
   isSentenceProcessing,
 }: Props) {
   return (
-    <details ref={textDetailsRef} className="rounded-lg border bg-white" open>
-      <summary className="list-none cursor-pointer border-b px-4 py-3 text-sm font-semibold [&::-webkit-details-marker]:hidden">
+    <details
+      ref={textDetailsRef}
+      className="rounded-2xl border border-[color:var(--border)] bg-white/80"
+      open
+    >
+      <summary className="list-none cursor-pointer border-b border-[color:var(--border)] px-4 py-3 text-sm font-semibold [&::-webkit-details-marker]:hidden">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <span className="inline-flex items-center gap-2">
             <span>{documentTitle}</span>
@@ -88,7 +92,7 @@ export function TextPanel({
             )}
           </span>
           {headerStatus && (
-            <span className="text-xs font-normal text-zinc-500">{headerStatus}</span>
+            <span className="text-xs font-normal text-[color:var(--muted)]">{headerStatus}</span>
           )}
         </div>
       </summary>
@@ -100,7 +104,11 @@ export function TextPanel({
         onClearFilters={onClearFilters}
       />
       <div className="max-h-[70vh] overflow-auto">
-        {!result && <div className="p-4 text-sm text-zinc-500">Upload a .tex file to begin.</div>}
+        {!result && (
+          <div className="p-4 text-sm text-[color:var(--muted)]">
+            Upload a .tex file to begin.
+          </div>
+        )}
         {result && (
           <div className="p-4 text-sm leading-7 whitespace-pre-wrap">
             {(() => {

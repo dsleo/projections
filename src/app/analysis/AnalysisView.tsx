@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Search } from 'lucide-react';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -30,6 +31,7 @@ import { TextPanel } from '@/components/TextPanel';
 import { PdfViewerCard } from '@/components/PdfViewerCard';
 import { useAnalysis } from '@/components/AnalysisContext';
 import { AppLogo } from '@/components/AppLogo';
+import { ProgressDashboardCard } from '@/components/ProgressDashboardCard';
 import {
   buildCanonicalSectionTitles,
   buildSentenceMap,
@@ -43,8 +45,10 @@ type AnalysisMode = 'core' | 'audience';
 
 export function AnalysisView({ mode }: { mode: AnalysisMode }) {
   const isAudiencePage = mode === 'audience';
+  const searchParams = useSearchParams();
   const texEnabled = isTexEnabled();
   const [showCorePdf, setShowCorePdf] = useState(false);
+  const [showSummaries, setShowSummaries] = useState(false);
   const [canonicalDirty, setCanonicalDirty] = useState(false);
   const {
     file,
@@ -53,6 +57,8 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
     result,
     setResult,
     processingWindows,
+    totalWindows,
+    completedWindows,
     onAnalyze,
   } = useAnalysis();
   const canViewAudience = Boolean(result?.audience_views);
@@ -65,6 +71,7 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
   const [focusedCitationKeys, setFocusedCitationKeys] = useState<string[]>([]);
   const textDetailsRef = useRef<HTMLDetailsElement | null>(null);
   const canonicalDetailsRef = useRef<HTMLDetailsElement | null>(null);
+  const workbenchDetailsRef = useRef<HTMLDetailsElement | null>(null);
   const pdfTab = pdfMode === 'original' ? 'original' : audienceTab;
   const [manualHighlightIds, setManualHighlightIds] = useState<number[] | null>(null);
   const [focusSentenceId, setFocusSentenceId] = useState<number | null>(null);
@@ -88,6 +95,14 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
       setPdfMode('original');
     }
   }, [isAudiencePage]);
+
+  useEffect(() => {
+    if (!isAudiencePage) return;
+    if (!result?.audience_views) return;
+    if (searchParams?.get('show') === '1') {
+      setShowSummaries(true);
+    }
+  }, [isAudiencePage, result?.audience_views, searchParams]);
 
   useEffect(() => {
     if (!isAudiencePage) return;
@@ -767,52 +782,71 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
     }
   };
 
+  const sentencesCount = result?.sentences?.length ?? 0;
+
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900">
-      <header className="border-b bg-white">
+    <div className="min-h-screen text-zinc-900">
+      <header className="border-b border-[color:var(--border)] bg-white/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-4">
           <div className="flex items-center gap-4">
             <AppLogo />
           </div>
           <div className="flex items-center gap-3">
-            <div className="inline-flex rounded-full border bg-white p-1 text-sm text-zinc-600">
+            <div className="inline-flex rounded-full border border-[color:var(--border)] bg-white p-1 text-sm text-[color:var(--muted)]">
               <Link
                 className={
                   isAudiencePage
-                    ? 'rounded-full px-3 py-1.5 hover:bg-zinc-50'
-                    : 'rounded-full bg-zinc-900 px-3 py-1.5 text-white'
+                    ? 'rounded-full px-3 py-1.5 hover:bg-[color:var(--accent-soft)]'
+                    : 'rounded-full bg-[color:var(--ink)] px-3 py-1.5 text-white'
                 }
                 href="/analysis"
-                aria-label="Core analysis"
-                title="Core analysis"
+                aria-label="Workbench"
+                title="Workbench"
               >
-                Core
+                Workbench
               </Link>
               {canViewAudience ? (
-                <Link
-                  className={
-                    isAudiencePage
-                      ? 'rounded-full bg-zinc-900 px-3 py-1.5 text-white'
-                      : 'rounded-full px-3 py-1.5 hover:bg-zinc-50'
-                  }
-                  href="/analysis/audience"
-                  aria-label="Audience view"
-                  title="Audience view"
-                >
-                  <span className="inline-flex items-center gap-2">
-                    Audience
-                    <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] text-emerald-700">
-                      Ready
+                isAudiencePage && !showSummaries ? (
+                  <button
+                    className="rounded-full bg-[color:var(--ink)] px-3 py-1.5 text-white"
+                    type="button"
+                    onClick={() => setShowSummaries(true)}
+                    aria-label="Summaries"
+                    title="Summaries"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      Summaries
+                      <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] text-emerald-700">
+                        Ready
+                      </span>
                     </span>
-                  </span>
-                </Link>
+                  </button>
+                ) : (
+                  <Link
+                    className={
+                      isAudiencePage
+                        ? 'rounded-full bg-[color:var(--ink)] px-3 py-1.5 text-white'
+                        : 'rounded-full px-3 py-1.5 hover:bg-[color:var(--accent-soft)]'
+                    }
+                    href="/analysis/audience?show=1"
+                    aria-label="Summaries"
+                    title="Summaries"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      Summaries
+                      <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] text-emerald-700">
+                        Ready
+                      </span>
+                    </span>
+                  </Link>
+                )
               ) : (
                 <span
                   className="rounded-full px-3 py-1.5 text-zinc-300"
-                  aria-label="Audience view unavailable"
-                  title="Audience view unavailable"
+                  aria-label="Summaries unavailable"
+                  title="Summaries unavailable"
                 >
-                  Audience
+                  Summaries
                 </span>
               )}
             </div>
@@ -822,50 +856,128 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
 
       {isAudiencePage ? (
         <main className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-6">
-          <section className="flex flex-col gap-4">
-            <p className="text-sm text-zinc-600">
-              Switch between audiences to see different summaries.
-            </p>
-            <AudienceViewsCard
-              result={result}
-              audienceTab={audienceTab}
-              setAudienceTab={handleAudienceTabChange}
-              statusKind={status.kind}
-              onDownloadAudienceText={handleDownloadAudienceText}
-              onDownloadAudienceHtml={handleDownloadAudienceHtml}
-              focusSentences={focusSentences}
-              renderGroundedList={renderGroundedList}
-              renderReadingPathText={renderReadingPathText}
-              renderAudienceFullText={renderAudienceFullText}
-              showSupportingText={false}
-              editable
-              onUpdateAudienceViews={updateAudienceViews}
+          {!canViewAudience || !showSummaries ? (
+            <ProgressDashboardCard
+              status={status}
+              totalWindows={totalWindows}
+              completedWindows={completedWindows}
+              processingWindows={processingWindows}
+              sentencesCount={sentencesCount}
+              readyToView={canViewAudience}
+              completed={canViewAudience}
+              onViewSummaries={() => setShowSummaries(true)}
             />
-          </section>
-          <PdfViewerCard
-            canCompile={
-              pdfTab === 'original'
-                ? !!file || !!result?.original_latex
-                : expandedAudienceHighlightIds.length > 0
-            }
-            status={pdfStatus}
-            pdfUrl={pdfUrl}
-            onCompile={() => {
-              if (!texEnabled) return;
-              void compilePdf({ force: true });
-            }}
-            selectedTab={pdfTab}
-            onTabChange={handlePdfTabChange}
-            showToggle
-            focusSentenceIndex={focusSentenceIndex}
-            totalSentences={sentenceOrder.length || undefined}
-            variant="full"
-            supportingTitle="Supporting"
-            supportingContent={supportingTextView}
-            defaultView={texEnabled ? 'pdf' : 'supporting'}
-            showCompile={texEnabled}
-            onDownloadSupportingTex={handleDownloadSupportingTex}
-          />
+          ) : (
+            <>
+              <section className="flex flex-col gap-4">
+                <p className="text-sm text-[color:var(--muted)]">
+                  Switch between audiences to see tailored explanations.
+                </p>
+                <AudienceViewsCard
+                  result={result}
+                  audienceTab={audienceTab}
+                  setAudienceTab={handleAudienceTabChange}
+                  statusKind={status.kind}
+                  onDownloadAudienceText={handleDownloadAudienceText}
+                  onDownloadAudienceHtml={handleDownloadAudienceHtml}
+                  focusSentences={focusSentences}
+                  renderGroundedList={renderGroundedList}
+                  renderReadingPathText={renderReadingPathText}
+                  renderAudienceFullText={renderAudienceFullText}
+                  showSupportingText={false}
+                  editable
+                  onUpdateAudienceViews={updateAudienceViews}
+                />
+              </section>
+              <PdfViewerCard
+                canCompile={
+                  pdfTab === 'original'
+                    ? !!file || !!result?.original_latex
+                    : expandedAudienceHighlightIds.length > 0
+                }
+                status={pdfStatus}
+                pdfUrl={pdfUrl}
+                onCompile={() => {
+                  if (!texEnabled) return;
+                  void compilePdf({ force: true });
+                }}
+                selectedTab={pdfTab}
+                onTabChange={handlePdfTabChange}
+                showToggle
+                focusSentenceIndex={focusSentenceIndex}
+                totalSentences={sentenceOrder.length || undefined}
+                variant="full"
+                supportingTitle="Supporting"
+                supportingContent={supportingTextView}
+                defaultView={texEnabled ? 'pdf' : 'supporting'}
+                showCompile={texEnabled}
+                onDownloadSupportingTex={handleDownloadSupportingTex}
+              />
+            </>
+          )}
+          <details
+            ref={workbenchDetailsRef}
+            className="rounded-2xl border border-[color:var(--border)] bg-white/80 px-4 py-4"
+          >
+            <summary className="cursor-pointer text-sm font-semibold text-[color:var(--muted)]">
+              Inspection view
+            </summary>
+            <div className="mt-4">
+              <div className="text-sm text-[color:var(--muted)]">
+                Use this view to verify the structure and labels that power the summaries.
+              </div>
+              <div className="mt-4">
+                <TextPanel
+                  result={result}
+                  documentTitle={documentTitle}
+                  renderedOriginalText={renderedOriginalText}
+                  labelCounts={labelCounts}
+                  labelFilter={labelFilter}
+                  processingWindows={processingWindows}
+                  headerStatus={textPanelHeaderStatus}
+                  highlightedIds={highlightedIds}
+                  textDetailsRef={textDetailsRef}
+                  onToggleLabelFilter={toggleLabelFilter}
+                  onClearFilters={() => {
+                    setLabelFilter([]);
+                  }}
+                  onReRunPass1={onAnalyze}
+                  showViewerButton={false}
+                  isSentenceProcessing={isSentenceProcessing}
+                />
+              </div>
+              {canShowCanonicalSections ? (
+                <div className="mt-4">
+                  <CanonicalSectionsCard
+                    result={result}
+                    detailsRef={canonicalDetailsRef}
+                    activeTab={activeTab}
+                    setActiveTab={setActiveTab}
+                    status={status}
+                    onRerunPass2={rerunPass2Only}
+                    onRerunPass3={rerunPass3FromCanonical}
+                    dirty={canonicalDirty}
+                    editable
+                    onUpdateSections={updateCanonicalSections}
+                    onCopyCanonical={() => {
+                      if (!result?.sections) return;
+                      navigator.clipboard.writeText(JSON.stringify(result.sections, null, 2));
+                    }}
+                    renderEmpty={renderEmpty}
+                    renderCitationAction={renderCitationAction}
+                    focusSentences={focusSentences}
+                    formatIdRanges={formatIdRanges}
+                    formatCitationLabel={formatCitationLabel}
+                    LabelPill={LabelPill}
+                    focusedCitationKeys={focusedCitationKeys}
+                    setFocusedCitationKeys={setFocusedCitationKeys}
+                    headerStatus={canonicalHeaderStatus}
+                    showSentenceActions={false}
+                  />
+                </div>
+              ) : null}
+            </div>
+          </details>
         </main>
       ) : (
         <main
@@ -875,11 +987,27 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
               : 'mx-auto flex max-w-6xl flex-col gap-6 px-6 py-6'
           }
         >
+          {canViewAudience && (
+            <ProgressDashboardCard
+              status={status}
+              totalWindows={totalWindows}
+              completedWindows={completedWindows}
+              processingWindows={processingWindows}
+              sentencesCount={sentencesCount}
+              readyToView={false}
+              completed
+              showTrivia={false}
+            />
+          )}
           <section className="flex flex-col gap-4">
-            <div className="text-sm text-zinc-600">
-              <span className="font-semibold">This is your editing desk:</span> verify the
-              structure FourFold extracts from your paper so the audience versions stay faithful
-              to your text.
+            <div className="rounded-2xl border border-[color:var(--border)] bg-white/70 p-4 text-sm text-[color:var(--muted)]">
+              <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">
+                Workbench
+              </div>
+              <div className="mt-2 text-sm text-[color:var(--ink)]">
+                This view is for inspection and verification. Use it to confirm structure and
+                labels before sharing summaries.
+              </div>
             </div>
             <TextPanel
               result={result}

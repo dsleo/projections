@@ -235,8 +235,8 @@ export function AudienceViewsCard({
   };
 
   return (
-    <div className="grid grid-cols-1 gap-4 text-sm text-zinc-900">
-      {!audienceViews && <div className="text-sm text-zinc-500">No data.</div>}
+    <div className="grid grid-cols-1 gap-4 text-sm text-[color:var(--ink)]">
+      {!audienceViews && <div className="text-sm text-[color:var(--muted)]">No data.</div>}
       {audienceViews && (
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -251,8 +251,8 @@ export function AudienceViewsCard({
                   key={tab.id}
                   className={
                     audienceTab === tab.id
-                      ? 'rounded-full border border-zinc-900 bg-zinc-900 px-3 py-1 text-sm text-white'
-                      : 'rounded-full border border-zinc-200 bg-white px-3 py-1 text-sm text-zinc-600 hover:bg-zinc-50'
+                      ? 'rounded-full border border-[color:var(--ink)] bg-[color:var(--ink)] px-3 py-1 text-sm text-white'
+                      : 'rounded-full border border-[color:var(--border)] bg-white px-3 py-1 text-sm text-[color:var(--muted)] hover:bg-[color:var(--accent-soft)]'
                   }
                   onClick={() => setAudienceTab(tab.id as typeof audienceTab)}
                   type="button"
@@ -264,10 +264,10 @@ export function AudienceViewsCard({
             <div className="flex items-center gap-2">
               <details className="relative" ref={exportDetailsRef}>
                 <summary
-                  className={`list-none rounded-full border px-3 py-1 text-sm font-normal text-zinc-600 hover:bg-zinc-100 [&::-webkit-details-marker]:hidden flex items-center gap-2 ${exportDisabled ? 'opacity-50' : ''
+                  className={`list-none rounded-full border border-[color:var(--border)] px-3 py-1 text-sm font-normal text-[color:var(--muted)] hover:bg-[color:var(--accent-soft)] [&::-webkit-details-marker]:hidden flex items-center gap-2 ${exportDisabled ? 'opacity-50' : ''
                     }`}
-                  aria-label="Download audience view"
-                  title="Download audience view"
+                  aria-label="Export summaries"
+                  title="Export summaries"
                   onClick={(e) => {
                     if (exportDisabled) {
                       e.preventDefault();
@@ -278,9 +278,9 @@ export function AudienceViewsCard({
                   <span className="hidden sm:inline">Export</span>
                   <ChevronDown className="h-4 w-4" aria-hidden />
                 </summary>
-                <div className="absolute right-0 z-10 mt-2 w-40 rounded-md border bg-white p-1 text-base shadow">
+                <div className="absolute right-0 z-10 mt-2 w-40 rounded-md border border-[color:var(--border)] bg-white p-1 text-base shadow">
                   <button
-                    className="block w-full rounded px-2 py-2 text-left text-zinc-700 hover:bg-zinc-50 disabled:text-zinc-300"
+                    className="block w-full rounded px-2 py-2 text-left text-[color:var(--ink)] hover:bg-[color:var(--accent-soft)] disabled:text-zinc-300"
                     type="button"
                     onClick={() => {
                       if (exportDetailsRef.current) exportDetailsRef.current.open = false;
@@ -291,7 +291,7 @@ export function AudienceViewsCard({
                     Download TXT
                   </button>
                   <button
-                    className="block w-full rounded px-2 py-2 text-left text-zinc-700 hover:bg-zinc-50 disabled:text-zinc-300"
+                    className="block w-full rounded px-2 py-2 text-left text-[color:var(--ink)] hover:bg-[color:var(--accent-soft)] disabled:text-zinc-300"
                     type="button"
                     onClick={() => {
                       if (exportDetailsRef.current) exportDetailsRef.current.open = false;
@@ -306,15 +306,15 @@ export function AudienceViewsCard({
             </div>
           </div>
 
-          <div className="rounded-md border bg-white p-4 text-sm">
+          <div className="rounded-2xl border border-[color:var(--border)] bg-white/80 p-4 text-sm">
             {audienceTab === 'A' && (
               <>
-                <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                  <div className="text-sm font-semibold uppercase tracking-wide text-zinc-600">
+                <div className="mb-3 rounded-md border border-[color:var(--border)] bg-[color:var(--paper)] p-3">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">
                     Problem statement
                   </div>
                   <div className="mt-2 flex items-start gap-2">
-                    <div className="min-w-0 flex-1 text-sm text-zinc-900">
+                    <div className="min-w-0 flex-1 text-sm text-[color:var(--ink)]">
                       <EditableText
                         value={audienceViews.domain_expert.problem_statement?.text ?? ''}
                         onSave={(next) =>
@@ -324,10 +324,10 @@ export function AudienceViewsCard({
                         }
                       />
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-zinc-500 shrink-0">
+                    <div className="flex items-center gap-2 text-sm text-[color:var(--muted)] shrink-0">
                       {audienceViews.domain_expert.problem_statement?.sentence_ids?.length ? (
                         <button
-                          className="rounded-full border px-2 py-0.5 text-sm hover:bg-white"
+                          className="rounded-full border border-[color:var(--border)] px-2 py-0.5 text-sm hover:bg-white"
                           type="button"
                           onClick={() =>
                             focusSentences(
@@ -344,8 +344,8 @@ export function AudienceViewsCard({
                   </div>
                 </div>
 
-                <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                  <div className="text-sm font-semibold uppercase tracking-wide text-zinc-600">
+                <div className="mb-3 rounded-md border border-[color:var(--border)] bg-[color:var(--paper)] p-3">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">
                     Delta summary
                   </div>
                   {renderGroundedListMaybe(audienceViews.domain_expert.delta_summary, (views, idx, next) => {
@@ -355,14 +355,14 @@ export function AudienceViewsCard({
 
                 {(audienceViews.domain_expert.technical_highlights.nonstandard_ideas.length > 0 ||
                   audienceViews.domain_expert.technical_highlights.clever_reductions.length > 0) && (
-                    <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                      <div className="text-sm font-semibold uppercase tracking-wide text-zinc-600">
+                    <div className="mb-3 rounded-md border border-[color:var(--border)] bg-[color:var(--paper)] p-3">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">
                         Technical highlights
                       </div>
                       {audienceViews.domain_expert.technical_highlights.nonstandard_ideas.length >
                         0 && (
                           <>
-                            <div className="mt-2 text-sm font-semibold text-zinc-500">
+                            <div className="mt-2 text-sm font-semibold text-[color:var(--muted)]">
                               Nonstandard ideas
                             </div>
                             {renderGroundedListMaybe(
@@ -377,7 +377,7 @@ export function AudienceViewsCard({
                       {audienceViews.domain_expert.technical_highlights.clever_reductions.length >
                         0 && (
                           <>
-                            <div className="mt-3 text-sm font-semibold text-zinc-500">
+                            <div className="mt-3 text-sm font-semibold text-[color:var(--muted)]">
                               Clever reductions
                             </div>
                             {renderGroundedListMaybe(
@@ -392,8 +392,8 @@ export function AudienceViewsCard({
                     </div>
                   )}
 
-                <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                  <div className="text-sm font-semibold uppercase tracking-wide text-zinc-600">
+                <div className="mb-3 rounded-md border border-[color:var(--border)] bg-[color:var(--paper)] p-3">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">
                     Reusable components
                   </div>
                   {renderGroundedListMaybe(audienceViews.domain_expert.reusable_components, (views, idx, next) => {
@@ -405,12 +405,12 @@ export function AudienceViewsCard({
 
             {audienceTab === 'B' && (
               <>
-                <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                  <div className="text-sm font-semibold uppercase tracking-wide text-zinc-600">
+                <div className="mb-3 rounded-md border border-[color:var(--border)] bg-[color:var(--paper)] p-3">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">
                     Problem statement
                   </div>
                   <div className="mt-2 flex items-start gap-2">
-                    <div className="min-w-0 flex-1 text-sm text-zinc-900">
+                    <div className="min-w-0 flex-1 text-sm text-[color:var(--ink)]">
                       <EditableText
                         value={audienceViews.adjacent_researcher.problem_statement.text}
                         onSave={(next) =>
@@ -420,10 +420,10 @@ export function AudienceViewsCard({
                         }
                       />
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-zinc-500 shrink-0">
+                    <div className="flex items-center gap-2 text-sm text-[color:var(--muted)] shrink-0">
                       {audienceViews.adjacent_researcher.problem_statement?.sentence_ids?.length ? (
                         <button
-                          className="rounded-full border px-2 py-0.5 text-sm hover:bg-white"
+                          className="rounded-full border border-[color:var(--border)] px-2 py-0.5 text-sm hover:bg-white"
                           type="button"
                           onClick={() =>
                             focusSentences(
@@ -440,8 +440,8 @@ export function AudienceViewsCard({
                   </div>
                 </div>
 
-                <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                  <div className="text-sm font-semibold uppercase tracking-wide text-zinc-600">
+                <div className="mb-3 rounded-md border border-[color:var(--border)] bg-[color:var(--paper)] p-3">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">
                     Why this matters
                   </div>
                   {renderGroundedListMaybe(
@@ -452,8 +452,8 @@ export function AudienceViewsCard({
                   )}
                 </div>
 
-                <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                  <div className="text-sm font-semibold uppercase tracking-wide text-zinc-600">
+                <div className="mb-3 rounded-md border border-[color:var(--border)] bg-[color:var(--paper)] p-3">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">
                     Prerequisite map
                   </div>
                   {renderStringListMaybe(
@@ -465,11 +465,11 @@ export function AudienceViewsCard({
                   )}
                 </div>
 
-                <div className="rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                  <div className="text-sm font-semibold uppercase tracking-wide text-zinc-600">
+                <div className="rounded-md border border-[color:var(--border)] bg-[color:var(--paper)] p-3">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">
                     Reading path
                   </div>
-                  <div className="mt-2 text-sm font-semibold text-zinc-500">Read</div>
+                  <div className="mt-2 text-sm font-semibold text-[color:var(--muted)]">Read</div>
                   {renderStringListMaybe(
                     audienceViews.adjacent_researcher.reading_path.read,
                     (views, idx, next) => {
@@ -477,7 +477,7 @@ export function AudienceViewsCard({
                     },
                     renderReadingPathText
                   )}
-                  <div className="mt-2 text-sm font-semibold text-zinc-500">Skim</div>
+                  <div className="mt-2 text-sm font-semibold text-[color:var(--muted)]">Skim</div>
                   {renderStringListMaybe(
                     audienceViews.adjacent_researcher.reading_path.skim,
                     (views, idx, next) => {
@@ -485,7 +485,7 @@ export function AudienceViewsCard({
                     },
                     renderReadingPathText
                   )}
-                  <div className="mt-2 text-sm font-semibold text-zinc-500">Skip</div>
+                  <div className="mt-2 text-sm font-semibold text-[color:var(--muted)]">Skip</div>
                   {renderStringListMaybe(
                     audienceViews.adjacent_researcher.reading_path.skip,
                     (views, idx, next) => {
@@ -499,12 +499,12 @@ export function AudienceViewsCard({
 
             {audienceTab === 'C' && (
               <>
-                <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                  <div className="text-sm font-semibold uppercase tracking-wide text-zinc-600">
+                <div className="mb-3 rounded-md border border-[color:var(--border)] bg-[color:var(--paper)] p-3">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">
                     Problem statement
                   </div>
                   <div className="mt-2 flex items-start gap-2">
-                    <div className="min-w-0 flex-1 text-sm text-zinc-900">
+                    <div className="min-w-0 flex-1 text-sm text-[color:var(--ink)]">
                       <EditableText
                         value={audienceViews.grad_student.problem_statement?.text ?? ''}
                         onSave={(next) =>
@@ -514,10 +514,10 @@ export function AudienceViewsCard({
                         }
                       />
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-zinc-500 shrink-0">
+                    <div className="flex items-center gap-2 text-sm text-[color:var(--muted)] shrink-0">
                       {audienceViews.grad_student.problem_statement?.sentence_ids?.length ? (
                         <button
-                          className="rounded-full border px-2 py-0.5 text-sm hover:bg-white"
+                          className="rounded-full border border-[color:var(--border)] px-2 py-0.5 text-sm hover:bg-white"
                           type="button"
                           onClick={() =>
                             focusSentences(
@@ -534,11 +534,11 @@ export function AudienceViewsCard({
                   </div>
                 </div>
 
-                <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                  <div className="text-sm font-semibold uppercase tracking-wide text-zinc-600">
+                <div className="mb-3 rounded-md border border-[color:var(--border)] bg-[color:var(--paper)] p-3">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">
                     Reading path
                   </div>
-                  <div className="mt-2 text-sm font-semibold text-zinc-500">Read</div>
+                  <div className="mt-2 text-sm font-semibold text-[color:var(--muted)]">Read</div>
                   {renderStringListMaybe(
                     gradReadingPath.read,
                     (views, idx, next) => {
@@ -549,7 +549,7 @@ export function AudienceViewsCard({
                     },
                     renderReadingPathText
                   )}
-                  <div className="mt-2 text-sm font-semibold text-zinc-500">Skim</div>
+                  <div className="mt-2 text-sm font-semibold text-[color:var(--muted)]">Skim</div>
                   {renderStringListMaybe(
                     gradReadingPath.skim,
                     (views, idx, next) => {
@@ -560,7 +560,7 @@ export function AudienceViewsCard({
                     },
                     renderReadingPathText
                   )}
-                  <div className="mt-2 text-sm font-semibold text-zinc-500">Skip</div>
+                  <div className="mt-2 text-sm font-semibold text-[color:var(--muted)]">Skip</div>
                   {renderStringListMaybe(
                     gradReadingPath.skip,
                     (views, idx, next) => {
@@ -573,8 +573,8 @@ export function AudienceViewsCard({
                   )}
                 </div>
 
-                <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                  <div className="text-sm font-semibold uppercase tracking-wide text-zinc-600">
+                <div className="mb-3 rounded-md border border-[color:var(--border)] bg-[color:var(--paper)] p-3">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">
                     Key ideas before technicalities
                   </div>
                   {renderGroundedListMaybe(audienceViews.grad_student.key_ideas, (views, idx, next) => {
@@ -586,12 +586,12 @@ export function AudienceViewsCard({
 
             {audienceTab === 'D' && (
               <>
-                <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                  <div className="text-sm font-semibold uppercase tracking-wide text-zinc-600">
+                <div className="mb-3 rounded-md border border-[color:var(--border)] bg-[color:var(--paper)] p-3">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">
                     Problem statement
                   </div>
                   <div className="mt-2 flex items-start gap-2">
-                    <div className="min-w-0 flex-1 text-sm text-zinc-900">
+                    <div className="min-w-0 flex-1 text-sm text-[color:var(--ink)]">
                       <EditableText
                         value={audienceViews.author_self.problem_statement?.text ?? ''}
                         onSave={(next) =>
@@ -601,10 +601,10 @@ export function AudienceViewsCard({
                         }
                       />
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-zinc-500 shrink-0">
+                    <div className="flex items-center gap-2 text-sm text-[color:var(--muted)] shrink-0">
                       {audienceViews.author_self.problem_statement?.sentence_ids?.length ? (
                         <button
-                          className="rounded-full border px-2 py-0.5 text-sm hover:bg-white"
+                          className="rounded-full border border-[color:var(--border)] px-2 py-0.5 text-sm hover:bg-white"
                           type="button"
                           onClick={() =>
                             focusSentences(
@@ -621,11 +621,11 @@ export function AudienceViewsCard({
                   </div>
                 </div>
 
-                <div className="mb-3 rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                  <div className="text-sm font-semibold uppercase tracking-wide text-zinc-600">
+                <div className="mb-3 rounded-md border border-[color:var(--border)] bg-[color:var(--paper)] p-3">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">
                     Contribution Summary
                   </div>
-                  <div className="mt-2 text-sm text-zinc-900">
+                  <div className="mt-2 text-sm text-[color:var(--ink)]">
                     <EditableText
                       value={audienceViews.author_self.one_page_summary}
                       renderDisplay={renderContributionSummary}
@@ -638,11 +638,11 @@ export function AudienceViewsCard({
                   </div>
                 </div>
 
-                <div className="rounded-md border border-zinc-100 bg-zinc-50 p-2">
-                  <div className="text-sm font-semibold uppercase tracking-wide text-zinc-600">
+                <div className="rounded-md border border-[color:var(--border)] bg-[color:var(--paper)] p-3">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">
                     Notes to self
                   </div>
-                  <div className="mt-2 text-sm text-zinc-900">
+                  <div className="mt-2 text-sm text-[color:var(--ink)]">
                     <EditableText
                       value={audienceViews.author_self.notes_to_self?.[0] ?? ''}
                       renderDisplay={(val) =>
@@ -665,8 +665,8 @@ export function AudienceViewsCard({
             )}
           </div>
           {showSupportingText && (
-            <details className="rounded-md border bg-white">
-              <summary className="cursor-pointer px-3 py-2 text-base font-semibold text-zinc-600">
+            <details className="rounded-2xl border border-[color:var(--border)] bg-white/80">
+              <summary className="cursor-pointer px-3 py-2 text-base font-semibold text-[color:var(--muted)]">
                 Supporting text
               </summary>
               {renderAudienceFullText()}

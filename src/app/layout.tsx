@@ -1,22 +1,30 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "katex/dist/katex.min.css";
-import "./globals.css";
-import { AnalysisProvider } from "@/components/AnalysisContext";
+import type { Metadata } from 'next';
+import { Source_Sans_3, Source_Serif_4, JetBrains_Mono } from 'next/font/google';
+import 'katex/dist/katex.min.css';
+import './globals.css';
+import { AnalysisProvider } from '@/components/AnalysisContext';
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+const sourceSans = Source_Sans_3({
+  variable: '--font-source-sans',
+  subsets: ['latin'],
+  display: 'swap',
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+const sourceSerif = Source_Serif_4({
+  variable: '--font-source-serif',
+  subsets: ['latin'],
+  display: 'swap',
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  variable: '--font-jetbrains-mono',
+  subsets: ['latin'],
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
-  title: "4Fold",
-  description: "LLM-based scientific discourse structuring pipeline.",
+  title: 'FourFold',
+  description: 'Audience‑ready scientific summaries, grounded in your paper.',
 };
 
 export default function RootLayout({
@@ -26,7 +34,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body
+        className={`${sourceSans.variable} ${sourceSerif.variable} ${jetbrainsMono.variable} antialiased`}
+      >
         <AnalysisProvider>{children}</AnalysisProvider>
       </body>
     </html>

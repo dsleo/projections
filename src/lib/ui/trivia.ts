@@ -1,0 +1,17 @@
+export const TRIVIA_ITEMS = [
+  'Peer review was formalized only in the 20th century; many classic papers were published without it.',
+  'Most research articles are read by fewer than 10 people in full. Summaries change that.',
+  'The IMRaD format (Introduction, Methods, Results, and Discussion) became standard after WWII.',
+  'Citation networks are sparse: a small fraction of papers receive the majority of citations.',
+  'Abstracts are often written last, even though they are read first.',
+  'Replication studies remain under-published despite their importance to scientific trust.',
+  'Preprints accelerate dissemination but increase the need for clear, grounded summaries.',
+  'Reading paths help reduce cognitive load by aligning with a reader’s prior knowledge.',
+  'The average reviewer spends only a few hours on a paper; clarity matters.',
+  'Structured summaries improve recall more than narrative blurbs in user studies.',
+  'Equation-heavy sections are where most non-experts drop off; guided paths help.',
+  'Clear problem statements correlate with higher citation rates in multiple fields.',
+  'Many labs maintain internal “short summaries” for onboarding — this automates that.',
+  'Audience-specific framing often reveals hidden assumptions in a manuscript.',
+  'Most readers skim titles, abstracts, and figures before deciding to read deeply.',
+];

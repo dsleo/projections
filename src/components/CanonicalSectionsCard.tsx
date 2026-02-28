@@ -145,8 +145,8 @@ export function CanonicalSectionsCard({
   };
 
   return (
-    <details ref={detailsRef} className="rounded-lg border bg-white" open>
-      <summary className="flex cursor-pointer items-center border-b px-4 py-3 text-sm font-semibold">
+    <details ref={detailsRef} className="group rounded-2xl border border-[color:var(--border)] bg-white/80" open>
+      <summary className="flex cursor-pointer items-center border-b border-[color:var(--border)] px-4 py-3 text-sm font-semibold">
         <div className="flex flex-1 flex-wrap items-center justify-between gap-3">
           <span className="inline-flex items-center gap-2">
             <span>Canonical sections</span>
@@ -165,18 +165,6 @@ export function CanonicalSectionsCard({
                 size="sm"
               />
               <IconButton
-                icon={RefreshCw}
-                label="Regenerate audiences"
-                onClick={() => onRerunPass3?.()}
-                disabled={
-                  !result?.sections ||
-                  !onRerunPass3 ||
-                  status.kind === 'analyzing' ||
-                  status.kind === 'uploading'
-                }
-                size="sm"
-              />
-              <IconButton
                 icon={Copy}
                 label="Copy canonical JSON"
                 onClick={() => {
@@ -189,13 +177,13 @@ export function CanonicalSectionsCard({
             </span>
           </span>
           {headerStatus && (
-            <span className="text-xs font-normal text-zinc-500">{headerStatus}</span>
+            <span className="text-xs font-normal text-[color:var(--muted)]">{headerStatus}</span>
           )}
         </div>
       </summary>
 
       <div className="grid grid-cols-1 gap-4 p-4">
-        {!result && <div className="text-sm text-zinc-500">No data.</div>}
+        {!result && <div className="text-sm text-[color:var(--muted)]">No data.</div>}
         {result && (
           <>
             {dirty && (

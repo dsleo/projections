@@ -48,25 +48,15 @@ export function UploadCard({
             <span className="truncate">{file ? file.name : 'Choose a .tex file'}</span>
           </label>
         </div>
-        <a
-          className="text-xs text-zinc-500 underline hover:text-zinc-700"
-          href="/sample.tex"
-          download
-        >
-          Download a sample .tex
-        </a>
-
-        {showStatus && (
+        {showStatus && status.kind !== 'idle' && (
           <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-zinc-600">
             <span className="rounded-full border px-2 py-1">
-              {status.kind === 'idle' && 'Idle'}
               {status.kind === 'uploading' && 'Uploading'}
               {status.kind === 'analyzing' && 'Processing'}
               {status.kind === 'done' && 'Complete'}
               {status.kind === 'error' && 'Error'}
             </span>
             <span>
-              {status.kind === 'idle' && 'Ready to analyze.'}
               {status.kind === 'uploading' && 'Uploading the file…'}
               {status.kind === 'analyzing' && (status.message ?? 'Running Pass 1 + Pass 2…')}
               {status.kind === 'done' && file && `Done.`}

@@ -23,6 +23,8 @@ type AnalysisContextValue = {
   setProcessingWindows: (
     next: Array<{ start: number; end: number }> | ((prev: Array<{ start: number; end: number }>) => Array<{ start: number; end: number }>)
   ) => void;
+  totalWindows: number | null;
+  completedWindows: number;
   onAnalyze: () => Promise<void>;
 };
 
@@ -45,6 +47,8 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
       setResult: analysis.setResult,
       processingWindows: analysis.processingWindows,
       setProcessingWindows: analysis.setProcessingWindows,
+      totalWindows: analysis.totalWindows,
+      completedWindows: analysis.completedWindows,
       onAnalyze: analysis.onAnalyze,
     }),
     [
@@ -56,6 +60,8 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
       analysis.setResult,
       analysis.processingWindows,
       analysis.setProcessingWindows,
+      analysis.totalWindows,
+      analysis.completedWindows,
       analysis.onAnalyze,
     ]
   );

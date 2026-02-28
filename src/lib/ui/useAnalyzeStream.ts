@@ -22,6 +22,8 @@ export function useAnalyzeStream({ file, useEnvPropagation }: Params) {
   const [processingWindows, setProcessingWindows] = useState<
     Array<{ start: number; end: number }>
   >([]);
+  const [totalWindows, setTotalWindows] = useState<number | null>(null);
+  const [completedWindows, setCompletedWindows] = useState(0);
   const runIdRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -127,6 +129,9 @@ export function useAnalyzeStream({ file, useEnvPropagation }: Params) {
           citations = {};
           audience_views = undefined;
           abstract = (dataObj?.abstract as string | undefined) ?? '';
+          const windows = (dataObj?.windows as number | undefined) ?? null;
+          setTotalWindows(windows);
+          setCompletedWindows(0);
           setProcessingWindows([]);
           setStatus({ kind: 'analyzing', phase: 'pass1', message: `Segmented ${sentences.length} sentences…` });
           setResult({
@@ -166,6 +171,7 @@ export function useAnalyzeStream({ file, useEnvPropagation }: Params) {
           setProcessingWindows((prev) =>
             prev.filter((w) => !(w.start === start && w.end === end))
           );
+          setCompletedWindows((prev) => prev + 1);
         }
 
         if (event === 'labels_delta') {
@@ -307,6 +313,8 @@ export function useAnalyzeStream({ file, useEnvPropagation }: Params) {
     setResult,
     processingWindows,
     setProcessingWindows,
+    totalWindows,
+    completedWindows,
     onAnalyze,
   };
 }

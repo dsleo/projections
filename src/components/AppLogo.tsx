@@ -8,17 +8,14 @@ export function AppLogo({ className }: { className?: string }) {
             href="/"
             className={
                 className ??
-                'inline-flex items-center rounded-md px-1 py-0.5 hover:bg-zinc-50'
+                'inline-flex items-center rounded-md px-2 py-1 hover:bg-[color:var(--accent-soft)]'
             }
             aria-label="Go to homepage"
             title="Go to homepage"
         >
             <span
-                className="text-lg font-semibold"
-                style={{
-                    fontFamily: "Georgia, 'Times New Roman', Times, serif",
-                    fontStyle: 'italic',
-                }}
+                className="text-lg font-semibold tracking-tight text-[color:var(--ink)]"
+                style={{ fontFamily: 'var(--font-serif)' }}
             >
                 FourFold
             </span>
