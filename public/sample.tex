@@ -1,0 +1,12 @@
+% A tiny sample file for smoke testing.
+\section{Introduction}
+We study the problem of learning structured scientific discourse from raw \LaTeX{} papers.
+This problem is difficult because sentences contain citations and mathematics like $E=mc^2$.
+Prior work explores rhetorical role labeling in abstracts.
+In this paper we introduce a two-pass pipeline for sentence-level multi-label classification.
+Our main contribution is a canonical section construction grounded in sentence IDs.
+\section{Method}
+The key technical idea is to use sliding windows so that each sentence appears in multiple contexts.
+This yields more robust labels without voting by taking the union.
+\section{Discussion}
+An open question is how to prevent label inflation.

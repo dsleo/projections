@@ -31,8 +31,8 @@ describe('sectionHints', () => {
       original_latex: latex,
       preprocessed_latex: latex,
       sentences: [
-        { id: 1, text: 'Intro sentence.', start: s1.start, end: s1.end, original_start: s1.start, original_end: s1.end },
-        { id: 2, text: 'Result sentence.', start: s2.start, end: s2.end, original_start: s2.start, original_end: s2.end },
+        { id: 1, text: 'Intro sentence.', position: 0, start: s1.start, end: s1.end, original_start: s1.start, original_end: s1.end },
+        { id: 2, text: 'Result sentence.', position: 1, start: s2.start, end: s2.end, original_start: s2.start, original_end: s2.end },
       ],
       labels: {},
       sentence_citations: {},
@@ -43,9 +43,9 @@ describe('sectionHints', () => {
           origins: [],
           nontriviality: [],
         },
-        landscape: { known_results: [], limitations: [], relations: [] },
+        landscape: { known_results: [], limitations: [], competing_approaches: [] },
         contributions: { contributions: [{ statement: 'x', sentence_ids: [2], prior_state: { text: '', sentence_ids: [] }, novelty: { text: '', sentence_ids: [] }, nontriviality: { text: '', sentence_ids: [] } }] },
-        technical_core: { core_mechanisms: [], key_steps: [], reusable_constructions: [] },
+        technical_core: { key_ideas: [], technical_obstacles: [], reusable_constructions: [] },
         consequences: { open_questions: [], speculative_extensions: [] },
       },
       sections_concatenated_text: '',
@@ -58,4 +58,3 @@ describe('sectionHints', () => {
     expect(updated).toContain('Sections: Results');
   });
 });
-

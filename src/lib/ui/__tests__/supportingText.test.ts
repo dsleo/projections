@@ -9,7 +9,7 @@ function span(latex: string, snippet: string, fromIndex?: number) {
   return { start, end: start + snippet.length };
 }
 
-function makeBaseResult(latex: string, snippets: string[]) {
+function makeBaseResult(latex: string, snippets: string[]): AnalysisResult {
   const spans = snippets.map((snippet, idx) =>
     span(latex, snippet, idx === 0 ? 0 : undefined)
   );
@@ -21,6 +21,7 @@ function makeBaseResult(latex: string, snippets: string[]) {
     preprocessed_latex: latex,
     sentences: spans.map((s, i) => ({
       id: i + 1,
+      position: i,
       text: snippets[i],
       start: s.start,
       end: s.end,
@@ -32,13 +33,14 @@ function makeBaseResult(latex: string, snippets: string[]) {
     citations: {},
     sections: {
       problem_and_motivation: { central_problems: [], origins: [], nontriviality: [] },
-      landscape: { known_results: [], limitations: [], relations: [] },
+      landscape: { known_results: [], limitations: [], competing_approaches: [] },
       contributions: { contributions: [] },
-      technical_core: { core_mechanisms: [], key_steps: [], reusable_constructions: [] },
+      technical_core: { key_ideas: [], technical_obstacles: [], reusable_constructions: [] },
       consequences: { open_questions: [], speculative_extensions: [] },
     },
     sections_concatenated_text: '',
-  } satisfies AnalysisResult;
+    audience_views: undefined,
+  };
 }
 
 describe('buildAudienceSupportingText', () => {

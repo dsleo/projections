@@ -1,5 +1,7 @@
 'use client';
 
+import { useRef } from 'react';
+
 import type { AnalyzeStatus } from '@/lib/ui/useAnalyzeStream';
 
 type Props = {
@@ -18,21 +20,41 @@ export function UploadCard({
   hideDone,
 }: Props) {
   const showStatus = !(hideDone && status.kind === 'done');
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   return (
     <section className="w-full">
       <div className="flex w-full flex-col items-center gap-3">
         <div className="flex w-full flex-wrap items-center justify-center gap-3">
-          <label className="flex min-w-[240px] max-w-[420px] cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed bg-white px-4 py-3 text-sm text-zinc-700 hover:bg-zinc-50">
+          <label
+            className="flex min-w-[240px] max-w-[420px] cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed bg-white px-4 py-3 text-sm text-zinc-700 hover:bg-zinc-50"
+            tabIndex={0}
+            role="button"
+            aria-label="Choose a .tex file to upload"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                inputRef.current?.click();
+              }
+            }}
+          >
             <input
               type="file"
               accept=".tex"
               className="hidden"
+              ref={inputRef}
               onChange={(e) => onFileChange(e.target.files?.[0] ?? null)}
             />
             <span className="truncate">{file ? file.name : 'Choose a .tex file'}</span>
           </label>
         </div>
+        <a
+          className="text-xs text-zinc-500 underline hover:text-zinc-700"
+          href="/sample.tex"
+          download
+        >
+          Download a sample .tex
+        </a>
 
         {showStatus && (
           <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-zinc-600">

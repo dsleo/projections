@@ -247,13 +247,16 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
   const isSentenceProcessing = (position: number) =>
     processingWindows.some((w) => position >= w.start && position < w.end);
 
+  const originalLatex = result?.original_latex ?? '';
+  const sentenceList = result?.sentences ?? [];
+
   const renderedOriginalText = useMemo(() => {
-    if (!result) return null;
-    const text = result.original_latex;
+    if (!sentenceList.length) return null;
+    const text = originalLatex;
     if (!text) return [{ text, sentence: null as Sentence | null }];
     const segments: Array<{ text: string; sentence: Sentence | null }> = [];
     let cursor = 0;
-    for (const s of result.sentences) {
+    for (const s of sentenceList) {
       const start = s.original_start;
       const end = s.original_end;
       if (start == null || end == null) continue;
@@ -268,7 +271,7 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
       segments.push({ text: text.slice(cursor), sentence: null });
     }
     return segments;
-  }, [result]);
+  }, [originalLatex, sentenceList]);
 
   const labelCounts = useMemo<Record<DiscourseLabel, number>>(() => {
     const counts: Record<DiscourseLabel, number> = {

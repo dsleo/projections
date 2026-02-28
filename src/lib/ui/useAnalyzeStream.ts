@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import type { AnalysisResult } from '@/lib/pipeline/client';
 
@@ -22,9 +22,22 @@ export function useAnalyzeStream({ file, useEnvPropagation }: Params) {
   const [processingWindows, setProcessingWindows] = useState<
     Array<{ start: number; end: number }>
   >([]);
+  const runIdRef = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
 
   const onAnalyze = async () => {
     if (!file) return;
+    const runId = ++runIdRef.current;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const { signal } = controller;
     setStatus({ kind: 'uploading' });
 
     try {
@@ -39,6 +52,7 @@ export function useAnalyzeStream({ file, useEnvPropagation }: Params) {
         headers: {
           Accept: 'text/event-stream',
         },
+        signal,
       });
 
       if (!res.ok || !res.body) {
@@ -53,6 +67,7 @@ export function useAnalyzeStream({ file, useEnvPropagation }: Params) {
       const decoder = new TextDecoder();
       let buffer = '';
       const currentEvent: string | null = null;
+      let sawDone = false;
 
       // partial state
       let original_latex = '';
@@ -88,6 +103,7 @@ export function useAnalyzeStream({ file, useEnvPropagation }: Params) {
       };
 
       const handleEvent = (event: string, dataStr: string) => {
+        if (runIdRef.current !== runId) return;
         let data: unknown;
         try {
           data = JSON.parse(dataStr) as unknown;
@@ -214,6 +230,7 @@ export function useAnalyzeStream({ file, useEnvPropagation }: Params) {
           setProcessingWindows([]);
           setResult(data as AnalysisResult);
           setStatus({ kind: 'done' });
+          sawDone = true;
         }
 
         if (event === 'error') {
@@ -223,8 +240,16 @@ export function useAnalyzeStream({ file, useEnvPropagation }: Params) {
       };
 
       while (true) {
-        const { value, done } = await reader.read();
+        let readResult: ReadableStreamReadResult<Uint8Array>;
+        try {
+          readResult = await reader.read();
+        } catch (e: unknown) {
+          if (signal.aborted) return;
+          throw e;
+        }
+        const { value, done } = readResult;
         if (done) break;
+        if (runIdRef.current !== runId) return;
         buffer += decoder.decode(value, { stream: true });
 
         // Parse SSE frames separated by blank line.
@@ -250,9 +275,28 @@ export function useAnalyzeStream({ file, useEnvPropagation }: Params) {
           }
         }
       }
+      if (signal.aborted) return;
+      if (runIdRef.current === runId && !sawDone) {
+        setStatus({ kind: 'error', message: 'Stream closed unexpectedly.' });
+      }
     } catch (e: unknown) {
+      if (signal.aborted) {
+        return;
+      }
+      if (
+        e &&
+        typeof e === 'object' &&
+        'name' in e &&
+        (e as { name?: string }).name === 'AbortError'
+      ) {
+        return;
+      }
+      if (runIdRef.current !== runId) return;
       const msg = e instanceof Error ? e.message : 'Unknown error';
-      setStatus({ kind: 'error', message: msg });
+      setStatus({
+        kind: 'error',
+        message: msg === 'Error in input stream' ? 'Stream closed unexpectedly.' : msg,
+      });
     }
   };
 
