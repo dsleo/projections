@@ -146,8 +146,8 @@ export function AudienceViewsCard({
                   className="rounded-full border px-2 py-0.5 text-sm hover:bg-white"
                   type="button"
                   onClick={() => focusSentences(item.sentence_ids ?? [])}
-                  aria-label="Focus highlighted sentences in PDF"
-                  title="Focus highlighted sentences in PDF"
+                  aria-label="Show supporting sentences in the PDF"
+                  title="Show supporting sentences in the PDF"
                 >
                   <Search className="h-4 w-4" aria-hidden />
                 </button>
@@ -236,16 +236,16 @@ export function AudienceViewsCard({
 
   return (
     <div className="grid grid-cols-1 gap-4 text-sm text-[color:var(--ink)]">
-      {!audienceViews && <div className="text-sm text-[color:var(--muted)]">No data.</div>}
+      {!audienceViews && <div className="text-sm text-[color:var(--muted)]">No analysis yet.</div>}
       {audienceViews && (
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap gap-2">
               {[
-                { id: 'A', label: 'Domain Expert' },
-                { id: 'B', label: 'Adjacent-field Researcher' },
-                { id: 'C', label: 'Grad Student' },
-                { id: 'D', label: 'Author Self' },
+                { id: 'A', label: 'Domain expert' },
+                { id: 'B', label: 'Adjacent researcher' },
+                { id: 'C', label: 'Graduate student' },
+                { id: 'D', label: 'Author notes' },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -266,8 +266,8 @@ export function AudienceViewsCard({
                 <summary
                   className={`list-none rounded-full border border-[color:var(--border)] px-3 py-1 text-sm font-normal text-[color:var(--muted)] hover:bg-[color:var(--accent-soft)] [&::-webkit-details-marker]:hidden flex items-center gap-2 ${exportDisabled ? 'opacity-50' : ''
                     }`}
-                  aria-label="Download summaries"
-                  title="Download summaries"
+                  aria-label="Export summaries"
+                  title="Export summaries"
                   onClick={(e) => {
                     if (exportDisabled) {
                       e.preventDefault();
@@ -275,7 +275,7 @@ export function AudienceViewsCard({
                   }}
                 >
                   <Download className="h-4 w-4" aria-hidden />
-                  <span className="hidden sm:inline">Download</span>
+                  <span className="hidden sm:inline">Export</span>
                   <ChevronDown className="h-4 w-4" aria-hidden />
                 </summary>
                 <div className="absolute right-0 z-10 mt-2 w-40 rounded-md border border-[color:var(--border)] bg-white p-1 text-base shadow">
@@ -288,7 +288,7 @@ export function AudienceViewsCard({
                     }}
                     disabled={exportDisabled}
                   >
-                    Download TXT
+                    Export as TXT
                   </button>
                   <button
                     className="block w-full rounded px-2 py-2 text-left text-[color:var(--ink)] hover:bg-[color:var(--accent-soft)] disabled:text-zinc-300"
@@ -299,7 +299,7 @@ export function AudienceViewsCard({
                     }}
                     disabled={exportDisabled}
                   >
-                    Download HTML
+                    Export as HTML
                   </button>
                 </div>
               </details>
@@ -334,8 +334,8 @@ export function AudienceViewsCard({
                               audienceViews.domain_expert.problem_statement!.sentence_ids
                             )
                           }
-                          aria-label="Focus highlighted sentences in PDF"
-                          title="Focus highlighted sentences in PDF"
+                          aria-label="Show supporting sentences in the PDF"
+                          title="Show supporting sentences in the PDF"
                         >
                           <Search className="h-4 w-4" aria-hidden />
                         </button>
@@ -346,7 +346,7 @@ export function AudienceViewsCard({
 
                 <div className="mb-3 rounded-md border border-[color:var(--border)] bg-[color:var(--paper)] p-3">
                   <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">
-                    Delta summary
+                    What changes
                   </div>
                   {renderGroundedListMaybe(audienceViews.domain_expert.delta_summary, (views, idx, next) => {
                     views.domain_expert.delta_summary[idx].text = next;
@@ -378,7 +378,7 @@ export function AudienceViewsCard({
                         0 && (
                           <>
                             <div className="mt-3 text-sm font-semibold text-[color:var(--muted)]">
-                              Clever reductions
+                              Key reductions
                             </div>
                             {renderGroundedListMaybe(
                               audienceViews.domain_expert.technical_highlights.clever_reductions,
@@ -394,7 +394,7 @@ export function AudienceViewsCard({
 
                 <div className="mb-3 rounded-md border border-[color:var(--border)] bg-[color:var(--paper)] p-3">
                   <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">
-                    Reusable components
+                    Reusable constructions
                   </div>
                   {renderGroundedListMaybe(audienceViews.domain_expert.reusable_components, (views, idx, next) => {
                     views.domain_expert.reusable_components[idx].text = next;
@@ -430,8 +430,8 @@ export function AudienceViewsCard({
                               audienceViews.adjacent_researcher.problem_statement.sentence_ids
                             )
                           }
-                          aria-label="Focus highlighted sentences in PDF"
-                          title="Focus highlighted sentences in PDF"
+                          aria-label="Show supporting sentences in the PDF"
+                          title="Show supporting sentences in the PDF"
                         >
                           <Search className="h-4 w-4" aria-hidden />
                         </button>
@@ -454,7 +454,7 @@ export function AudienceViewsCard({
 
                 <div className="mb-3 rounded-md border border-[color:var(--border)] bg-[color:var(--paper)] p-3">
                   <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">
-                    Prerequisite map
+                    Prerequisites
                   </div>
                   {renderStringListMaybe(
                     audienceViews.adjacent_researcher.prerequisite_map,
@@ -469,7 +469,7 @@ export function AudienceViewsCard({
                   <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">
                     Reading path
                   </div>
-                  <div className="mt-2 text-sm font-semibold text-[color:var(--muted)]">Read</div>
+                  <div className="mt-2 text-sm font-semibold text-[color:var(--muted)]">Read closely</div>
                   {renderStringListMaybe(
                     audienceViews.adjacent_researcher.reading_path.read,
                     (views, idx, next) => {
@@ -485,7 +485,7 @@ export function AudienceViewsCard({
                     },
                     renderReadingPathText
                   )}
-                  <div className="mt-2 text-sm font-semibold text-[color:var(--muted)]">Skip</div>
+                  <div className="mt-2 text-sm font-semibold text-[color:var(--muted)]">Skip for now</div>
                   {renderStringListMaybe(
                     audienceViews.adjacent_researcher.reading_path.skip,
                     (views, idx, next) => {
@@ -524,8 +524,8 @@ export function AudienceViewsCard({
                               audienceViews.grad_student.problem_statement!.sentence_ids
                             )
                           }
-                          aria-label="Focus highlighted sentences in PDF"
-                          title="Focus highlighted sentences in PDF"
+                          aria-label="Show supporting sentences in the PDF"
+                          title="Show supporting sentences in the PDF"
                         >
                           <Search className="h-4 w-4" aria-hidden />
                         </button>
@@ -538,7 +538,7 @@ export function AudienceViewsCard({
                   <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">
                     Reading path
                   </div>
-                  <div className="mt-2 text-sm font-semibold text-[color:var(--muted)]">Read</div>
+                  <div className="mt-2 text-sm font-semibold text-[color:var(--muted)]">Read closely</div>
                   {renderStringListMaybe(
                     gradReadingPath.read,
                     (views, idx, next) => {
@@ -560,7 +560,7 @@ export function AudienceViewsCard({
                     },
                     renderReadingPathText
                   )}
-                  <div className="mt-2 text-sm font-semibold text-[color:var(--muted)]">Skip</div>
+                  <div className="mt-2 text-sm font-semibold text-[color:var(--muted)]">Skip for now</div>
                   {renderStringListMaybe(
                     gradReadingPath.skip,
                     (views, idx, next) => {
@@ -575,7 +575,7 @@ export function AudienceViewsCard({
 
                 <div className="mb-3 rounded-md border border-[color:var(--border)] bg-[color:var(--paper)] p-3">
                   <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">
-                    Key ideas before technicalities
+                    Key ideas before details
                   </div>
                   {renderGroundedListMaybe(audienceViews.grad_student.key_ideas, (views, idx, next) => {
                     views.grad_student.key_ideas[idx].text = next;
@@ -611,8 +611,8 @@ export function AudienceViewsCard({
                               audienceViews.author_self.problem_statement!.sentence_ids
                             )
                           }
-                          aria-label="Focus highlighted sentences in PDF"
-                          title="Focus highlighted sentences in PDF"
+                          aria-label="Show supporting sentences in the PDF"
+                          title="Show supporting sentences in the PDF"
                         >
                           <Search className="h-4 w-4" aria-hidden />
                         </button>
@@ -623,7 +623,7 @@ export function AudienceViewsCard({
 
                 <div className="mb-3 rounded-md border border-[color:var(--border)] bg-[color:var(--paper)] p-3">
                   <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">
-                    Contribution Summary
+                    Contribution summary
                   </div>
                   <div className="mt-2 text-sm text-[color:var(--ink)]">
                     <EditableText
@@ -640,7 +640,7 @@ export function AudienceViewsCard({
 
                 <div className="rounded-md border border-[color:var(--border)] bg-[color:var(--paper)] p-3">
                   <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">
-                    Notes to self
+                    Author notes
                   </div>
                   <div className="mt-2 text-sm text-[color:var(--ink)]">
                     <EditableText
@@ -649,7 +649,7 @@ export function AudienceViewsCard({
                         val.trim() ? (
                           <MathText text={val} />
                         ) : (
-                          <span className="text-zinc-400 italic">Double click to add a note…</span>
+                          <span className="text-zinc-400 italic">Double-click to add an author note…</span>
                         )
                       }
                       onSave={(next) =>
@@ -667,7 +667,7 @@ export function AudienceViewsCard({
           {showSupportingText && (
             <details className="rounded-2xl border border-[color:var(--border)] bg-white/80">
               <summary className="cursor-pointer px-3 py-2 text-base font-semibold text-[color:var(--muted)]">
-                Supporting text
+                Supporting source text
               </summary>
               {renderAudienceFullText()}
             </details>

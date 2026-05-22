@@ -25,7 +25,7 @@ const sourceCodePro = Source_Code_Pro({
 
 export const metadata: Metadata = {
   title: 'Projections',
-  description: 'Audience‑ready scientific summaries, grounded in your paper.',
+  description: 'Audience-ready scientific summaries, grounded in your source text.',
 };
 
 export default function RootLayout({

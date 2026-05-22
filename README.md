@@ -1,15 +1,15 @@
 # Projections
 
-Projections turns a LaTeX research paper into audience-specific summaries that stay grounded in the source text.
+Projections turns LaTeX source into audience summaries that stay grounded in the source text.
 
 ![Projections black and yellow home screen](public/projections-black-yellow.png)
 
-Upload a `.tex` manuscript and Projections produces:
+Upload LaTeX source and Projections produces:
 
-- **Four audience views**: Domain Expert, Adjacent-field Researcher, Grad Student, and Future Author Self.
-- **A canonical outline**: Problem/Motivation, Landscape, Contributions, Technical Core, and Consequences.
+- **Four reader views**: domain expert, adjacent researcher, graduate student, and author notes.
+- **A structured outline**: Problem/Motivation, Landscape, Contributions, Technical Core, and Consequences.
 - **Traceable grounding**: generated claims reference stable sentence IDs from the paper.
-- **Review controls**: inspect labels, edit canonical sections, regenerate audience views, and export summaries.
+- **Review controls**: inspect labels, edit the structured outline, regenerate audience summaries, and export summaries.
 - **Optional PDF support**: compile the source locally and highlight supporting sentences when TeX tooling is available.
 
 ## Who It Is For
@@ -62,12 +62,12 @@ Open [http://localhost:3000](http://localhost:3000).
 The pipeline is intentionally simple and inspectable:
 
 1. **Preprocess and segment** the LaTeX source into stable sentence IDs while preserving offsets back to the original text.
-2. **Pass 1** classifies sentence windows with rhetorical labels: Problem, Landscape, Contribution, Technical Core, and Consequences.
-3. **Pass 2** builds the five-part canonical outline from the labeled sentences.
-4. **Pass 3** generates the four audience views from the canonical outline.
+2. **Sentence labeling** classifies source windows with rhetorical labels: Problem, Landscape, Contribution, Technical Core, and Consequences.
+3. **Outline building** creates the five-part canonical outline from the labeled sentences.
+4. **Summary generation** creates the four audience summaries from the canonical outline.
 5. **Grounding validation** filters generated sentence references so audience summaries only point to IDs present in the canonical evidence.
 
-The analysis page also exposes a review mode so you can inspect the labeled source, canonical outline, citations, and generated audience summaries before sharing exports.
+The analysis page also exposes a review mode so you can inspect the labeled source, structured outline, citations, and generated audience summaries before sharing exports.
 
 ## PDF And Highlighting
 

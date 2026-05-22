@@ -26,12 +26,9 @@ function TriviaRotator() {
   return (
     <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--paper)] p-4">
       <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">
-        While you wait
+        Analysis in progress
       </div>
       <div className="mt-2 text-sm text-[color:var(--ink)]">{TRIVIA_ITEMS[index]}</div>
-      <div className="mt-3 text-xs text-[color:var(--muted)]">
-        Clear summaries reduce the time to first understanding.
-      </div>
     </div>
   );
 }
@@ -96,13 +93,13 @@ export function ProgressDashboardCard({
   const statusLine =
     status.kind === 'analyzing'
       ? status.phase === 'pass1'
-        ? 'Classifying sentences…'
+        ? 'Labeling source sentences…'
         : status.phase === 'pass2'
-          ? 'Structuring canonical sections…'
-          : 'Generating summaries…'
+          ? 'Building the structured outline…'
+          : 'Writing audience summaries…'
       : status.kind === 'uploading'
-        ? 'Uploading your TeX source…'
-        : 'Preparing your summaries…';
+        ? 'Uploading your LaTeX source…'
+        : 'Preparing the analysis…';
 
   const accentClass = completed ? 'bg-[color:var(--ink)]' : 'bg-[color:var(--accent)]';
   const badgeText = completed ? 'Completed' : null;
@@ -115,7 +112,7 @@ export function ProgressDashboardCard({
     <div className="flex flex-col gap-4">
       <div className="rounded-3xl border border-[color:var(--border)] bg-white/80 p-6 shadow-sm">
         <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">
-          Building audience-ready summaries
+          Preparing grounded summaries
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <div className="text-2xl font-semibold text-[color:var(--ink)]">
@@ -139,14 +136,14 @@ export function ProgressDashboardCard({
         <div className="mt-2 text-sm text-[color:var(--muted)]">
           {completed ? 'Summaries ready.' : statusLine}
           {!completed && phase === 'pass1' && inFlightWindows > 0
-            ? ` ${inFlightWindows} window${inFlightWindows === 1 ? '' : 's'} in flight.`
+            ? ` ${inFlightWindows} section${inFlightWindows === 1 ? '' : 's'} being analyzed.`
             : ''}
         </div>
 
         {!completed && (
           <div className="mt-6">
             <div className="flex items-center justify-between text-xs text-[color:var(--muted)]">
-              <span>Estimated remaining</span>
+              <span>Estimated time remaining</span>
               <span className="font-semibold text-[color:var(--ink)]">{eta}</span>
             </div>
             <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-[color:var(--highlight)]">

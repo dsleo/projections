@@ -3,10 +3,10 @@ import type { AnalysisResult } from '@/lib/pipeline/client';
 type AudienceTab = 'A' | 'B' | 'C' | 'D';
 
 const AUDIENCE_LABELS: Record<AudienceTab, string> = {
-  A: 'Domain Expert',
-  B: 'Adjacent-field Researcher',
-  C: 'Grad Student',
-  D: 'Author Self',
+  A: 'Domain expert',
+  B: 'Adjacent researcher',
+  C: 'Graduate student',
+  D: 'Author notes',
 };
 
 function escapeHtml(value: string) {
@@ -98,24 +98,24 @@ export function buildAudienceExport(params: {
   if (audienceTab === 'A') {
     const v = views.domain_expert;
     text += `## Problem statement\n${v.problem_statement?.text ?? ''}\n\n`;
-    text += `## Delta summary\n${textGroundedList(v.delta_summary)}\n\n`;
+    text += `## What changes\n${textGroundedList(v.delta_summary)}\n\n`;
     text += `## Technical highlights\nNonstandard ideas\n${textGroundedList(
       v.technical_highlights.nonstandard_ideas
-    )}\n\nClever reductions\n${textGroundedList(v.technical_highlights.clever_reductions)}\n\n`;
-    text += `## Reusable components\n${textGroundedList(v.reusable_components)}\n\n`;
+    )}\n\nKey reductions\n${textGroundedList(v.technical_highlights.clever_reductions)}\n\n`;
+    text += `## Reusable constructions\n${textGroundedList(v.reusable_components)}\n\n`;
 
     body += `<section>\n<h3>Problem statement</h3>\n${formatParagraphs(
       v.problem_statement?.text ?? ''
     )}\n</section>\n`;
-    body += `<section>\n<h3>Delta summary</h3>\n${renderGroundedList(
+    body += `<section>\n<h3>What changes</h3>\n${renderGroundedList(
       v.delta_summary
     )}\n</section>\n`;
     body += `<section>\n<h3>Technical highlights</h3>\n<h4>Nonstandard ideas</h4>\n${renderGroundedList(
       v.technical_highlights.nonstandard_ideas
-    )}\n<h4>Clever reductions</h4>\n${renderGroundedList(
+    )}\n<h4>Key reductions</h4>\n${renderGroundedList(
       v.technical_highlights.clever_reductions
     )}\n</section>\n`;
-    body += `<section>\n<h3>Reusable components</h3>\n${renderGroundedList(
+    body += `<section>\n<h3>Reusable constructions</h3>\n${renderGroundedList(
       v.reusable_components
     )}\n</section>\n`;
   } else if (audienceTab === 'B') {
@@ -127,8 +127,8 @@ export function buildAudienceExport(params: {
 
     text += `## Problem statement (plain math)\n${v.problem_statement?.text ?? ''}\n\n`;
     text += `## Why this matters\n${textGroundedList(v.why_matters)}\n\n`;
-    text += `## Prerequisite map\n${textList(prereq)}\n\n`;
-    text += `## Reading path\nRead\n${textList(read)}\n\nSkim\n${textList(skim)}\n\nSkip\n${textList(skip)}\n\n`;
+    text += `## Prerequisites\n${textList(prereq)}\n\n`;
+    text += `## Reading path\nRead closely\n${textList(read)}\n\nSkim\n${textList(skim)}\n\nSkip for now\n${textList(skip)}\n\n`;
 
     body += `<section>\n<h3>Problem statement (plain math)</h3>\n${formatParagraphs(
       v.problem_statement?.text ?? ''
@@ -136,10 +136,10 @@ export function buildAudienceExport(params: {
     body += `<section>\n<h3>Why this matters</h3>\n${renderGroundedList(
       v.why_matters
     )}\n</section>\n`;
-    body += `<section>\n<h3>Prerequisite map</h3>\n${renderList(prereq)}\n</section>\n`;
-    body += `<section>\n<h3>Reading path</h3>\n<h4>Read</h4>\n${renderList(
+    body += `<section>\n<h3>Prerequisites</h3>\n${renderList(prereq)}\n</section>\n`;
+    body += `<section>\n<h3>Reading path</h3>\n<h4>Read closely</h4>\n${renderList(
       read
-    )}\n<h4>Skim</h4>\n${renderList(skim)}\n<h4>Skip</h4>\n${renderList(skip)}\n</section>\n`;
+    )}\n<h4>Skim</h4>\n${renderList(skim)}\n<h4>Skip for now</h4>\n${renderList(skip)}\n</section>\n`;
   } else if (audienceTab === 'C') {
     const v = views.grad_student;
     const read = v.reading_path.read.map(renderReadingPathText);
@@ -147,31 +147,31 @@ export function buildAudienceExport(params: {
     const skip = v.reading_path.skip.map(renderReadingPathText);
 
     text += `## Problem statement\n${v.problem_statement?.text ?? ''}\n\n`;
-    text += `## Key ideas before technicalities\n${textGroundedList(v.key_ideas)}\n\n`;
-    text += `## Reading path\nRead\n${textList(read)}\n\nSkim\n${textList(skim)}\n\nSkip\n${textList(skip)}\n\n`;
+    text += `## Key ideas before details\n${textGroundedList(v.key_ideas)}\n\n`;
+    text += `## Reading path\nRead closely\n${textList(read)}\n\nSkim\n${textList(skim)}\n\nSkip for now\n${textList(skip)}\n\n`;
 
     body += `<section>\n<h3>Problem statement</h3>\n${formatParagraphs(
       v.problem_statement?.text ?? ''
     )}\n</section>\n`;
-    body += `<section>\n<h3>Key ideas before technicalities</h3>\n${renderGroundedList(
+    body += `<section>\n<h3>Key ideas before details</h3>\n${renderGroundedList(
       v.key_ideas
     )}\n</section>\n`;
-    body += `<section>\n<h3>Reading path</h3>\n<h4>Read</h4>\n${renderList(
+    body += `<section>\n<h3>Reading path</h3>\n<h4>Read closely</h4>\n${renderList(
       read
-    )}\n<h4>Skim</h4>\n${renderList(skim)}\n<h4>Skip</h4>\n${renderList(skip)}\n</section>\n`;
+    )}\n<h4>Skim</h4>\n${renderList(skim)}\n<h4>Skip for now</h4>\n${renderList(skip)}\n</section>\n`;
   } else {
     const v = views.author_self;
     text += `## Problem statement\n${v.problem_statement?.text ?? ''}\n\n`;
-    text += `## Contribution Summary\n${v.one_page_summary}\n\n`;
-    text += `## Notes to self\n${textList(v.notes_to_self ?? [])}\n\n`;
+    text += `## Contribution summary\n${v.one_page_summary}\n\n`;
+    text += `## Author notes\n${textList(v.notes_to_self ?? [])}\n\n`;
 
     body += `<section>\n<h3>Problem statement</h3>\n${formatParagraphs(
       v.problem_statement?.text ?? ''
     )}\n</section>\n`;
-    body += `<section>\n<h3>Contribution Summary</h3>\n${formatParagraphs(
+    body += `<section>\n<h3>Contribution summary</h3>\n${formatParagraphs(
       v.one_page_summary
     )}\n</section>\n`;
-    body += `<section>\n<h3>Notes to self</h3>\n${renderList(
+    body += `<section>\n<h3>Author notes</h3>\n${renderList(
       v.notes_to_self ?? []
     )}\n</section>\n`;
   }

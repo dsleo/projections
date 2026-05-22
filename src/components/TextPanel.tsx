@@ -65,7 +65,7 @@ export function TextPanel({
             >
               <IconButton
                 icon={RefreshCw}
-                label="Re-run Pass 1"
+                label="Re-label sentences"
                 onClick={onReRunPass1}
                 disabled={!result || processingWindows.length > 0}
                 size="sm"
@@ -82,7 +82,7 @@ export function TextPanel({
               >
                 <IconButton
                   icon={PanelRight}
-                  label={isViewerOpen ? 'Hide document viewer' : 'Show document viewer'}
+                  label={isViewerOpen ? 'Hide PDF viewer' : 'Show PDF viewer'}
                   onClick={onToggleViewer}
                   disabled={!onToggleViewer}
                   size="sm"
@@ -106,7 +106,7 @@ export function TextPanel({
       <div className="max-h-[70vh] overflow-auto">
         {!result && (
           <div className="p-4 text-sm text-[color:var(--muted)]">
-            Upload a .tex file to begin.
+            Upload a LaTeX source file to begin.
           </div>
         )}
         {result && (
@@ -137,7 +137,7 @@ export function TextPanel({
                       <span className="my-2 flex items-center gap-2 text-[11px] text-zinc-400">
                         <span className="h-px w-6 bg-zinc-300" />
                         <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5">
-                          ⋯ gap
+                          omitted source text
                         </span>
                         <span className="h-px w-6 bg-zinc-300" />
                       </span>

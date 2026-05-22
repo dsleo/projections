@@ -104,7 +104,7 @@ export function PdfViewerCard({
   selectedTab,
   onTabChange,
   onDownloadSupportingTex,
-  supportingTitle = 'Supporting text',
+  supportingTitle = 'Supporting source',
   supportingContent,
   defaultView = 'pdf',
   showToggle = true,
@@ -118,9 +118,9 @@ export function PdfViewerCard({
   const pageRefs = useRef<Array<HTMLDivElement | null>>([]);
   const downloadDetailsRef = useRef<HTMLDetailsElement | null>(null);
   const downloadName =
-    selectedTab === 'original' ? 'paper-original.pdf' : `paper-supporting-${selectedTab}.pdf`;
+    selectedTab === 'original' ? 'source-original.pdf' : `source-supporting-${selectedTab}.pdf`;
   const showOriginal = selectedTab === 'original';
-  const toggleLabel = showOriginal ? 'Show audience PDF' : 'Show original PDF';
+  const toggleLabel = showOriginal ? 'Show highlighted PDF' : 'Show original PDF';
   const ToggleIcon = showOriginal ? Sparkles : Undo2;
   const [activeView, setActiveView] = useState<'pdf' | 'supporting'>(defaultView);
   const showSupporting = Boolean(supportingContent);
@@ -192,7 +192,7 @@ export function PdfViewerCard({
     <section className={containerClass}>
       <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2 font-semibold">
         <div className="flex flex-wrap items-center gap-3">
-          <span>Paper</span>
+          <span>Source PDF</span>
           {showSupporting && (
             <div className="inline-flex rounded-full border bg-white p-1 text-sm text-zinc-600">
               <button
@@ -243,8 +243,8 @@ export function PdfViewerCard({
           <details className="relative" ref={downloadDetailsRef}>
             <summary
               className="list-none inline-flex items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white h-9 w-9 [&::-webkit-details-marker]:hidden"
-              aria-label="Download"
-              title="Download"
+              aria-label="Export"
+              title="Export"
             >
               <Download className="h-4 w-4" aria-hidden />
             </summary>
@@ -260,7 +260,7 @@ export function PdfViewerCard({
               >
                 <span className="inline-flex items-center gap-2">
                   <FileText className="h-4 w-4" aria-hidden />
-                  Download supporting .tex
+                  Export supporting .tex
                 </span>
               </button>
 
@@ -280,11 +280,11 @@ export function PdfViewerCard({
               >
                 <span className="inline-flex items-center gap-2">
                   <Download className="h-4 w-4" aria-hidden />
-                  Download PDF
+                  Export PDF
                 </span>
                 {!pdfUrl && (
                   <div className="mt-1 text-[11px] text-zinc-400">
-                    Available locally when TeX compilation is enabled.
+                    Available when local TeX compilation is enabled.
                   </div>
                 )}
               </a>
@@ -295,16 +295,16 @@ export function PdfViewerCard({
       {activeView === 'pdf' && (
         <>
           <div className="mt-2 text-base text-zinc-500">
-            {status.kind === 'idle' && 'No PDF rendered yet.'}
-            {status.kind === 'compiling' && 'Compiling with TeX engine…'}
+            {status.kind === 'idle' && 'No PDF has been compiled yet.'}
+            {status.kind === 'compiling' && 'Compiling with the local TeX engine…'}
             {status.kind === 'error' && (
-              <span className="text-red-700">Error: {status.message}</span>
+              <span className="text-red-700">PDF compilation failed: {status.message}</span>
             )}
           </div>
           <div className="mt-3 flex-1 rounded-md border bg-zinc-50 overflow-auto max-h-[75vh]">
             {!pdfUrl && (
               <div className="flex h-full items-center justify-center text-base text-zinc-400">
-                No PDF rendered yet.
+                No PDF has been compiled yet.
               </div>
             )}
             {pdfUrl && doc && (

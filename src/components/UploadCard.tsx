@@ -30,7 +30,7 @@ export function UploadCard({
             className="flex min-w-[240px] max-w-[420px] cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed bg-white px-4 py-3 text-sm text-zinc-700 hover:bg-zinc-50"
             tabIndex={0}
             role="button"
-            aria-label="Choose a .tex file to upload"
+            aria-label="Choose a LaTeX source file"
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
@@ -45,27 +45,29 @@ export function UploadCard({
               ref={inputRef}
               onChange={(e) => onFileChange(e.target.files?.[0] ?? null)}
             />
-            <span className="truncate">{file ? file.name : 'Choose a .tex file'}</span>
+            <span className="truncate">{file ? file.name : 'Choose LaTeX source'}</span>
           </label>
         </div>
         {showStatus && status.kind !== 'idle' && (
           <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-zinc-600">
             <span className="rounded-full border px-2 py-1">
-              {status.kind === 'uploading' && 'Uploading'}
-              {status.kind === 'analyzing' && 'Processing'}
-              {status.kind === 'done' && 'Complete'}
+              {status.kind === 'uploading' && 'Uploading source'}
+              {status.kind === 'analyzing' && 'Analyzing manuscript'}
+              {status.kind === 'done' && 'Summaries ready'}
               {status.kind === 'error' && 'Error'}
             </span>
             <span>
-              {status.kind === 'uploading' && 'Uploading the file…'}
-              {status.kind === 'analyzing' && (status.message ?? 'Running Pass 1 + Pass 2…')}
-              {status.kind === 'done' && file && `Done.`}
+              {status.kind === 'uploading' && 'Uploading the LaTeX source…'}
+              {status.kind === 'analyzing' && (status.message ?? 'Analyzing structure and evidence…')}
+              {status.kind === 'done' && file && `Summaries are ready.`}
               {status.kind === 'error' && (
-                <span className="text-red-700">Error: {status.message}</span>
+                <span className="text-red-700">Analysis failed: {status.message}</span>
               )}
             </span>
             {status.kind === 'analyzing' && processingWindows.length > 0 && (
-              <span className="text-zinc-500">{processingWindows.length} windows in flight</span>
+              <span className="text-zinc-500">
+                {processingWindows.length} sections being analyzed
+              </span>
             )}
           </div>
         )}

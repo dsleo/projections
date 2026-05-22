@@ -43,7 +43,7 @@ export function LabelFilterBar({
           onClick={onClearFilters}
           type="button"
         >
-          Clear filter
+          Clear labels
         </button>
       )}
     </div>

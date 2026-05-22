@@ -58,7 +58,7 @@ export function CanonicalSectionsCard({
   const showProcessingEmpty =
     status.kind === 'uploading' ||
     (status.kind === 'analyzing' && (status.phase === 'pass1' || status.phase === 'pass2'));
-  const emptyText = showProcessingEmpty ? 'Processing…' : 'No explicit items found.';
+  const emptyText = showProcessingEmpty ? 'Building this section…' : 'No explicit evidence found.';
 
   const sentenceActionClass = showSentenceActions
     ? 'rounded-full border px-2 py-0.5 text-[10px] hover:bg-white'
@@ -105,7 +105,7 @@ export function CanonicalSectionsCard({
             setDraft(value);
             setEditing(true);
           }}
-          title="Double click to edit (temporary)"
+          title="Double-click to edit locally"
         >
           {value ? <MathText text={value} /> : <span className="text-zinc-400">{placeholder ?? '—'}</span>}
         </div>
@@ -159,14 +159,14 @@ export function CanonicalSectionsCard({
             >
               <IconButton
                 icon={RefreshCw}
-                label="Re-run Pass 2"
+                label="Rebuild outline"
                 onClick={onRerunPass2}
                 disabled={!result || status.kind === 'analyzing' || status.kind === 'uploading'}
                 size="sm"
               />
               <IconButton
                 icon={Copy}
-                label="Copy canonical JSON"
+                label="Copy outline JSON"
                 onClick={() => {
                   if (!result?.sections) return;
                   onCopyCanonical();
@@ -177,7 +177,7 @@ export function CanonicalSectionsCard({
               {dirty && onRerunPass3 && (
                 <IconButton
                   icon={RefreshCw}
-                  label="Regenerate audiences"
+                  label="Regenerate summaries"
                   onClick={onRerunPass3}
                   disabled={!result || status.kind === 'analyzing' || status.kind === 'uploading'}
                   size="sm"
@@ -192,12 +192,12 @@ export function CanonicalSectionsCard({
       </summary>
 
       <div className="grid grid-cols-1 gap-4 p-4">
-        {!result && <div className="text-sm text-[color:var(--muted)]">No data.</div>}
+        {!result && <div className="text-sm text-[color:var(--muted)]">No analysis yet.</div>}
         {result && (
           <>
             {dirty && (
               <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                You’ve edited the canonical sections. Click <span className="font-semibold">Regenerate audiences</span> to update the summaries.
+                The outline has local edits. Regenerate summaries to update the reader views.
               </div>
             )}
             <div className="flex flex-wrap gap-2">
@@ -249,13 +249,13 @@ export function CanonicalSectionsCard({
                               }
                             />
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                              <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
+                              <span className="sr-only">sentence IDs {formatIdRanges(item.sentence_ids)}</span>
                               <button
                                 className={sentenceActionClass}
                                 onClick={() => focusSentences(item.sentence_ids)}
                                 type="button"
-                                aria-label="Focus highlighted sentences in PDF"
-                                title="Focus highlighted sentences in PDF"
+                                aria-label="Show supporting sentences in the PDF"
+                                title="Show supporting sentences in the PDF"
                               >
                                 <Search className="h-3.5 w-3.5" aria-hidden />
                               </button>
@@ -283,13 +283,13 @@ export function CanonicalSectionsCard({
                               }
                             />
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                              <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
+                              <span className="sr-only">sentence IDs {formatIdRanges(item.sentence_ids)}</span>
                               <button
                                 className={sentenceActionClass}
                                 onClick={() => focusSentences(item.sentence_ids)}
                                 type="button"
-                                aria-label="Focus highlighted sentences in PDF"
-                                title="Focus highlighted sentences in PDF"
+                                aria-label="Show supporting sentences in the PDF"
+                                title="Show supporting sentences in the PDF"
                               >
                                 <Search className="h-3.5 w-3.5" aria-hidden />
                               </button>
@@ -318,13 +318,13 @@ export function CanonicalSectionsCard({
                               }
                             />
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                              <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
+                              <span className="sr-only">sentence IDs {formatIdRanges(item.sentence_ids)}</span>
                               <button
                                 className={sentenceActionClass}
                                 onClick={() => focusSentences(item.sentence_ids)}
                                 type="button"
-                                aria-label="Focus highlighted sentences in PDF"
-                                title="Focus highlighted sentences in PDF"
+                                aria-label="Show supporting sentences in the PDF"
+                                title="Show supporting sentences in the PDF"
                               >
                                 <Search className="h-3.5 w-3.5" aria-hidden />
                               </button>
@@ -361,13 +361,13 @@ export function CanonicalSectionsCard({
                               }
                             />
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                              <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
+                              <span className="sr-only">sentence IDs {formatIdRanges(item.sentence_ids)}</span>
                               <button
                                 className={sentenceActionClass}
                                 onClick={() => focusSentences(item.sentence_ids)}
                                 type="button"
-                                aria-label="Focus highlighted sentences in PDF"
-                                title="Focus highlighted sentences in PDF"
+                                aria-label="Show supporting sentences in the PDF"
+                                title="Show supporting sentences in the PDF"
                               >
                                 <Search className="h-3.5 w-3.5" aria-hidden />
                               </button>
@@ -395,13 +395,13 @@ export function CanonicalSectionsCard({
                               }
                             />
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                              <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
+                              <span className="sr-only">sentence IDs {formatIdRanges(item.sentence_ids)}</span>
                               <button
                                 className={sentenceActionClass}
                                 onClick={() => focusSentences(item.sentence_ids)}
                                 type="button"
-                                aria-label="Focus highlighted sentences in PDF"
-                                title="Focus highlighted sentences in PDF"
+                                aria-label="Show supporting sentences in the PDF"
+                                title="Show supporting sentences in the PDF"
                               >
                                 <Search className="h-3.5 w-3.5" aria-hidden />
                               </button>
@@ -429,13 +429,13 @@ export function CanonicalSectionsCard({
                               }
                             />
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                              <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
+                              <span className="sr-only">sentence IDs {formatIdRanges(item.sentence_ids)}</span>
                               <button
                                 className={sentenceActionClass}
                                 onClick={() => focusSentences(item.sentence_ids)}
                                 type="button"
-                                aria-label="Focus highlighted sentences in PDF"
-                                title="Focus highlighted sentences in PDF"
+                                aria-label="Show supporting sentences in the PDF"
+                                title="Show supporting sentences in the PDF"
                               >
                                 <Search className="h-3.5 w-3.5" aria-hidden />
                               </button>
@@ -479,7 +479,7 @@ export function CanonicalSectionsCard({
                                           next;
                                       })
                                     }
-                                    placeholder="(optional)"
+                                    placeholder="Optional detail"
                                   />
                                 </div>
                                 <div>
@@ -493,7 +493,7 @@ export function CanonicalSectionsCard({
                                         sections.contributions.contributions[idx].novelty.text = next;
                                       })
                                     }
-                                    placeholder="(optional)"
+                                    placeholder="Optional detail"
                                   />
                                 </div>
                                 <div>
@@ -508,19 +508,19 @@ export function CanonicalSectionsCard({
                                           next;
                                       })
                                     }
-                                    placeholder="(optional)"
+                                    placeholder="Optional detail"
                                   />
                                 </div>
                               </div>
                             )}
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                              <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
+                              <span className="sr-only">sentence IDs {formatIdRanges(item.sentence_ids)}</span>
                               <button
                                 className={sentenceActionClass}
                                 onClick={() => focusSentences(item.sentence_ids)}
                                 type="button"
-                                aria-label="Focus highlighted sentences in PDF"
-                                title="Focus highlighted sentences in PDF"
+                                aria-label="Show supporting sentences in the PDF"
+                                title="Show supporting sentences in the PDF"
                               >
                                 <Search className="h-3.5 w-3.5" aria-hidden />
                               </button>
@@ -557,13 +557,13 @@ export function CanonicalSectionsCard({
                               }
                             />
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                              <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
+                              <span className="sr-only">sentence IDs {formatIdRanges(item.sentence_ids)}</span>
                               <button
                                 className={sentenceActionClass}
                                 onClick={() => focusSentences(item.sentence_ids)}
                                 type="button"
-                                aria-label="Focus highlighted sentences in PDF"
-                                title="Focus highlighted sentences in PDF"
+                                aria-label="Show supporting sentences in the PDF"
+                                title="Show supporting sentences in the PDF"
                               >
                                 <Search className="h-3.5 w-3.5" aria-hidden />
                               </button>
@@ -591,13 +591,13 @@ export function CanonicalSectionsCard({
                               }
                             />
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                              <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
+                              <span className="sr-only">sentence IDs {formatIdRanges(item.sentence_ids)}</span>
                               <button
                                 className={sentenceActionClass}
                                 onClick={() => focusSentences(item.sentence_ids)}
                                 type="button"
-                                aria-label="Focus highlighted sentences in PDF"
-                                title="Focus highlighted sentences in PDF"
+                                aria-label="Show supporting sentences in the PDF"
+                                title="Show supporting sentences in the PDF"
                               >
                                 <Search className="h-3.5 w-3.5" aria-hidden />
                               </button>
@@ -625,13 +625,13 @@ export function CanonicalSectionsCard({
                               }
                             />
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                              <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
+                              <span className="sr-only">sentence IDs {formatIdRanges(item.sentence_ids)}</span>
                               <button
                                 className={sentenceActionClass}
                                 onClick={() => focusSentences(item.sentence_ids)}
                                 type="button"
-                                aria-label="Focus highlighted sentences in PDF"
-                                title="Focus highlighted sentences in PDF"
+                                aria-label="Show supporting sentences in the PDF"
+                                title="Show supporting sentences in the PDF"
                               >
                                 <Search className="h-3.5 w-3.5" aria-hidden />
                               </button>
@@ -667,13 +667,13 @@ export function CanonicalSectionsCard({
                               }
                             />
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                              <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
+                              <span className="sr-only">sentence IDs {formatIdRanges(item.sentence_ids)}</span>
                               <button
                                 className={sentenceActionClass}
                                 onClick={() => focusSentences(item.sentence_ids)}
                                 type="button"
-                                aria-label="Focus highlighted sentences in PDF"
-                                title="Focus highlighted sentences in PDF"
+                                aria-label="Show supporting sentences in the PDF"
+                                title="Show supporting sentences in the PDF"
                               >
                                 <Search className="h-3.5 w-3.5" aria-hidden />
                               </button>
@@ -701,13 +701,13 @@ export function CanonicalSectionsCard({
                               }
                             />
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                              <span className="sr-only">ids {formatIdRanges(item.sentence_ids)}</span>
+                              <span className="sr-only">sentence IDs {formatIdRanges(item.sentence_ids)}</span>
                               <button
                                 className={sentenceActionClass}
                                 onClick={() => focusSentences(item.sentence_ids)}
                                 type="button"
-                                aria-label="Focus highlighted sentences in PDF"
-                                title="Focus highlighted sentences in PDF"
+                                aria-label="Show supporting sentences in the PDF"
+                                title="Show supporting sentences in the PDF"
                               >
                                 <Search className="h-3.5 w-3.5" aria-hidden />
                               </button>
@@ -724,7 +724,7 @@ export function CanonicalSectionsCard({
               {activeTab === 'cites' && (
                 <>
                   {Object.keys(result.citations ?? {}).length === 0 &&
-                    renderEmpty('No citations detected.')}
+                    renderEmpty('No citations found in the source.')}
                   {(focusedCitationKeys.length > 0
                     ? focusedCitationKeys
                       .map((key) => result.citations?.[key])
@@ -767,7 +767,7 @@ export function CanonicalSectionsCard({
                       type="button"
                       onClick={() => setFocusedCitationKeys([])}
                     >
-                      Clear filter
+                      Show all citations
                     </button>
                   )}
                 </>

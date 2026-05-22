@@ -168,7 +168,7 @@ export async function POST(req: Request) {
 
                 if (failedWindows.length > 0) {
                     throw new Error(
-                        `Pass 1 failed for ${failedWindows.length} window${
+                        `Sentence labeling failed for ${failedWindows.length} section${
                             failedWindows.length === 1 ? '' : 's'
                         }. Please retry the analysis.`
                     );
@@ -185,7 +185,7 @@ export async function POST(req: Request) {
                 send('pass1_done', { labeledSentences: Object.keys(labels).length });
 
                 // Phase 2: pass2 (already parallel across the 5 calls internally)
-                send('pass2_start', { message: 'Building canonical sections…' });
+                send('pass2_start', { message: 'Building the structured outline…' });
                 const { runPass2Streaming } = await import('@/lib/pipeline/pass2');
                 const { sections, sections_concatenated_text } = await runPass2Streaming(
                     sentences,
@@ -204,10 +204,10 @@ export async function POST(req: Request) {
                         },
                     }
                 );
-                send('pass2_done', { message: 'Canonical sections ready.' });
+                send('pass2_done', { message: 'Structured outline ready.' });
                 const { sentence_citations, citations } = buildCitationData(latex, sentences, labels);
                 send('pass3_start', {
-                    message: 'Building audience views…',
+                    message: 'Writing audience summaries…',
                 });
                 const audience_views = await runPass3(sections, {
                     concurrency: 4,
@@ -226,7 +226,7 @@ export async function POST(req: Request) {
                     citations,
                     audience_views,
                 });
-                send('pass3_done', { message: 'Audience views ready.' });
+                send('pass3_done', { message: 'Audience summaries ready.' });
 
                 // Final result
                 send('done', {

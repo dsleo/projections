@@ -189,16 +189,25 @@ export function useAnalyzeStream({ file, useEnvPropagation }: Params) {
             if (!prev) return prev;
             return { ...prev, labels };
           });
-          setStatus({ kind: 'analyzing', phase: 'pass1', message: `Classifying sentences… (${Object.keys(labels).length} labeled)` });
+          setStatus({
+            kind: 'analyzing',
+            phase: 'pass1',
+            message: `Labeling source sentences… (${Object.keys(labels).length} labeled)`,
+          });
         }
 
         if (event === 'pass1_done') {
           setProcessingWindows([]);
-          setStatus({ kind: 'analyzing', phase: 'pass2', message: `Building canonical sections…` });
+          setStatus({
+            kind: 'analyzing',
+            phase: 'pass2',
+            message: `Building the structured outline…`,
+          });
         }
 
         if (event === 'pass2_start') {
-          const message = (dataObj?.message as string | undefined) ?? 'Building canonical sections…';
+          const message =
+            (dataObj?.message as string | undefined) ?? 'Building the structured outline…';
           setStatus({ kind: 'analyzing', phase: 'pass2', message });
         }
 
@@ -215,17 +224,17 @@ export function useAnalyzeStream({ file, useEnvPropagation }: Params) {
         }
 
         if (event === 'pass2_done') {
-          const message = (dataObj?.message as string | undefined) ?? 'Canonical sections ready.';
+          const message = (dataObj?.message as string | undefined) ?? 'Structured outline ready.';
           setStatus({ kind: 'analyzing', phase: 'pass2', message });
         }
 
         if (event === 'pass3_start') {
-          const message = (dataObj?.message as string | undefined) ?? 'Building audience views…';
+          const message = (dataObj?.message as string | undefined) ?? 'Writing audience summaries…';
           setStatus({ kind: 'analyzing', phase: 'pass3', message });
         }
 
         if (event === 'pass3_done') {
-          const message = (dataObj?.message as string | undefined) ?? 'Audience views ready.';
+          const message = (dataObj?.message as string | undefined) ?? 'Audience summaries ready.';
           setStatus({ kind: 'analyzing', phase: 'pass3', message });
         }
 

@@ -131,7 +131,7 @@ export function AnalysisView({
   async function rerunPass2Only() {
     if (!result) return;
     setCanonicalDirty(false);
-    setStatus({ kind: 'analyzing', phase: 'pass2', message: 'Re-running Pass 2…' });
+    setStatus({ kind: 'analyzing', phase: 'pass2', message: 'Rebuilding the outline…' });
     try {
       const res = await fetch('/api/analyze/pass2', {
         method: 'POST',
@@ -179,7 +179,7 @@ export function AnalysisView({
 
   async function rerunPass3FromCanonical() {
     if (!result) return;
-    setStatus({ kind: 'analyzing', phase: 'pass3', message: 'Regenerating audiences…' });
+    setStatus({ kind: 'analyzing', phase: 'pass3', message: 'Regenerating summaries…' });
     try {
       const res = await fetch('/api/analyze/pass3', {
         method: 'POST',
@@ -373,8 +373,8 @@ export function AnalysisView({
                   className="rounded-full border px-2 py-0.5 text-sm hover:bg-white"
                   type="button"
                   onClick={() => focusSentences(item.sentence_ids ?? [])}
-                  aria-label="Focus highlighted sentences in PDF"
-                  title="Focus highlighted sentences in PDF"
+                  aria-label="Show supporting sentences in the PDF"
+                  title="Show supporting sentences in the PDF"
                 >
                   <Search className="h-4 w-4" aria-hidden />
                 </button>
@@ -430,7 +430,7 @@ export function AnalysisView({
           </>
         ) : null}
         {segments.length === 0 ? (
-          <div className="text-xs text-zinc-500">No supporting sentences found.</div>
+          <div className="text-xs text-zinc-500">No supporting source sentences found.</div>
         ) : (
           segments.map((segment, idx) => {
             const prevEnd = idx > 0 ? segments[idx - 1].endId : null;
@@ -440,7 +440,7 @@ export function AnalysisView({
                 {showGap && (
                   <>
                     {'\n'}
-                    <span className="text-xs text-zinc-400">⋯ gap</span>
+                    <span className="text-xs text-zinc-400">omitted source text</span>
                     {'\n'}
                   </>
                 )}
@@ -477,7 +477,7 @@ export function AnalysisView({
             setDraft(value);
             setEditing(true);
           }}
-          title="Double click to edit (temporary)"
+          title="Double-click to edit locally"
         >
           {value}
         </div>
@@ -512,7 +512,7 @@ export function AnalysisView({
   const [supportingSegmentOverrides, setSupportingSegmentOverrides] = useState<Record<number, string>>({});
 
   useEffect(() => {
-    // Supporting text segments change with audience tab / new results.
+    // Supporting source segments change with audience tab / new results.
     // Clear temporary edits to avoid applying overrides to the wrong segment indices.
     setSupportingAbstractOverride(null);
     setSupportingSegmentOverrides({});
@@ -525,7 +525,7 @@ export function AnalysisView({
     return (
       <div className="text-sm leading-6">
         <div className="text-xs text-zinc-500">
-          Debug view. Double click any block to edit (temporary).
+          Review source text used for this audience view. Double-click any block to edit locally.
         </div>
         <div className="mt-3 rounded-md border bg-white p-4">
           <div className="font-semibold text-zinc-700">Abstract</div>
@@ -538,9 +538,9 @@ export function AnalysisView({
         </div>
 
         <div className="mt-3 rounded-md border bg-white p-4">
-          <div className="font-semibold text-zinc-700">Supporting segments</div>
+          <div className="font-semibold text-zinc-700">Supporting source segments</div>
           {segments.length === 0 ? (
-            <div className="mt-2 text-sm text-zinc-500">No supporting sentences found.</div>
+            <div className="mt-2 text-sm text-zinc-500">No supporting source sentences found.</div>
           ) : (
             <div className="mt-3 flex flex-col gap-3">
               {segments.map((segment, idx) => {
@@ -700,11 +700,11 @@ export function AnalysisView({
     }
     if (statusPhase !== phase) return null;
     if (currentStatus.kind === 'idle') {
-      return result ? null : 'Upload a .tex file to begin';
+      return result ? null : 'Upload a LaTeX source file to begin';
     }
-    if (currentStatus.kind === 'uploading') return 'Uploading…';
+    if (currentStatus.kind === 'uploading') return 'Uploading source…';
     if (currentStatus.kind === 'analyzing') {
-      const base = currentStatus.message ?? 'Processing…';
+      const base = currentStatus.message ?? 'Analyzing…';
       if (phase === 'pass1' && processingWindows.length > 0) {
         return (
           <>
@@ -714,7 +714,7 @@ export function AnalysisView({
       }
       return base;
     }
-    if (currentStatus.kind === 'error') return `Error: ${currentStatus.message}`;
+    if (currentStatus.kind === 'error') return `Analysis failed: ${currentStatus.message}`;
     return null;
   };
 
@@ -725,13 +725,13 @@ export function AnalysisView({
   const canonicalHeaderStatus =
     status.kind === 'analyzing' && status.phase === 'pass3' ? pass3Status : pass2Status;
 
-  // Show a clear transition message right after Pass 1 completes.
+  // Show a clear transition message right after sentence labeling completes.
   const textPanelHeaderStatus =
     status.kind === 'analyzing' && status.phase === 'pass2'
-      ? 'Pass 1 complete — structuring into canonical sections…'
+      ? 'Sentence labeling complete. Building the structured outline…'
       : pass1Status;
 
-  // Show canonical sections only once pass 1 is complete.
+  // Show canonical sections only once sentence labeling is complete.
   // (During streaming we may have a partial `result` early, so we gate on status.)
   const canShowCanonicalSections = useMemo(() => {
     if (!result?.sentences || result.sentences.length === 0) return false;
@@ -803,10 +803,10 @@ export function AnalysisView({
                     : 'bg-[color:var(--ink)] px-3 py-1.5 text-[color:var(--accent)]'
                 }
                 href="/analysis"
-                aria-label="Workbench"
-                title="Workbench"
+                aria-label="Review"
+                title="Review"
               >
-                Workbench
+                Review
               </Link>
               {canViewAudience ? (
                 isAudiencePage && !showSummaries ? (
@@ -846,8 +846,8 @@ export function AnalysisView({
               ) : (
                 <span
                   className="px-3 py-1.5 text-zinc-300"
-                  aria-label="Summaries unavailable"
-                  title="Summaries unavailable"
+                  aria-label="Summaries not ready yet"
+                  title="Summaries not ready yet"
                 >
                   Summaries
                 </span>
@@ -874,7 +874,7 @@ export function AnalysisView({
             <>
               <section className="flex flex-col gap-4">
                 <p className="text-sm text-[color:var(--muted)]">
-                  Switch between audiences to see tailored explanations.
+                  Choose a reader view to inspect its summary, evidence, and reading path.
                 </p>
                 <AudienceViewsCard
                   result={result}
@@ -910,7 +910,7 @@ export function AnalysisView({
                 focusSentenceIndex={focusSentenceIndex}
                 totalSentences={sentenceOrder.length || undefined}
                 variant="full"
-                supportingTitle="Supporting"
+                supportingTitle="Supporting source"
                 supportingContent={supportingTextView}
                 defaultView={texEnabled ? 'pdf' : 'supporting'}
                 showCompile={texEnabled}
@@ -923,11 +923,11 @@ export function AnalysisView({
             className="rounded-2xl border border-[color:var(--border)] bg-white/80 px-4 py-4"
           >
             <summary className="cursor-pointer text-sm font-semibold text-[color:var(--muted)]">
-              Review mode
+              Source review
             </summary>
             <div className="mt-4">
               <div className="text-sm text-[color:var(--muted)]">
-                Use this view to verify the structure and labels that power the summaries.
+                Inspect the source labels and structured outline behind the summaries.
               </div>
               <div className="mt-4">
                 <TextPanel
@@ -1005,11 +1005,10 @@ export function AnalysisView({
           <section className="flex flex-col gap-4">
             <div className="rounded-2xl border border-[color:var(--border)] bg-white/70 p-4 text-sm text-[color:var(--muted)]">
               <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">
-                Workbench
+                Review
               </div>
               <div className="mt-2 text-sm text-[color:var(--ink)]">
-                This view is for inspection and verification. Use it to confirm structure and
-                labels before sharing summaries.
+                Review labels, evidence, and outline structure before using the summaries.
               </div>
             </div>
             <TextPanel
