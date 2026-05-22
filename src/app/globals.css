@@ -16,14 +16,14 @@
 @theme inline {
   --color-background: var(--paper);
   --color-foreground: var(--ink);
-  --font-sans: var(--font-ibm-plex-sans);
-  --font-serif: var(--font-stix-two-text);
-  --font-mono: var(--font-jetbrains-mono);
+  --font-sans: var(--font-inter);
+  --font-serif: var(--font-poppins);
+  --font-mono: var(--font-source-code-pro);
 }
 
 body {
   background:
-    url('/fourfold-row.svg') no-repeat top right,
+    url('/projections-row.svg') no-repeat top right,
     linear-gradient(90deg, rgba(0, 0, 0, 0.045) 1px, transparent 1px),
     linear-gradient(180deg, #fff8dc 0%, #f6c520 170%);
   color: var(--ink);

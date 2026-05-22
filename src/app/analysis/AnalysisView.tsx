@@ -577,7 +577,7 @@ export function AnalysisView({
     }));
 
     const lines: string[] = [];
-    lines.push(`% FourFold supporting export`);
+    lines.push(`% Projections supporting export`);
     lines.push(`% Audience tab: ${audienceTab}`);
     lines.push(`% Document: ${documentTitle}`);
     lines.push('');

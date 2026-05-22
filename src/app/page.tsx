@@ -44,7 +44,7 @@ export default function Home() {
                 className="mt-5 text-6xl font-semibold leading-[0.95] text-[color:var(--accent)] sm:text-7xl"
                 style={{ fontFamily: 'var(--font-serif)' }}
               >
-                FourFold
+                Projections
               </h1>
               <p className="mt-6 max-w-2xl text-lg leading-8 text-[#ffe784]">
                 Turn a LaTeX paper into grounded summaries for domain experts, adjacent

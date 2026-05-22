@@ -36,13 +36,13 @@ function formatParagraphs(value: string) {
 }
 
 function renderList(items: string[]) {
-  if (!items || items.length === 0) return '<p class="fourfold-empty">None.</p>';
+  if (!items || items.length === 0) return '<p class="projections-empty">None.</p>';
   const lis = items.map((item) => `<li>${escapeHtml(item)}</li>`).join('\n');
   return `<ul>${lis}</ul>`;
 }
 
 function renderGroundedList(items: Array<{ text: string }>) {
-  if (!items || items.length === 0) return '<p class="fourfold-empty">None.</p>';
+  if (!items || items.length === 0) return '<p class="projections-empty">None.</p>';
   const lis = items.map((item) => `<li>${escapeHtml(item.text)}</li>`).join('\n');
   return `<ul>${lis}</ul>`;
 }
@@ -58,15 +58,15 @@ function textGroundedList(items: Array<{ text: string }>) {
 }
 
 const BASE_CSS = `
-.fourfold-audience { font-family: "Georgia", "Times New Roman", serif; color: #111827; line-height: 1.6; }
-.fourfold-audience h2 { font-size: 1.4rem; margin: 0 0 0.5rem; }
-.fourfold-audience h3 { font-size: 1.05rem; margin: 1.2rem 0 0.4rem; }
-.fourfold-audience h4 { font-size: 0.95rem; margin: 0.8rem 0 0.35rem; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; }
-.fourfold-audience p { margin: 0.2rem 0 0.6rem; }
-.fourfold-audience ul { margin: 0.2rem 0 0.8rem 1.2rem; padding: 0; }
-.fourfold-audience li { margin: 0 0 0.35rem; }
-.fourfold-meta { font-size: 0.9rem; color: #6b7280; margin-bottom: 1rem; }
-.fourfold-empty { color: #9ca3af; font-style: italic; }
+.projections-audience { font-family: "Inter", sans-serif; color: #111827; line-height: 1.6; }
+.projections-audience h2 { font-family: "Poppins", sans-serif; font-size: 1.4rem; margin: 0 0 0.5rem; }
+.projections-audience h3 { font-family: "Poppins", sans-serif; font-size: 1.05rem; margin: 1.2rem 0 0.4rem; }
+.projections-audience h4 { font-size: 0.95rem; margin: 0.8rem 0 0.35rem; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; }
+.projections-audience p { margin: 0.2rem 0 0.6rem; }
+.projections-audience ul { margin: 0.2rem 0 0.8rem 1.2rem; padding: 0; }
+.projections-audience li { margin: 0 0 0.35rem; }
+.projections-meta { font-size: 0.9rem; color: #6b7280; margin-bottom: 1rem; }
+.projections-empty { color: #9ca3af; font-style: italic; }
 `.trim();
 
 export function buildAudienceExport(params: {
@@ -91,9 +91,9 @@ export function buildAudienceExport(params: {
   const titleLine = `${documentTitle}\nAudience view: ${label}\n`;
 
   let text = `${titleLine}\n`;
-  let body = `<section class="fourfold-audience">\n`;
+  let body = `<section class="projections-audience">\n`;
   body += `<header>\n<h2>${escapeHtml(documentTitle)}</h2>\n`;
-  body += `<div class="fourfold-meta">Audience view: ${escapeHtml(label)}</div>\n</header>\n`;
+  body += `<div class="projections-meta">Audience view: ${escapeHtml(label)}</div>\n</header>\n`;
 
   if (audienceTab === 'A') {
     const v = views.domain_expert;

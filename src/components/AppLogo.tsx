@@ -17,7 +17,7 @@ export function AppLogo({ className }: { className?: string }) {
                 className="text-lg font-semibold tracking-tight text-[color:var(--ink)]"
                 style={{ fontFamily: 'var(--font-serif)' }}
             >
-                FourFold
+                Projections
             </span>
         </Link>
     );

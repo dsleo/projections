@@ -1,10 +1,10 @@
-# FourFold
+# Projections
 
-FourFold turns a LaTeX research paper into audience-specific summaries that stay grounded in the source text.
+Projections turns a LaTeX research paper into audience-specific summaries that stay grounded in the source text.
 
-![FourFold black and yellow home screen](public/fourfold-black-yellow.png)
+![Projections black and yellow home screen](public/projections-black-yellow.png)
 
-Upload a `.tex` manuscript and FourFold produces:
+Upload a `.tex` manuscript and Projections produces:
 
 - **Four audience views**: Domain Expert, Adjacent-field Researcher, Grad Student, and Future Author Self.
 - **A canonical outline**: Problem/Motivation, Landscape, Contributions, Technical Core, and Consequences.
@@ -14,7 +14,7 @@ Upload a `.tex` manuscript and FourFold produces:
 
 ## Who It Is For
 
-FourFold is built for researchers, reviewers, and technical readers who need to quickly retell the same paper for different levels of expertise without losing the connection to the original text.
+Projections is built for researchers, reviewers, and technical readers who need to quickly retell the same paper for different levels of expertise without losing the connection to the original text.
 
 It is especially useful when you want to:
 
