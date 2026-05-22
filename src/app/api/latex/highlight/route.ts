@@ -1,40 +1,12 @@
-import { execFile } from 'node:child_process';
-import { promises as fs } from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
-import { promisify } from 'node:util';
 
 import type { Sentence } from '@/lib/pipeline/client';
+import { compileLatexToPdf, formatLatexCompileError } from '@/lib/latex/compile';
 import { highlightLatex } from '@/lib/latex/highlight';
 import { saveCompilation } from '@/lib/latex/compileStore';
 import { isTexEnabled } from '@/lib/features';
 
 export const runtime = 'nodejs';
-
-const execFileAsync = promisify(execFile);
-
-async function compileLatex(source: string) {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'latex-highlight-'));
-  const texPath = path.join(tmpDir, 'main.tex');
-  const pdfPath = path.join(tmpDir, 'main.pdf');
-  const synctexPath = path.join(tmpDir, 'main.synctex.gz');
-  const engine = process.env.TEX_ENGINE ?? 'tectonic';
-
-  try {
-    await fs.writeFile(texPath, source);
-    await execFileAsync(
-      engine,
-      ['-X', 'compile', '--synctex', '--outdir', tmpDir, texPath],
-      { timeout: 120_000 }
-    );
-    await fs.access(pdfPath);
-    await fs.access(synctexPath);
-    return { tmpDir, pdfPath, synctexPath, texPath };
-  } catch (err) {
-    await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => null);
-    throw err;
-  }
-}
 
 export async function POST(req: Request) {
   let source = '';
@@ -74,7 +46,7 @@ export async function POST(req: Request) {
       });
     }
     source = highlightLatex(original, sentences, sentenceIds, envs);
-    const compiled = await compileLatex(source);
+    const compiled = await compileLatexToPdf(source, 'latex-highlight-');
     const token = await saveCompilation({
       dir: compiled.tmpDir,
       pdfPath: compiled.pdfPath,
@@ -87,10 +59,7 @@ export async function POST(req: Request) {
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (e: unknown) {
-    let msg = e instanceof Error ? e.message : 'Highlighted PDF compile failed';
-    if (e && typeof e === 'object' && 'code' in e && (e as { code?: string }).code === 'ENOENT') {
-      msg = 'TeX engine not found. Install tectonic or set TEX_ENGINE.';
-    }
+    const msg = formatLatexCompileError(e, 'Highlighted PDF compile failed');
     const debug: { line?: number; excerpt?: string } = {};
     if (typeof msg === 'string') {
       const match = msg.match(/main\.tex:(\d+)/);
