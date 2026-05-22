@@ -1,113 +1,123 @@
-## FourFold, transform your scientific paper into audience-specific summaries
+# FourFold
 
-FourFold is a small web app for researchers that helps you *re-express the same paper for different readers*.
+FourFold turns a LaTeX research paper into audience-specific summaries that stay grounded in the source text.
 
 ![FourFold black and yellow home screen](public/fourfold-black-yellow.png)
 
-Upload a LaTeX  paper and FourFold will generate:
+Upload a `.tex` manuscript and FourFold produces:
 
-- **4 audience views**: Domain Expert, Adjacent-field Researcher, Grad Student, and “Future Author Self”.
-- **A canonical structure** of the paper (5 sections: Problem/Motivation, Landscape, Contributions, Technical Core, Consequences).
-- **Grounding**: generated outputs reference the paper’s sentences via stable sentence IDs.
-- **Optional PDF preview + highlighting**: compile the LaTeX and produce a highlighted PDF for the selected supporting sentences (local by default).
+- **Four audience views**: Domain Expert, Adjacent-field Researcher, Grad Student, and Future Author Self.
+- **A canonical outline**: Problem/Motivation, Landscape, Contributions, Technical Core, and Consequences.
+- **Traceable grounding**: generated claims reference stable sentence IDs from the paper.
+- **Review controls**: inspect labels, edit canonical sections, regenerate audience views, and export summaries.
+- **Optional PDF support**: compile the source locally and highlight supporting sentences when TeX tooling is available.
 
-### Who is this for?
+## Who It Is For
 
-- **Researchers** who want to quickly produce variants of the same story: for a lab mate, an advisor, or a broader research audience.
-- **Reviewers / readers** who want a fast, structured understanding of a paper.
-- **Contributors** who want to iterate on a grounded “discourse → sections → audience views” pipeline.
+FourFold is built for researchers, reviewers, and technical readers who need to quickly retell the same paper for different levels of expertise without losing the connection to the original text.
 
----
+It is especially useful when you want to:
+
+- prepare different explanations for a labmate, advisor, or adjacent-field collaborator;
+- turn a dense paper into a structured first-pass reading guide;
+- verify whether generated summaries are actually supported by source sentences;
+- recover the main story of your own paper later.
 
 ## Quickstart
 
-1) Install dependencies
+Install dependencies:
 
 ```bash
 npm i
 ```
 
-2) Configure environment
+Create a local environment file:
 
 ```bash
 cp .env.example .env.local
 ```
 
-Set `OPENAI_API_KEY`.
+Set the required API key:
 
-Default model is `gpt-5-mini` (override with `OPENAI_MODEL`).
+```bash
+OPENAI_API_KEY=...
+```
 
-3) Run
+The default model is `gpt-5-mini`. Override it with:
+
+```bash
+OPENAI_MODEL=...
+```
+
+Run the app:
 
 ```bash
 npm run dev
 ```
 
-Open http://localhost:3000
+Open [http://localhost:3000](http://localhost:3000).
 
----
+## How It Works
 
-## How it works - at a  high level
+The pipeline is intentionally simple and inspectable:
 
-The pipeline is intentionally simple and grounded:
+1. **Preprocess and segment** the LaTeX source into stable sentence IDs while preserving offsets back to the original text.
+2. **Pass 1** classifies sentence windows with rhetorical labels: Problem, Landscape, Contribution, Technical Core, and Consequences.
+3. **Pass 2** builds the five-part canonical outline from the labeled sentences.
+4. **Pass 3** generates the four audience views from the canonical outline.
+5. **Grounding validation** filters generated sentence references so audience summaries only point to IDs present in the canonical evidence.
 
-- **Pass 1**: deterministically segment the paper into sentences, build sliding windows, and run parallel multi-label discourse classification.
-- **Pass 2**: build 5 canonical sections (Problem/Motivation, Landscape, Contributions, Technical Core, Consequences), grounded with sentence IDs.
-- **Pass 3**: generate 4 audience views (Domain Expert, Adjacent-field Researcher, Grad Student, Author Self), grounded with sentence IDs.
+The analysis page also exposes a review mode so you can inspect the labeled source, canonical outline, citations, and generated audience summaries before sharing exports.
 
-### Production deployment (no TeX)
+## PDF And Highlighting
 
-Vercel does not provide a TeX engine binary (like `tectonic`) in the runtime. For that reason, **TeX → PDF compilation is disabled by default in production**. Locally: you can keep PDF compilation (install `tectonic`).
+PDF compilation is optional. The core summary pipeline does not require TeX binaries.
 
-To force-enable TeX compilation (only on runtimes that support native binaries), set:
+In local development, TeX compilation is enabled by default and expects `tectonic` in your `PATH`. In production, compilation is disabled by default because typical serverless runtimes do not include native TeX tooling.
+
+To force-enable TeX compilation in a compatible production runtime:
 
 ```bash
 NEXT_PUBLIC_ENABLE_TEX=1
 ```
 
-### PDF preview with Tectonic
-
-The side-by-side PDF preview uses the Tectonic TeX engine to compile the uploaded `.tex` file. You need the `tectonic` binary available in your PATH.
-
-Recommended installs:
-
-**macOS (Homebrew)**
+Recommended `tectonic` install options:
 
 ```bash
 brew install tectonic
 ```
 
-**Linux / macOS (official install script)**
-
-```bash
-curl --proto '=https' --tlsv1.2 -fsSL https://drop-sh.fullyjustified.net | sh
-```
-
-**Windows (PowerShell)**
-
-```powershell
-[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
-iex ((New-Object System.Net.WebClient).DownloadString('https://drop-ps1.fullyjustified.net'))
-```
-
-**Conda (cross-platform)**
-
 ```bash
 conda install -c conda-forge tectonic
 ```
 
-Verify the install:
+The compile endpoints use:
 
 ```bash
-tectonic --help
+tectonic -X compile --synctex
 ```
 
-> Note: the compile endpoint currently uses `tectonic -X compile --synctex ...`
-> (Tectonic-specific flags). If you want to use a different TeX engine, update
-> `src/app/api/latex/compile/route.ts` accordingly.
+For current highlighting behavior and limitations, see [docs/highlighting.md](docs/highlighting.md).
 
-### Highlighting notes
+## Development
 
-Implementation details, tradeoffs, and known limitations live in:
+Run checks before pushing changes:
 
-- `docs/highlighting.md`
+```bash
+npm run lint
+npm test
+npm run build
+```
+
+Useful files:
+
+- [src/lib/pipeline](src/lib/pipeline) contains segmentation, labeling, canonical-section generation, and audience generation.
+- [src/app/api](src/app/api) contains the analysis and LaTeX API routes.
+- [src/components](src/components) contains the review, upload, PDF, and audience-view UI.
+- [src/lib/latex](src/lib/latex) contains TeX compilation, PDF storage, SyncTeX, and highlighting helpers.
+
+## Notes
+
+- Input is currently `.tex` only.
+- Generated summaries are grounded by sentence IDs, but still need human review before publication or citation.
+- PDF highlighting is best effort and intentionally avoids some display-math cases to keep LaTeX compilation stable.
