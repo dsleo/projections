@@ -38,7 +38,7 @@ export default function Home() {
           <div className="mx-auto grid min-h-[72vh] w-full max-w-6xl grid-cols-1 items-center gap-10 px-6 py-14 lg:grid-cols-[minmax(0,0.95fr)_minmax(360px,0.65fr)]">
             <div className="max-w-3xl">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--accent)]">
-                Research summary workbench
+                LaTeX in. Summaries out.
               </div>
               <h1
                 className="mt-5 text-6xl font-semibold leading-[0.95] text-[color:var(--accent)] sm:text-7xl"
@@ -46,21 +46,20 @@ export default function Home() {
               >
                 Projections
               </h1>
-              <p className="mt-6 max-w-2xl text-lg leading-8 text-[#ffe784]">
-                Turn a LaTeX manuscript into grounded summaries for experts, adjacent
-                researchers, students, and future you.
+              <p className="mt-6 max-w-xl text-2xl leading-9 text-[#ffe784]">
+                Upload a paper. Get grounded reader views.
               </p>
             </div>
 
             <div className="border-l-4 border-[color:var(--accent)] bg-[color:var(--accent)] p-6 text-[color:var(--ink)] shadow-2xl shadow-black/30">
               <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--muted)]">
-                Start with your source
+                Start here
               </div>
               <div
                 className="mt-2 text-2xl font-semibold text-[color:var(--ink)]"
                 style={{ fontFamily: 'var(--font-serif)' }}
               >
-                Upload a LaTeX manuscript
+                Upload LaTeX
               </div>
               <div className="mt-5">
                 <UploadCard
@@ -89,16 +88,16 @@ export default function Home() {
           <div className="grid w-full grid-cols-1 gap-4 text-left sm:grid-cols-3">
             {[
               {
-                title: 'Summaries for specific readers',
-                body: 'Expert, adjacent-field, student, and author-focused views.',
+                title: 'Four reader views',
+                body: 'Expert, adjacent, student, and author notes.',
               },
               {
-                title: 'Grounded in the manuscript',
-                body: 'Claims stay tied to the sentences that support them.',
+                title: 'Sentence-backed',
+                body: 'Every claim points back to source text.',
               },
               {
-                title: 'Reading paths included',
-                body: 'Recommendations show what to read closely, skim, or skip.',
+                title: 'Reading paths',
+                body: 'Read, skim, or skip with intent.',
               },
             ].map((item) => (
               <div

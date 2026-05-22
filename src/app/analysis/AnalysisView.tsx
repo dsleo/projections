@@ -874,7 +874,7 @@ export function AnalysisView({
             <>
               <section className="flex flex-col gap-4">
                 <p className="text-sm text-[color:var(--muted)]">
-                  Choose a reader view to inspect its summary, evidence, and reading path.
+                  Pick a reader view. Check the evidence when needed.
                 </p>
                 <AudienceViewsCard
                   result={result}
@@ -927,7 +927,7 @@ export function AnalysisView({
             </summary>
             <div className="mt-4">
               <div className="text-sm text-[color:var(--muted)]">
-                Inspect the source labels and structured outline behind the summaries.
+                Inspect labels and outline.
               </div>
               <div className="mt-4">
                 <TextPanel
@@ -1008,7 +1008,7 @@ export function AnalysisView({
                 Review
               </div>
               <div className="mt-2 text-sm text-[color:var(--ink)]">
-                Review labels, evidence, and outline structure before using the summaries.
+                Review labels, evidence, and outline.
               </div>
             </div>
             <TextPanel

@@ -30,7 +30,7 @@ export function UploadCard({
             className="flex min-w-[240px] max-w-[420px] cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed bg-white px-4 py-3 text-sm text-zinc-700 hover:bg-zinc-50"
             tabIndex={0}
             role="button"
-            aria-label="Choose a LaTeX source file"
+            aria-label="Choose LaTeX file"
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
@@ -45,7 +45,7 @@ export function UploadCard({
               ref={inputRef}
               onChange={(e) => onFileChange(e.target.files?.[0] ?? null)}
             />
-            <span className="truncate">{file ? file.name : 'Choose LaTeX source'}</span>
+            <span className="truncate">{file ? file.name : 'Choose .tex file'}</span>
           </label>
         </div>
         {showStatus && status.kind !== 'idle' && (

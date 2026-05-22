@@ -112,11 +112,11 @@ export function ProgressDashboardCard({
     <div className="flex flex-col gap-4">
       <div className="rounded-3xl border border-[color:var(--border)] bg-white/80 p-6 shadow-sm">
         <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">
-          Preparing grounded summaries
+          Building summaries
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <div className="text-2xl font-semibold text-[color:var(--ink)]">
-            Audience summaries
+            Summaries
           </div>
           {badgeText && (
             <span className={`rounded-full border px-2 py-0.5 text-[11px] ${badgeClass}`}>
