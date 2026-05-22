@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
 import { Search } from 'lucide-react';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -43,9 +42,14 @@ import { isTexEnabled } from '@/lib/features';
 
 type AnalysisMode = 'core' | 'audience';
 
-export function AnalysisView({ mode }: { mode: AnalysisMode }) {
+export function AnalysisView({
+  mode,
+  initialShowSummaries = false,
+}: {
+  mode: AnalysisMode;
+  initialShowSummaries?: boolean;
+}) {
   const isAudiencePage = mode === 'audience';
-  const searchParams = useSearchParams();
   const texEnabled = isTexEnabled();
   const [showCorePdf, setShowCorePdf] = useState(false);
   const [showSummaries, setShowSummaries] = useState(false);
@@ -99,10 +103,10 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
   useEffect(() => {
     if (!isAudiencePage) return;
     if (!result?.audience_views) return;
-    if (searchParams?.get('show') === '1') {
+    if (initialShowSummaries) {
       setShowSummaries(true);
     }
-  }, [isAudiencePage, result?.audience_views, searchParams]);
+  }, [isAudiencePage, result?.audience_views, initialShowSummaries]);
 
   useEffect(() => {
     if (!isAudiencePage) return;
@@ -263,9 +267,8 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
     processingWindows.some((w) => position >= w.start && position < w.end);
 
   const originalLatex = result?.original_latex ?? '';
-  const sentenceList = result?.sentences ?? [];
-
   const renderedOriginalText = useMemo(() => {
+    const sentenceList = result?.sentences ?? [];
     if (!sentenceList.length) return null;
     const text = originalLatex;
     if (!text) return [{ text, sentence: null as Sentence | null }];
@@ -286,7 +289,7 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
       segments.push({ text: text.slice(cursor), sentence: null });
     }
     return segments;
-  }, [originalLatex, sentenceList]);
+  }, [originalLatex, result?.sentences]);
 
   const labelCounts = useMemo<Record<DiscourseLabel, number>>(() => {
     const counts: Record<DiscourseLabel, number> = {
@@ -786,18 +789,18 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
 
   return (
     <div className="min-h-screen text-zinc-900">
-      <header className="border-b border-[color:var(--border)] bg-white/80 backdrop-blur">
+      <header className="border-b border-[color:var(--border)] bg-[color:var(--paper)]/95">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-4">
           <div className="flex items-center gap-4">
             <AppLogo />
           </div>
           <div className="flex items-center gap-3">
-            <div className="inline-flex rounded-full border border-[color:var(--border)] bg-white p-1 text-sm text-[color:var(--muted)]">
+            <div className="inline-flex border border-[color:var(--ink)] bg-[color:var(--accent)] p-1 text-sm text-[color:var(--ink)]">
               <Link
                 className={
                   isAudiencePage
-                    ? 'rounded-full px-3 py-1.5 hover:bg-[color:var(--accent-soft)]'
-                    : 'rounded-full bg-[color:var(--ink)] px-3 py-1.5 text-white'
+                    ? 'px-3 py-1.5 hover:bg-[color:var(--accent-soft)]'
+                    : 'bg-[color:var(--ink)] px-3 py-1.5 text-[color:var(--accent)]'
                 }
                 href="/analysis"
                 aria-label="Workbench"
@@ -808,7 +811,7 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
               {canViewAudience ? (
                 isAudiencePage && !showSummaries ? (
                   <button
-                    className="rounded-full bg-[color:var(--ink)] px-3 py-1.5 text-white"
+                    className="bg-[color:var(--ink)] px-3 py-1.5 text-[color:var(--accent)]"
                     type="button"
                     onClick={() => setShowSummaries(true)}
                     aria-label="Summaries"
@@ -816,7 +819,7 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
                   >
                     <span className="inline-flex items-center gap-2">
                       Summaries
-                      <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] text-emerald-700">
+                      <span className="rounded-full border border-[color:var(--ink)] bg-[color:var(--accent)] px-2 py-0.5 text-[11px] text-[color:var(--ink)]">
                         Ready
                       </span>
                     </span>
@@ -825,8 +828,8 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
                   <Link
                     className={
                       isAudiencePage
-                        ? 'rounded-full bg-[color:var(--ink)] px-3 py-1.5 text-white'
-                        : 'rounded-full px-3 py-1.5 hover:bg-[color:var(--accent-soft)]'
+                        ? 'bg-[color:var(--ink)] px-3 py-1.5 text-[color:var(--accent)]'
+                        : 'px-3 py-1.5 hover:bg-[color:var(--accent-soft)]'
                     }
                     href="/analysis/audience?show=1"
                     aria-label="Summaries"
@@ -834,7 +837,7 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
                   >
                     <span className="inline-flex items-center gap-2">
                       Summaries
-                      <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] text-emerald-700">
+                      <span className="rounded-full border border-[color:var(--ink)] bg-[color:var(--accent)] px-2 py-0.5 text-[11px] text-[color:var(--ink)]">
                         Ready
                       </span>
                     </span>
@@ -842,7 +845,7 @@ export function AnalysisView({ mode }: { mode: AnalysisMode }) {
                 )
               ) : (
                 <span
-                  className="rounded-full px-3 py-1.5 text-zinc-300"
+                  className="px-3 py-1.5 text-zinc-300"
                   aria-label="Summaries unavailable"
                   title="Summaries unavailable"
                 >

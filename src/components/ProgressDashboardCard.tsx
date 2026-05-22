@@ -104,9 +104,12 @@ export function ProgressDashboardCard({
         ? 'Uploading your TeX source…'
         : 'Preparing your summaries…';
 
-  const accentClass = completed ? 'bg-emerald-600' : 'bg-[color:var(--accent)]';
+  const accentClass = completed ? 'bg-[color:var(--ink)]' : 'bg-[color:var(--accent)]';
   const badgeText = completed ? 'Completed' : null;
-  const badgeClass = completed ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : '';
+  const badgeClass = completed
+    ? 'border-[color:var(--ink)] bg-[color:var(--accent)] text-[color:var(--ink)]'
+    : '';
+  const inFlightWindows = processingWindows.length;
 
   return (
     <div className="flex flex-col gap-4">
@@ -127,7 +130,7 @@ export function ProgressDashboardCard({
             <button
               type="button"
               onClick={onViewSummaries}
-              className="ml-auto inline-flex items-center rounded-full border border-emerald-200 bg-emerald-600 px-4 py-2 text-sm text-white shadow-sm transition hover:opacity-90 animate-pulse"
+              className="ml-auto inline-flex items-center rounded-full border border-[color:var(--ink)] bg-[color:var(--ink)] px-4 py-2 text-sm text-[color:var(--accent)] shadow-sm transition hover:opacity-90 animate-pulse"
             >
               View summaries
             </button>
@@ -135,6 +138,9 @@ export function ProgressDashboardCard({
         </div>
         <div className="mt-2 text-sm text-[color:var(--muted)]">
           {completed ? 'Summaries ready.' : statusLine}
+          {!completed && phase === 'pass1' && inFlightWindows > 0
+            ? ` ${inFlightWindows} window${inFlightWindows === 1 ? '' : 's'} in flight.`
+            : ''}
         </div>
 
         {!completed && (
