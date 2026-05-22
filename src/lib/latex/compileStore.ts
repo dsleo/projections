@@ -13,6 +13,8 @@ type CompileEntry = {
 
 const TTL_MS = 1000 * 60 * 60; // 1 hour
 const baseDir = path.join(os.tmpdir(), 'discourse-pipeline-tex');
+const TOKEN_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 async function ensureBaseDir() {
   await fs.mkdir(baseDir, { recursive: true }).catch(() => null);
@@ -24,10 +26,16 @@ async function cleanupExpired() {
   const now = Date.now();
   await Promise.all(
     entries.map(async (token) => {
+      if (!TOKEN_RE.test(token)) return;
       const metaPath = path.join(baseDir, token, 'meta.json');
       const metaRaw = await fs.readFile(metaPath, 'utf8').catch(() => null);
       if (!metaRaw) return;
-      const meta = JSON.parse(metaRaw) as CompileEntry;
+      let meta: CompileEntry;
+      try {
+        meta = JSON.parse(metaRaw) as CompileEntry;
+      } catch {
+        return;
+      }
       if (now - meta.createdAt > TTL_MS) {
         await fs.rm(meta.dir, { recursive: true, force: true }).catch(() => null);
         await fs.rm(path.join(baseDir, token), { recursive: true, force: true }).catch(() => null);
@@ -54,19 +62,29 @@ export async function saveCompilation(entry: Omit<CompileEntry, 'createdAt'>) {
 }
 
 export async function getCompilation(token: string) {
+  if (!TOKEN_RE.test(token)) return null;
   await cleanupExpired();
   const metaPath = path.join(baseDir, token, 'meta.json');
   const metaRaw = await fs.readFile(metaPath, 'utf8').catch(() => null);
   if (!metaRaw) return null;
-  return JSON.parse(metaRaw) as CompileEntry;
+  try {
+    return JSON.parse(metaRaw) as CompileEntry;
+  } catch {
+    return null;
+  }
 }
 
 export async function deleteCompilation(token: string) {
+  if (!TOKEN_RE.test(token)) return;
   const metaPath = path.join(baseDir, token, 'meta.json');
   const metaRaw = await fs.readFile(metaPath, 'utf8').catch(() => null);
   if (metaRaw) {
-    const meta = JSON.parse(metaRaw) as CompileEntry;
-    await fs.rm(meta.dir, { recursive: true, force: true }).catch(() => null);
+    try {
+      const meta = JSON.parse(metaRaw) as CompileEntry;
+      await fs.rm(meta.dir, { recursive: true, force: true }).catch(() => null);
+    } catch {
+      // Ignore malformed metadata; the token directory is removed below.
+    }
   }
   await fs.rm(path.join(baseDir, token), { recursive: true, force: true }).catch(() => null);
 }

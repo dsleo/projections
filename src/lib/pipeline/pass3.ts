@@ -18,6 +18,7 @@ import type { Logger } from '../logging';
 import type {
     CanonicalSections,
     CitationMap,
+    GroundedCitationItem,
     Pass3Views,
     Sentence,
     SentenceCitationMap,
@@ -84,6 +85,100 @@ function formatCanonicalWithCitations(sections: CanonicalSections): string {
     return lines.join('\n');
 }
 
+function collectAllowedSentenceIds(sections: CanonicalSections): Set<number> {
+    const ids = new Set<number>();
+    const add = (values: number[]) => values.forEach((id) => ids.add(id));
+
+    for (const item of sections.problem_and_motivation.central_problems) add(item.sentence_ids);
+    for (const item of sections.problem_and_motivation.origins) add(item.sentence_ids);
+    for (const item of sections.problem_and_motivation.nontriviality) add(item.sentence_ids);
+    for (const item of sections.landscape.known_results) add(item.sentence_ids);
+    for (const item of sections.landscape.limitations) add(item.sentence_ids);
+    for (const item of sections.landscape.competing_approaches) add(item.sentence_ids);
+    for (const item of sections.contributions.contributions) {
+        add(item.sentence_ids);
+        add(item.prior_state.sentence_ids);
+        add(item.novelty.sentence_ids);
+        add(item.nontriviality.sentence_ids);
+    }
+    for (const item of sections.technical_core.key_ideas) add(item.sentence_ids);
+    for (const item of sections.technical_core.technical_obstacles) add(item.sentence_ids);
+    for (const item of sections.technical_core.reusable_constructions) add(item.sentence_ids);
+    for (const item of sections.consequences.open_questions) add(item.sentence_ids);
+    for (const item of sections.consequences.speculative_extensions) add(item.sentence_ids);
+
+    return ids;
+}
+
+function sanitizeGroundedItem(
+    item: GroundedCitationItem,
+    allowedIds: Set<number>
+): GroundedCitationItem {
+    const sentence_ids = Array.from(new Set(item.sentence_ids.filter((id) => allowedIds.has(id))));
+    return {
+        ...item,
+        sentence_ids,
+        text: sentence_ids.length > 0 ? item.text : '',
+    };
+}
+
+function sanitizeGroundedList(
+    items: GroundedCitationItem[],
+    allowedIds: Set<number>
+): GroundedCitationItem[] {
+    return items
+        .map((item) => sanitizeGroundedItem(item, allowedIds))
+        .filter((item) => item.sentence_ids.length > 0 && item.text.trim().length > 0);
+}
+
+function sanitizePass3Views(views: Pass3Views, sections: CanonicalSections): Pass3Views {
+    const allowedIds = collectAllowedSentenceIds(sections);
+    return {
+        domain_expert: {
+            ...views.domain_expert,
+            problem_statement: sanitizeGroundedItem(
+                views.domain_expert.problem_statement,
+                allowedIds
+            ),
+            delta_summary: sanitizeGroundedList(views.domain_expert.delta_summary, allowedIds),
+            technical_highlights: {
+                nonstandard_ideas: sanitizeGroundedList(
+                    views.domain_expert.technical_highlights.nonstandard_ideas,
+                    allowedIds
+                ),
+                clever_reductions: sanitizeGroundedList(
+                    views.domain_expert.technical_highlights.clever_reductions,
+                    allowedIds
+                ),
+            },
+            reusable_components: sanitizeGroundedList(
+                views.domain_expert.reusable_components,
+                allowedIds
+            ),
+        },
+        adjacent_researcher: {
+            ...views.adjacent_researcher,
+            problem_statement: sanitizeGroundedItem(
+                views.adjacent_researcher.problem_statement,
+                allowedIds
+            ),
+            why_matters: sanitizeGroundedList(views.adjacent_researcher.why_matters, allowedIds),
+        },
+        grad_student: {
+            ...views.grad_student,
+            problem_statement: sanitizeGroundedItem(
+                views.grad_student.problem_statement,
+                allowedIds
+            ),
+            key_ideas: sanitizeGroundedList(views.grad_student.key_ideas, allowedIds),
+        },
+        author_self: {
+            ...views.author_self,
+            problem_statement: sanitizeGroundedItem(views.author_self.problem_statement, allowedIds),
+        },
+    };
+}
+
 export async function runPass3(
     sections: CanonicalSections,
     opts: Pass3Options
@@ -144,5 +239,8 @@ export async function runPass3(
     const [domain_expert, adjacent_researcher, grad_student, author_self] =
         await Promise.all([expertTask, adjacentTask, studentTask, authorTask]);
 
-    return { domain_expert, adjacent_researcher, grad_student, author_self };
+    return sanitizePass3Views(
+        { domain_expert, adjacent_researcher, grad_student, author_self },
+        sections
+    );
 }

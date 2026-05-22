@@ -174,6 +174,14 @@ export function useAnalyzeStream({ file, useEnvPropagation }: Params) {
           setCompletedWindows((prev) => prev + 1);
         }
 
+        if (event === 'pass1_window_error') {
+          const start = (dataObj?.start as number | undefined) ?? 0;
+          const end = (dataObj?.end as number | undefined) ?? 0;
+          setProcessingWindows((prev) =>
+            prev.filter((w) => !(w.start === start && w.end === end))
+          );
+        }
+
         if (event === 'labels_delta') {
           const delta = (dataObj?.delta as AnalysisResult['labels'] | undefined) ?? {};
           labels = { ...labels, ...delta };
