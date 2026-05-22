@@ -1,13 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --paper: #f8f6f1;
-  --ink: #1c1b1a;
-  --accent: #2b5c8a;
-  --accent-soft: #e4eef7;
-  --border: #e5e0d6;
-  --muted: #6b6762;
-  --highlight: #f1ede2;
+  --paper: #fff8dc;
+  --paper-deep: #f6c520;
+  --ink: #000000;
+  --forest: #000000;
+  --forest-deep: #171717;
+  --accent: #f6c520;
+  --accent-soft: #fff1a8;
+  --border: #d6b32d;
+  --muted: #5d5226;
+  --highlight: #fff4b8;
 }
 
 @theme inline {
@@ -20,12 +23,12 @@
 
 body {
   background:
-    radial-gradient(circle at 10% 20%, rgba(43, 92, 138, 0.08), transparent 50%),
-    radial-gradient(circle at 80% 0%, rgba(43, 92, 138, 0.05), transparent 45%),
-    linear-gradient(180deg, #faf9f5 0%, #f5f2ea 100%);
+    url('/fourfold-row.svg') no-repeat top right,
+    linear-gradient(90deg, rgba(0, 0, 0, 0.045) 1px, transparent 1px),
+    linear-gradient(180deg, #fff8dc 0%, #f6c520 170%);
   color: var(--ink);
   font-family: var(--font-sans);
-  letter-spacing: 0.1px;
+  background-size: 520px auto, 28px 28px, auto;
 }
 
 ::selection {

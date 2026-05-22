@@ -8,7 +8,7 @@ export function AppLogo({ className }: { className?: string }) {
             href="/"
             className={
                 className ??
-                'inline-flex items-center rounded-md px-2 py-1 hover:bg-[color:var(--accent-soft)]'
+                'inline-flex items-center px-2 py-1 hover:bg-[color:var(--accent-soft)]'
             }
             aria-label="Go to homepage"
             title="Go to homepage"

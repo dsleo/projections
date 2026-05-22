@@ -99,6 +99,7 @@ export async function POST(req: Request) {
                 const concurrency = 6;
                 let idx = 0;
                 const inFlight = new Set<Promise<void>>();
+                const failedWindows: Array<{ start: number; end: number; error: string }> = [];
 
                 const startWindow = (w: (typeof windows)[number]) => {
                     send('pass1_window_start', { start: w.start, end: w.end });
@@ -121,10 +122,17 @@ export async function POST(req: Request) {
                                 send('labels_delta', { delta });
                             }
                         } catch (e) {
+                            const error = e instanceof Error ? e.message : String(e);
+                            failedWindows.push({ start: w.start, end: w.end, error });
+                            send('pass1_window_error', {
+                                start: w.start,
+                                end: w.end,
+                                error,
+                            });
                             send('log', {
                                 level: 'error',
                                 msg: 'pass1_window:error',
-                                error: e instanceof Error ? e.message : String(e),
+                                error,
                             });
                         }
                     })();
@@ -156,6 +164,14 @@ export async function POST(req: Request) {
                     while (inFlight.size < concurrency && idx < windows.length) {
                         startWindow(windows[idx++]);
                     }
+                }
+
+                if (failedWindows.length > 0) {
+                    throw new Error(
+                        `Pass 1 failed for ${failedWindows.length} window${
+                            failedWindows.length === 1 ? '' : 's'
+                        }. Please retry the analysis.`
+                    );
                 }
 
                 const labelsRaw: SentenceLabelMap = {};

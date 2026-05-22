@@ -174,6 +174,15 @@ export function CanonicalSectionsCard({
                 disabled={!result?.sections}
                 size="sm"
               />
+              {dirty && onRerunPass3 && (
+                <IconButton
+                  icon={RefreshCw}
+                  label="Regenerate audiences"
+                  onClick={onRerunPass3}
+                  disabled={!result || status.kind === 'analyzing' || status.kind === 'uploading'}
+                  size="sm"
+                />
+              )}
             </span>
           </span>
           {headerStatus && (
