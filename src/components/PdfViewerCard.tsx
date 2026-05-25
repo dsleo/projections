@@ -29,6 +29,7 @@ type Props = {
   totalSentences?: number;
   variant?: 'default' | 'full';
   showCompile?: boolean;
+  unavailableMessage?: string;
 };
 
 type PdfDocument = {
@@ -112,6 +113,7 @@ export function PdfViewerCard({
   totalSentences,
   variant = 'default',
   showCompile = true,
+  unavailableMessage,
 }: Props) {
   const [doc, setDoc] = useState<PdfDocument | null>(null);
   const [pageCount, setPageCount] = useState(0);
@@ -143,6 +145,10 @@ export function PdfViewerCard({
       setActiveView('pdf');
     }
   }, [showSupporting, activeView]);
+
+  useEffect(() => {
+    setActiveView(defaultView);
+  }, [defaultView]);
 
   useEffect(() => {
     let cancelled = false;
@@ -295,7 +301,7 @@ export function PdfViewerCard({
       {activeView === 'pdf' && (
         <>
           <div className="mt-2 text-base text-zinc-500">
-            {status.kind === 'idle' && 'No PDF has been compiled yet.'}
+            {status.kind === 'idle' && (unavailableMessage ?? 'No PDF has been compiled yet.')}
             {status.kind === 'compiling' && 'Compiling with the local TeX engine…'}
             {status.kind === 'error' && (
               <span className="text-red-700">PDF compilation failed: {status.message}</span>
@@ -304,7 +310,7 @@ export function PdfViewerCard({
           <div className="mt-3 flex-1 rounded-md border bg-zinc-50 overflow-auto max-h-[75vh]">
             {!pdfUrl && (
               <div className="flex h-full items-center justify-center text-base text-zinc-400">
-                No PDF has been compiled yet.
+                {unavailableMessage ?? 'No PDF has been compiled yet.'}
               </div>
             )}
             {pdfUrl && doc && (

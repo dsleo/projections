@@ -73,7 +73,7 @@ export default function Home() {
               {result?.audience_views && (
                 <div className="mt-5">
                   <Link
-                    href="/analysis/audience?show=1"
+                    href="/analysis/audience"
                     className="inline-flex items-center border border-[color:var(--ink)] bg-[color:var(--ink)] px-4 py-2 text-sm text-[color:var(--accent)] hover:bg-[color:var(--forest-deep)]"
                   >
                     View summaries

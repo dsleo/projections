@@ -44,15 +44,12 @@ type AnalysisMode = 'core' | 'audience';
 
 export function AnalysisView({
   mode,
-  initialShowSummaries = false,
 }: {
   mode: AnalysisMode;
-  initialShowSummaries?: boolean;
 }) {
   const isAudiencePage = mode === 'audience';
   const texEnabled = isTexEnabled();
   const [showCorePdf, setShowCorePdf] = useState(false);
-  const [showSummaries, setShowSummaries] = useState(false);
   const [canonicalDirty, setCanonicalDirty] = useState(false);
   const {
     file,
@@ -66,6 +63,7 @@ export function AnalysisView({
     onAnalyze,
   } = useAnalysis();
   const canViewAudience = Boolean(result?.audience_views);
+  const shouldShowAudienceSummaries = isAudiencePage && canViewAudience;
   const [pdfMode, setPdfMode] = useState<'original' | 'audience'>('original');
   const [activeTab, setActiveTab] = useState<
     'problem' | 'landscape' | 'contrib' | 'tech' | 'cons' | 'cites'
@@ -99,14 +97,6 @@ export function AnalysisView({
       setPdfMode('original');
     }
   }, [isAudiencePage]);
-
-  useEffect(() => {
-    if (!isAudiencePage) return;
-    if (!result?.audience_views) return;
-    if (initialShowSummaries) {
-      setShowSummaries(true);
-    }
-  }, [isAudiencePage, result?.audience_views, initialShowSummaries]);
 
   useEffect(() => {
     if (!isAudiencePage) return;
@@ -809,40 +799,23 @@ export function AnalysisView({
                 Review
               </Link>
               {canViewAudience ? (
-                isAudiencePage && !showSummaries ? (
-                  <button
-                    className="bg-[color:var(--ink)] px-3 py-1.5 text-[color:var(--accent)]"
-                    type="button"
-                    onClick={() => setShowSummaries(true)}
-                    aria-label="Summaries"
-                    title="Summaries"
-                  >
-                    <span className="inline-flex items-center gap-2">
-                      Summaries
-                      <span className="rounded-full border border-[color:var(--ink)] bg-[color:var(--accent)] px-2 py-0.5 text-[11px] text-[color:var(--ink)]">
-                        Ready
-                      </span>
+                <Link
+                  className={
+                    isAudiencePage
+                      ? 'bg-[color:var(--ink)] px-3 py-1.5 text-[color:var(--accent)]'
+                      : 'px-3 py-1.5 hover:bg-[color:var(--accent-soft)]'
+                  }
+                  href="/analysis/audience"
+                  aria-label="Summaries"
+                  title="Summaries"
+                >
+                  <span className="inline-flex items-center gap-2">
+                    Summaries
+                    <span className="rounded-full border border-[color:var(--ink)] bg-[color:var(--accent)] px-2 py-0.5 text-[11px] text-[color:var(--ink)]">
+                      Ready
                     </span>
-                  </button>
-                ) : (
-                  <Link
-                    className={
-                      isAudiencePage
-                        ? 'bg-[color:var(--ink)] px-3 py-1.5 text-[color:var(--accent)]'
-                        : 'px-3 py-1.5 hover:bg-[color:var(--accent-soft)]'
-                    }
-                    href="/analysis/audience?show=1"
-                    aria-label="Summaries"
-                    title="Summaries"
-                  >
-                    <span className="inline-flex items-center gap-2">
-                      Summaries
-                      <span className="rounded-full border border-[color:var(--ink)] bg-[color:var(--accent)] px-2 py-0.5 text-[11px] text-[color:var(--ink)]">
-                        Ready
-                      </span>
-                    </span>
-                  </Link>
-                )
+                  </span>
+                </Link>
               ) : (
                 <span
                   className="px-3 py-1.5 text-zinc-300"
@@ -859,7 +832,7 @@ export function AnalysisView({
 
       {isAudiencePage ? (
         <main className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-6">
-          {!canViewAudience || !showSummaries ? (
+          {!shouldShowAudienceSummaries ? (
             <ProgressDashboardCard
               status={status}
               totalWindows={totalWindows}
@@ -868,7 +841,6 @@ export function AnalysisView({
               sentencesCount={sentencesCount}
               readyToView={canViewAudience}
               completed={canViewAudience}
-              onViewSummaries={() => setShowSummaries(true)}
             />
           ) : (
             <>
@@ -914,6 +886,11 @@ export function AnalysisView({
                 supportingContent={supportingTextView}
                 defaultView={texEnabled ? 'pdf' : 'supporting'}
                 showCompile={texEnabled}
+                unavailableMessage={
+                  texEnabled
+                    ? undefined
+                    : 'PDF preview is unavailable in this deployment because TeX compilation is disabled. Use Supporting source instead.'
+                }
                 onDownloadSupportingTex={handleDownloadSupportingTex}
               />
             </>
